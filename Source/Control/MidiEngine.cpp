@@ -215,6 +215,12 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
     lastText = device + "  ·  "_u + m.getDescription();
     lastTime = juce::Time::getMillisecondCounter();
 
+    if (capture != nullptr)
+    {
+        capture (device, m);
+        return;
+    }
+
     if (learning.has_value())
     {
         const bool press = (m.isNoteOn() && m.getVelocity() > 0) || (m.isController() && m.getControllerValue() > 0) || m.isPitchWheel();

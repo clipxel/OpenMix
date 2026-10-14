@@ -62,6 +62,11 @@ public:
     /** Replaces every binding of `device` with `mapping` (its device field is rewritten) and saves. */
     void installMapping (const juce::String& device, const std::vector<MidiBinding>& mapping);
 
+    /** Capture: every incoming message goes to this handler instead of triggering actions (mapping
+        wizard). Pass nullptr to go back to normal. Message thread. */
+    void setCapture (std::function<void (const juce::String& device, const juce::MidiMessage&)> handler) { capture = std::move (handler); }
+    bool isCapturing() const noexcept { return capture != nullptr; }
+
     /** MIDI Learn: the next control moved on any device is bound to this action. */
     void startLearn (const juce::String& action, int deck, bool shift, std::function<void (const MidiBinding&)> done);
     void cancelLearn();
@@ -103,6 +108,7 @@ private:
     std::map<size_t, Takeover> takeover;
     std::map<juce::String, bool> ledSent;                  // device|ch|num → last state
 
+    std::function<void (const juce::String&, const juce::MidiMessage&)> capture;
     struct Learn { juce::String action; int deck; bool shift; std::function<void (const MidiBinding&)> done; };
     std::optional<Learn> learning;
 

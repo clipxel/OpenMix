@@ -36,11 +36,14 @@ public:
     /** Snapshot mode: open a settings section (and controllers tab) for the picture. */
     void showSettingsForSnapshot (int section, int tab)
     {
-        settingsPanel.setControllers (nullptr, &actions, &keyboard);
+        if (section == om::SettingsPanel::controllers && tab == 0 && midi == nullptr)
+            midi = std::make_unique<om::MidiEngine> (actions);       // the MIDI page needs the engine (no devices touched)
+        settingsPanel.setControllers (midi.get(), &actions, &keyboard);
         settingsPanel.setBounds (getLocalBounds());
         settingsPanel.show (section);
         if (section == om::SettingsPanel::controllers) settingsPanel.showControllerTab (tab);
     }
+    void openMappingWizardForSnapshot()          { settingsPanel.openMappingWizard(); }
     void prepareSnapshot (const juce::File& a, const juce::File& b, std::function<void()> done,
                           const juce::String& devicePlaylist = {});
 

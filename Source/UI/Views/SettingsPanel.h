@@ -6,6 +6,7 @@
 #include "../../Library/Library.h"
 #include "../../Control/MidiEngine.h"
 #include "../../Control/ControllerLibrary.h"
+#include "MappingWizardView.h"
 #include "../../Control/KeyboardControl.h"
 #include "KeyboardMapView.h"
 #include "AudioSettingsView.h"
@@ -25,6 +26,8 @@ public:
 
     void show (int section);
     void showControllerTab (int tab)               { ctrlTab.setSelected (tab); setSection (controllers); }
+    /** Snapshots: open the mapping wizard. */
+    void openMappingWizard()                       { if (wizardBtn.onClick) wizardBtn.onClick(); }
     void setControllers (MidiEngine*, Actions*, KeyboardControl*);
     void setControllerLibrary (ControllerLibrary*);
     std::function<void()> onControllerOnlineChanged;
@@ -74,13 +77,15 @@ private:
     void layoutControllers (juce::Rectangle<int>);
     MidiEngine* midi = nullptr;
     ControllerLibrary* controllerLib = nullptr;
+    Button wizardBtn { "Mapear con asistente" };
+    std::unique_ptr<MappingWizardView> wizardView;
     Button driverBtn { juce::String(), Icon::none };
     juce::String driverPage;
-    juce::ToggleButton onlineToggle { "Al conectar un controlador, buscar su mapeo en internet (solo se descarga la lista pública de mapeos)" };
+    juce::ToggleButton onlineToggle { juce::String::fromUTF8 ("Al conectar un controlador, buscar su mapeo en internet (solo se descarga la lista pública de mapeos)") };
     Actions* actions = nullptr;
     KeyboardControl* keyboard = nullptr;
     Segmented ctrlTab { { "MIDI", "TECLADO" } };
-    juce::ToggleButton vinylToggle { "Modo vinilo en ambos decks (cada deck tiene su botón VINYL)" }, learnShift { "Capa SHIFT" };
+    juce::ToggleButton vinylToggle { juce::String::fromUTF8 ("Modo vinilo en ambos decks (cada deck tiene su botón VINYL)") }, learnShift { "Capa SHIFT" };
     Button learnBtn { "Aprender control", Icon::plus }, cancelLearnBtn { "Cancelar" };
     std::unique_ptr<BindingList> bindingList;
     std::unique_ptr<KeyboardMapView> keyMap;

@@ -167,8 +167,25 @@ void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* 
     bindingBox.setColour (juce::ListBox::backgroundColourId, colour (Col::bgField));
     addChildComponent (bindingBox);
 
-    for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn })
+    for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &wizardBtn })
         addChildComponent (c);
+
+    if (midi != nullptr && actions != nullptr)
+    {
+        wizardView = std::make_unique<MappingWizardView> (*midi, *actions);
+        addChildComponent (*wizardView);
+        wizardView->onClosed = [this] { wizardView->setVisible (false); resized(); repaint(); };
+        wizardBtn.useAccentWhenLit();
+        wizardBtn.setToggleState (true, juce::dontSendNotification);
+        wizardBtn.onClick = [this]
+        {
+            if (midi) midi->cancelLearn();
+            wizardView->start();
+            wizardView->setVisible (true);
+            wizardView->toFront (false);
+            resized();
+        };
+    }
 
     if (keyboard != nullptr && actions != nullptr)
     {
@@ -265,6 +282,9 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     }
     learnShift.setVisible (midiTab);
     learnBtn.setVisible (midiTab);
+    wizardBtn.setVisible (midiTab && wizardView != nullptr);
+    if (wizardView != nullptr && wizardView->isVisible() && ! (midiTab && section == controllers))
+        wizardView->setVisible (false);
     cancelLearnBtn.setVisible (midiTab && midi != nullptr && midi->isLearning());
     bindingBox.setVisible (midiTab);
     if (keyMap != nullptr) keyMap->setVisible (! midiTab && section == controllers);
@@ -289,12 +309,19 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     auto row = c.removeFromTop (Size::controlMd);
     learnBtn.setBounds (row.removeFromLeft (170));
     row.removeFromLeft (Space::md);
+    if (wizardView != nullptr)
+    {
+        wizardBtn.setBounds (row.removeFromRight (190));
+        row.removeFromRight (Space::md);
+    }
     learnShift.setBounds (row.removeFromLeft (120));
     row.removeFromLeft (Space::md);
     cancelLearnBtn.setBounds (row.removeFromLeft (90));
     c.removeFromTop (Space::xl + 2);
     ctrlListArea = c;
     bindingBox.setBounds (c);
+    if (wizardView != nullptr && wizardView->isVisible())
+        wizardView->setBounds (c.removeFromTop (juce::jmin (c.getHeight(), 230)));
 }
 
 void SettingsPanel::show (int s)
@@ -328,6 +355,8 @@ void SettingsPanel::setSection (int s)
     for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &bindingBox })
         c->setVisible (s == controllers);
     onlineToggle.setVisible (s == controllers && ctrlTab.getSelected() == 0 && controllerLib != nullptr);
+    wizardBtn.setVisible (s == controllers && ctrlTab.getSelected() == 0 && wizardView != nullptr);
+    if (wizardView != nullptr && s != controllers && wizardView->isVisible()) { wizardView->setVisible (false); midi->setCapture (nullptr); }
     if (controllerLib != nullptr) onlineToggle.setToggleState (controllerLib->onlineLookup(), juce::dontSendNotification);
     if (keyMap != nullptr) keyMap->setVisible (s == controllers && ctrlTab.getSelected() == 1);
     vinylToggle.setToggleState (engine.deck (0).isVinylMode() && engine.deck (1).isVinylMode(), juce::dontSendNotification);

@@ -3,6 +3,7 @@
 #include "../Control/Actions.h"
 #include "../Control/MidiEngine.h"
 #include "../Control/ControllerLibrary.h"
+#include "../Control/MappingWizard.h"
 #include "../Library/Library.h"
 #include "../Library/UsbExport.h"
 #include "../Library/VolumeCueStore.h"
@@ -2033,7 +2034,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         const auto unknown = lib.resolveNow ("Unknown Box");
         rep.check (unknown.status == ControllerLibrary::Status::noMapping && ! midi.hasBindingsFor ("Unknown Box")
                    && ! site.getParentDirectory().getParentDirectory().getChildFile ("escape.json").existsAsFile(),
-                   "Controlador desconocido: queda sin mapeo (y un índice malicioso no escribe fuera de la caché)");
+                   "Controlador desconocido: queda sin mapeo (y un índice malicioso no escribe fuera de la caché)"_u);
 
         auto own = midi.bindings();
         MidiBinding mine = p; mine.device = "My Own Box"; mine.number = 40;
@@ -2049,7 +2050,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         driverMarker.deleteFile();
         rep.check (pagesBefore == juce::StringArray { "https://example.com/drivers/x" } && pagesAfter.isEmpty()
                    && ! Library::dataFolder().getChildFile ("controllers").getChildFile ("drivers").exists(),
-                   "Si falta el driver, recomienda la página oficial (y deja de hacerlo al instalarlo); no descarga nada");
+                   "Si falta el driver, recomienda la página oficial (y deja de hacerlo al instalarlo); no descarga nada"_u);
 
         // Offline: the site is gone; a reconnect still works from the cache.
         site.deleteRecursively();
@@ -2060,6 +2061,92 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         rep.check (re.status == ControllerLibrary::Status::mapped && re.profileName == "Controlador de prueba X",
                    "Sin internet, un controlador ya instalado se reconoce igual", re.profileName);
         ControllerLibrary::setIndexUrlOverride ({});
+    }
+
+    std::cout << "== Asistente de mapeo" << std::endl;
+    {
+        // A simulated controller: deck 1 on MIDI channel 1, deck 2 the same on channel 2.
+        auto runWizard = [&actions] (MappingWizard& w, int deck2Channel, int deck2CueNote)
+        {
+            double t = 0.0;
+            using M = juce::MidiMessage;
+            auto press = [&] (int ch, int note) { w.feed (M::noteOn (ch, note, (juce::uint8) 127), t += 0.3); w.feed (M::noteOff (ch, note), t += 0.05); };
+            auto turn = [&] (int ch, int cc, std::initializer_list<int> values) { for (int v : values) w.feed (M::controllerEvent (ch, cc, v), t += 0.02); w.poll (t += 1.0); };
+            juce::ignoreUnused (actions);
+            int guard = 0;
+            while (w.phase() != MappingWizard::Phase::finished && ++guard < 200)
+            {
+                using P = MappingWizard::Phase;
+                if (w.phase() == P::deckTwoProbe) { press (deck2Channel, 11); continue; }
+                if (w.phase() == P::deckTwoCheck) { press (deck2Channel, deck2CueNote); continue; }
+                const auto* st = w.current();
+                if (st == nullptr) break;
+                const int ch = w.phase() == P::deckTwoManual ? deck2Channel : 1;
+                const auto a = st->action;
+                if (a == "play_pause") press (ch, 11);
+                else if (a == "cue_button") press (ch, 12);
+                else if (a == "sync") press (ch, 13);
+                else if (a.startsWith ("hot_cue_")) press (ch, 19 + a.getTrailingIntValue());
+                else if (a == "loop") press (ch, 30);
+                else if (a == "loop_half") press (ch, 31);
+                else if (a == "loop_double") press (ch, 32);
+                else if (a == "load") press (ch, 40);
+                else if (a == "pfl") press (ch, 50);
+                else if (a == "jog") turn (ch, 33, { 65, 65, 66, 63, 63, 62 });
+                else if (a == "pitch") { for (int v = 0; v < 120; v += 8) { w.feed (M::controllerEvent (ch, 0, v), t += 0.01); w.feed (M::controllerEvent (ch, 32, 64), t += 0.01); } w.poll (t += 1.0); }
+                else if (a == "gain") turn (ch, 4, { 60, 70, 80 });
+                else if (a == "eq_high") turn (ch, 7, { 60, 70, 80 });
+                else if (a == "eq_mid") turn (ch, 11, { 60, 70, 80 });
+                else if (a == "eq_low") turn (ch, 15, { 60, 70, 80 });
+                else if (a == "filter") turn (ch, 23, { 60, 70, 80 });
+                else if (a == "volume") turn (ch, 19, { 20, 60, 100 });
+                else if (a == "crossfader") turn (7, 31, { 10, 64, 120 });
+                else if (a == "browser_scroll") turn (7, 64, { 1, 1, 127, 127 });
+                else if (a == "shift") press (1, 63);
+                else w.skip();                                   // master / headphones: this controller has none
+            }
+            return guard < 200;
+        };
+
+        MappingWizard w (actions, "Unmapped Box");
+        const bool done = runWizard (w, 2, 12);
+        const auto& out = w.bindings();
+        auto find = [&out] (const char* action, int deck) -> const MidiBinding*
+        {
+            for (auto& mb : out) if (mb.action == action && mb.deck == deck) return &mb;
+            return nullptr;
+        };
+        const int deck1 = (int) std::count_if (out.begin(), out.end(), [] (const MidiBinding& mb) { return mb.deck == 0; });
+        const int deck2 = (int) std::count_if (out.begin(), out.end(), [] (const MidiBinding& mb) { return mb.deck == 1; });
+        rep.check (done && w.phase() == MappingWizard::Phase::finished && deck1 == 24 && deck2 == deck1
+                   && w.deckChannelOffset() == 1 && w.deckNumberOffset() == 0,
+                   "Asistente: se mapea solo el deck izquierdo y el derecho se deduce (canal +1)",
+                   juce::String (deck1) + " + " + juce::String (deck2) + " controles");
+
+        const auto* jogB = find ("jog", 0);
+        const auto* pitchB = find ("pitch", 1);
+        const auto* browseB = find ("browser_scroll", -1);
+        rep.check (jogB != nullptr && jogB->encoding == MidiBinding::Encoding::relativeOffset
+                   && pitchB != nullptr && pitchB->encoding == MidiBinding::Encoding::absolute14 && pitchB->lsbNumber == 32 && pitchB->channel == 2
+                   && browseB != nullptr && browseB->encoding == MidiBinding::Encoding::relativeTwos,
+                   "Asistente: reconoce jog relativo, fader de 14 bits y encoder en complemento a dos",
+                   (jogB ? juce::String ((int) jogB->encoding) : "-") + " / " + (pitchB ? juce::String ((int) pitchB->encoding) + " lsb " + juce::String (pitchB->lsbNumber) + " ch " + juce::String (pitchB->channel) : "-")
+                   + " / " + (browseB ? juce::String ((int) browseB->encoding) : "-"));
+
+        midi.installMapping ("Unmapped Box", out);
+        auto& dB = engine.deck (1);
+        dB.setPlaying (false);
+        midi.inject ("Unmapped Box", juce::MidiMessage::noteOn (2, 11, (juce::uint8) 127));
+        midi.inject ("Unmapped Box", juce::MidiMessage::noteOff (2, 11));
+        rep.check (dB.isPlaying(), "El mapeo del asistente funciona en el deck derecho sin haberlo mapeado a mano");
+        dB.setPlaying (false);
+
+        // Decks that are not mirror images: the check fails and deck 2 is asked control by control.
+        MappingWizard w2 (actions, "Odd Box");
+        const bool done2 = runWizard (w2, 2, 99);
+        const int odd2 = (int) std::count_if (w2.bindings().begin(), w2.bindings().end(), [] (const MidiBinding& mb) { return mb.deck == 1; });
+        rep.check (done2 && odd2 == 24, "Si los decks no son espejo, el asistente pide el deck derecho control por control",
+                   juce::String (odd2) + " controles del deck 2");
     }
 
     if (usbRoot.isDirectory())

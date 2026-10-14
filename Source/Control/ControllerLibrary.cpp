@@ -32,7 +32,7 @@ juce::File ControllerLibrary::cacheFolder()
 //==============================================================================
 juce::String ControllerLibrary::normalise (const juce::String& midiName)
 {
-    // "2- DDJ X MIDI 1", "DDJ X MIDI", "DDJ X" → "ddjx": port numbers, the Windows "n- " prefix and
+    // "2- Model X MIDI 1", "Model X MIDI", "Model X" → "modelx": port numbers, the Windows "n- " prefix and
     // generic words differ between systems; the model name does not.
     auto s = midiName.toLowerCase().trim();
     if (s.length() > 3 && juce::CharacterFunctions::isDigit (s[0]) && s.substring (1, 3) == "- ")
@@ -100,7 +100,7 @@ static juce::String download (const juce::URL& url, juce::String& error)
                                          .withStatusCode (&status));
     if (in == nullptr || (status != 0 && status != 200))
     {
-        error = in == nullptr ? juce::String ("Sin conexión") : "Error " + juce::String (status);
+        error = in == nullptr ? juce::String::fromUTF8 ("Sin conexión") : "Error " + juce::String (status);
         return {};
     }
     return in->readEntireStreamAsString();

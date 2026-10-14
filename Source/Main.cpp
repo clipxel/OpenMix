@@ -194,8 +194,12 @@ private:
         if (auto pg = arg ("--pads"); pg.isNotEmpty())
             snapshotComponent->showPadPageForSnapshot (pg.getIntValue());
         if (auto st = arg ("--settings"); st.isNotEmpty())
+        {
             snapshotComponent->showSettingsForSnapshot (st.upToFirstOccurrenceOf (":", false, false).getIntValue(),
                                                         st.fromFirstOccurrenceOf (":", false, false).getIntValue());
+            if (st.endsWith (":wizard"))
+                snapshotComponent->openMappingWizardForSnapshot();
+        }
         snapshotComponent->prepareSnapshot (juce::File (arg ("--load-a")), juce::File (arg ("--load-b")),
                                             [this, out, w, h]
         {
