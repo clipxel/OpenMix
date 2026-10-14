@@ -28,7 +28,7 @@ jobs:
       - name: Armar sitio estático (sin servidor ni datos)
         run: |
           mkdir -p _site
-          cp -R website/index.html website/mapeos.html website/foro.html website/assets website/config website/official _site/
+          cp -R website/index.html website/mapeos.html website/foro.html website/assets website/config website/official website/install.sh _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
