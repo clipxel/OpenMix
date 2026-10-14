@@ -32,14 +32,49 @@ void Actions::trigger (const juce::String& id, int deck, float value)
     it->second.run (deck, value);
 }
 
-bool Actions::ledState (const juce::String& id, int deck) const
+Actions::Led Actions::ledLevel (const juce::String& id, int deck) const
 {
     auto it = entries.find (id);
-    if (it == entries.end() || ! it->second.led)
-        return false;
+    if (it == entries.end() || ! (it->second.led || it->second.level))
+        return Led::off;
     if (it->second.info.perDeck && ! juce::isPositiveAndBelow (deck, AudioEngine::numDecks))
-        return false;
-    return it->second.led (deck);
+        return Led::off;
+    if (it->second.level)
+        return it->second.level (deck);
+    return it->second.led (deck) ? Led::on : Led::off;
+}
+
+bool Actions::blinkPhase (int deck) const
+{
+    if (juce::isPositiveAndBelow (deck, AudioEngine::numDecks))
+    {
+        auto& k = engine.deck (deck);
+        const auto grid = k.getGrid();
+        if (k.isPlaying() && grid.isValid())
+        {
+            const double beat = grid.beatAt (k.getPosition());
+            return beat - std::floor (beat) < 0.5;
+        }
+    }
+    return (juce::Time::getMillisecondCounter() / 250) % 2 == 0;
+}
+
+float Actions::meterLevel (int deck)
+{
+    auto& m = deck < 0 ? engine.masterMeter() : engine.channel (juce::jlimit (0, AudioEngine::numDecks - 1, deck)).meter;
+    auto& held = vu[(size_t) (deck < 0 ? 2 : juce::jlimit (0, 1, deck))];
+    const float peak = m.drainController();
+    const float db = juce::Decibels::gainToDecibels (peak, -60.0f);
+    const float now = juce::jlimit (0.0f, 1.0f, (db + 36.0f) / 36.0f);     // −36 dB … 0 dB
+    held = juce::jmax (now, held - 0.04f);                                 // smooth fall-off per frame
+    return held;
+}
+
+void Actions::setLevel (const juce::String& id, std::function<Led (int)> fn)
+{
+    auto it = entries.find (id);
+    if (it != entries.end())
+        it->second.level = std::move (fn);
 }
 
 float Actions::currentValue (const juce::String& id, int deck) const
@@ -252,7 +287,8 @@ void Actions::build()
     // Pads in the deck's current page (PAD 1–8 / PAD PAGE)
     for (int i = 0; i < 8; ++i)
         add ({ "pad_" + juce::String (i + 1), "Pad " + juce::String (i + 1) + " (página actual)"_u, "Pads", T::button },
-             [this, i] (int d, float v) { if (hooks.padPress) hooks.padPress (d, i, v > 0.5f); });
+             [this, i] (int d, float v) { if (hooks.padPress) hooks.padPress (d, i, v > 0.5f); },
+             [this, i] (int d) { return hooks.padLed && hooks.padLed (d, i) >= (int) Led::on; });
     add ({ "pad_page", "Página de pads siguiente"_u, "Pads", T::button },
          [this] (int d, float v) { if (v > 0.5f && hooks.padPage) hooks.padPage (d); });
 
@@ -350,6 +386,40 @@ void Actions::build()
          [this] (int) { return engine.recorder().isRecording(); });
 
     add ({ "shift", "Shift", "Global", T::button, false }, [] (int, float) {});
+
+    // Controller lights ------------------------------------------------------
+    add ({ "vu_meter", "Medidor del canal (luces)", "Luces", T::absolute }, [] (int, float) {});
+    add ({ "vu_master", "Medidor master (luces)", "Luces", T::absolute, false }, [] (int, float) {});
+    add ({ "end_warning", "Aviso de fin de tema (luz)", "Luces", T::button }, [] (int, float) {});
+    setLevel ("end_warning", [=] (int d)
+    {
+        auto& k = deck (d);
+        return k.isPlaying() && k.hasTrack() && k.getLength() - k.getPosition() < 30.0 ? Led::blink : Led::off;
+    });
+
+    // Same states as the screen: PLAY blinks while a loaded deck is paused, CUE blinks when pressing
+    // it would set a new cue point, PADs follow the deck's current pad page.
+    setLevel ("play_pause", [=] (int d)
+    {
+        auto& k = deck (d);
+        return k.isPlaying() ? Led::on : k.hasTrack() ? Led::blink : Led::off;
+    });
+    setLevel ("cue_button", [=] (int d)
+    {
+        auto& k = deck (d);
+        if (! k.hasTrack()) return Led::off;
+        if (k.isPlaying()) return Led::off;
+        return std::abs (k.getPosition() - k.getCuePoint()) < 0.02 ? Led::on : Led::blink;
+    });
+    for (auto* id : { "loop_in", "loop_out" })            // the loop being played: both ends blink
+        setLevel (id, [=] (int d) { return deck (d).isLoopActive() && ! deck (d).isRolling() ? Led::blink : Led::off; });
+    for (auto* id : { "loop_exit", "reloop" })
+        setLevel (id, [=] (int d) { return deck (d).isLoopActive() ? Led::on : Led::off; });
+    for (int i = 0; i < 8; ++i)
+        setLevel ("pad_" + juce::String (i + 1), [this, i] (int d)
+        {
+            return hooks.padLed ? (Led) juce::jlimit (0, 3, hooks.padLed (d, i)) : Led::off;
+        });
 }
 
 } // namespace om

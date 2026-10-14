@@ -48,6 +48,8 @@ public:
     /** Keyboard / MIDI: PAD 1–8 of the current pad page, and the next page. */
     void externalPad (int pad, bool down)          { if (down) padDown (pad, false); else padUp (pad); }
     void nextPadPage()                             { setPadMode ((PadMode) (((int) padMode + 1) % numPadModes)); }
+    /** Controller light of PAD 1–8 in the current page (Actions::Led: 0 off, 1 dim, 2 on, 3 blink). */
+    int padLed (int pad) const                     { return juce::isPositiveAndBelow (pad, 8) ? padLeds[(size_t) pad] : 0; }
 
     void paint (juce::Graphics&) override;
     void paintOverChildren (juce::Graphics&) override;
@@ -104,6 +106,7 @@ private:
     std::array<std::unique_ptr<Button>, numPadModes> padTabs;
     std::array<std::unique_ptr<Button>, 8> pads;
     PadMode padMode = PadMode::hotCue;
+    std::array<int, 8> padLeds {};
     // SAMPLES/RMX: X-PAD tone and roll speed, set before launching (the held-pad gesture adds to them)
     Knob padTone { "TONO", true }, padRoll { "VEL.", false }, padVol { "VOL", false };
 

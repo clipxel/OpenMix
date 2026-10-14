@@ -526,6 +526,7 @@ void DeckView::updatePads()
                 const auto n = juce::String (p + 1);
                 b.setButtonText (n);
                 b.setPadColour (t >= 0.0 ? C (Theme::hotCueColour (p)) : std::nullopt);
+                padLeds[(size_t) p] = ! hasTrack ? 0 : t >= 0.0 ? 2 : 0;
                 b.setSubText (t >= 0.0 ? formatTime (t) : juce::String());
                 b.setEnabled (hasTrack);
                 b.setTooltip (t >= 0.0 ? "Saltar al hot cue " + n + juce::String::fromUTF8 (" (⇧-clic o clic derecho: borrar)")
@@ -539,6 +540,7 @@ void DeckView::updatePads()
                 b.setButtonText (beatsLabel (size));
                 b.setSubText ("ROLL");
                 b.setPadColour (active ? C (accent()) : std::nullopt);
+                padLeds[(size_t) p] = ! hasGrid ? 0 : active ? 2 : 1;
                 b.setEnabled (hasGrid);
                 b.setTooltip (hasGrid ? "Loop roll de " + beatsLabel (size) + juce::String::fromUTF8 (" beat mientras se mantiene; al soltar sigue como si nada")
                                       : "Requiere BPM analizado");
@@ -551,6 +553,7 @@ void DeckView::updatePads()
                 b.setButtonText (beatsLabel (size));
                 b.setSubText ("BEATS");
                 b.setPadColour (active ? C (accent()) : std::nullopt);
+                padLeds[(size_t) p] = ! hasGrid ? 0 : active ? 3 : 1;
                 b.setEnabled (hasGrid);
                 b.setTooltip (hasGrid ? "Auto loop de " + beatsLabel (size) + " beats" : "Requiere BPM analizado");
                 break;
@@ -563,6 +566,7 @@ void DeckView::updatePads()
                 b.setButtonText ("L" + juce::String (p + 1));
                 b.setSubText (set ? formatTime (ls) : juce::String());
                 b.setPadColour (set ? C (active ? accent() : Theme::hotCueColour (p).withMultipliedSaturation (0.6f)) : std::nullopt);
+                padLeds[(size_t) p] = ! hasTrack || ! set ? 0 : active ? 3 : 2;
                 b.setEnabled (hasTrack);
                 b.setTooltip (set ? juce::String::fromUTF8 ("Activar / salir del loop guardado (⇧-clic: borrar)")
                                   : juce::String ("Guardar el loop actual en este pad"));
@@ -574,6 +578,7 @@ void DeckView::updatePads()
                 b.setButtonText ((p < 4 ? juce::String::fromUTF8 ("−") : juce::String ("+")) + beatsLabel (size));
                 b.setSubText ("BEATS");
                 b.setPadColour (std::nullopt);
+                padLeds[(size_t) p] = hasGrid ? 2 : 0;
                 b.setEnabled (hasGrid);
                 b.setTooltip (hasGrid ? juce::String::fromUTF8 ("Saltar ") + beatsLabel (size) + (p < 4 ? juce::String::fromUTF8 (" beats atrás") : juce::String (" beats adelante"))
                                       : "Requiere BPM analizado");
@@ -592,6 +597,7 @@ void DeckView::updatePads()
                                    : (p == RmxUnit::brake ? juce::String::fromUTF8 ("⇧ BACKSPIN") : juce::String ("SCENE")));
                 const auto base = drum ? Theme::hotCueColour (p) : accent();
                 b.setPadColour (rx.isLit (p) ? C (base) : C (base.withMultipliedAlpha (0.28f)));
+                padLeds[(size_t) p] = rx.isLit (p) ? 2 : 1;
                 b.setEnabled (true);
                 b.setTooltip (drum ? juce::String::fromUTF8 ("Suena apenas lo apretás. Mantené: roll en la grilla del tema (VEL.). Mientras lo mantenés, arrastrá arriba/abajo = tono, izquierda/derecha = velocidad del roll. Clic derecho: cargar sample")
                                    : p == RmxUnit::buildUp   ? juce::String::fromUTF8 ("Mantené: el tema sube durante 8 beats (filtro, ruido, cortes en tiempo y eco); soltá para el drop")

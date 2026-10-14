@@ -175,6 +175,7 @@ static int hex (const juce::String& s) { return s.trim().getHexValue32(); }
 Result fromCsv (const juce::String& text)
 {
     Result r;
+    bool anyOutput = false;      // a table without any output column: lights answer on the input message
     juce::StringArray lines;
     lines.addLines (text);
     for (auto line : lines)
@@ -189,10 +190,53 @@ Result fromCsv (const juce::String& text)
             continue;
 
         auto f = juce::StringArray::fromTokens (line, ",", "\"");
-        while (f.size() < 8) f.add ({});
+        while (f.size() < 11) f.add ({});
         const auto name = f[0].trim(), function = f[1].trim(), type = f[2].trim(), input = f[3].trim();
         if (type.isEmpty() || (function.isEmpty() && name.isEmpty()))
             continue;
+
+        // The light of a control: column 8 is its output message (+ per-deck channel offsets in
+        // 9–10), or 9–10 hold one full code per deck. −1: the control has no light.
+        auto outCode = [&f] (int deck)
+        {
+            const auto out = f[8].trim();
+            if (out.isNotEmpty())
+                return deck >= 0 && f[9 + deck].trim().isNotEmpty() ? hex (out) + (f[9 + deck].trim().getIntValue() << 8) : hex (out);
+            return deck >= 0 && f[9 + deck].trim().isNotEmpty() ? hex (f[9 + deck]) : -1;
+        };
+        auto setLight = [] (MidiBinding& b, int code)
+        {
+            const int status = (code >> 8) & 0xFF;
+            b.outChannel = (status & 0x0F) + 1;
+            b.outKind = (status & 0xF0) == 0xB0 ? MidiBinding::Kind::cc : MidiBinding::Kind::note;
+            b.outNumber = code & 0x7F;
+        };
+
+        anyOutput |= f[8].trim().isNotEmpty() || f[9].trim().isNotEmpty() || f[10].trim().isNotEmpty();
+
+        if (type == "Indicator")       // lights without a control
+        {
+            const juce::String light = name == "ChannelLevel" ? "vu_meter" : name == "LoadedIndicator" ? "load"
+                                     : name == "GetLoopActive" ? "loop" : name == "EndWarningIndicator" ? "end_warning" : "";
+            if (light.isEmpty())
+                continue;
+            for (int d = 0; d < 2; ++d)
+            {
+                const int code = outCode (d);
+                if (code < 0 || ((code >> 8) & 0xF0) != 0x90 && ((code >> 8) & 0xF0) != 0xB0)
+                    continue;
+                MidiBinding b;
+                setLight (b, code);
+                b.channel = b.outChannel; b.kind = b.outKind; b.number = b.outNumber;
+                b.outChannel = 0; b.outNumber = -1;
+                b.action = light;
+                b.deck = d;
+                b.outputOnly = true;
+                b.encoding = light == "vu_meter" ? MidiBinding::Encoding::absolute7 : MidiBinding::Encoding::button;
+                r.bindings.push_back (b);
+            }
+            continue;
+        }
         const auto functionOrName = function.isNotEmpty() ? function : name;   // some tables leave "function" blank
 
         auto parts = juce::StringArray::fromTokens (functionOrName, "+", "");
@@ -260,6 +304,12 @@ Result fromCsv (const juce::String& text)
             b.shift = shift && ! action.startsWith ("delete_hot_cue_");   // shifted pads send their own notes
             b.deck = fixedDeck >= 0 ? fixedDeck : deck;
             if (action == "jog") b.scale = 1.0f / 512.0f;
+            if (b.encoding == MidiBinding::Encoding::button)
+            {
+                const int oc = outCode (deck);
+                if (oc < 0)          b.ledOut = false;
+                else if (oc != code) setLight (b, oc);
+            }
             r.bindings.push_back (b);
         }
     }
@@ -273,6 +323,8 @@ Result fromCsv (const juce::String& text)
     for (auto& b : r.bindings)
         if (b.shift && plain.count (key (b)) == 0)
             b.shift = false;
+    if (! anyOutput)
+        for (auto& b : r.bindings) b.ledOut = true;
     return r;
 }
 
@@ -657,6 +709,74 @@ Result fromPreset (const juce::String& xmlText)
         if (! taken.insert (key).second) continue;
         r.bindings.push_back (b);
     }
+
+    // Lights the preset lists explicitly (<outputs>): the message and on/off values of each one.
+    if (auto* outputs = controller->getChildByName ("outputs"))
+        for (auto* o : outputs->getChildWithTagNameIterator ("output"))
+        {
+            auto parseNum = [] (juce::String v) { v = v.trim(); return v.startsWithIgnoreCase ("0x") ? v.substring (2).getHexValue32() : v.getIntValue(); };
+            const auto group = o->getChildElementAllSubText ("group", {}).trim();
+            const auto k = o->getChildElementAllSubText ("key", {}).trim().toLowerCase();
+            const int status = parseNum (o->getChildElementAllSubText ("status", {}));
+            const int number = parseNum (o->getChildElementAllSubText ("midino", {})) & 0x7F;
+            const auto onText = o->getChildElementAllSubText ("on", {}), offText = o->getChildElementAllSubText ("off", {});
+            const int on = onText.isNotEmpty() ? juce::jlimit (0, 127, parseNum (onText)) : 127;
+            const int off = offText.isNotEmpty() ? juce::jlimit (0, 127, parseNum (offText)) : 0;
+            if (o->getChildByName ("minimum") != nullptr && parseNum (o->getChildElementAllSubText ("minimum", {})) > 0
+                && (k.contains ("vu") || k.contains ("peak")))
+                continue;                                     // one LED of a segmented meter: not supported
+
+            juce::String action;
+            if (k == "play_indicator" || k == "play")                      action = "play_pause";
+            else if (k == "cue_indicator" || k == "cue_default")           action = "cue_button";
+            else if (k == "sync_enabled" || k == "beatsync")               action = "sync";
+            else if (k == "pfl")                                           action = "pfl";
+            else if (k == "keylock")                                       action = "key_lock";
+            else if (k == "slip_enabled")                                  action = "slip_mode";
+            else if (k == "quantize")                                      action = "quantize";
+            else if (k == "reverse")                                       action = "reverse";
+            else if (k == "loop_enabled")                                  action = "loop";
+            else if (k == "end_of_track")                                  action = "end_warning";
+            else if (k == "track_loaded" || k == "track_samples")          action = "load";
+            else if (k.startsWith ("hotcue_") && (k.endsWith ("_enabled") || k.endsWith ("_status")))
+            {
+                const int n = k.substring (7).getIntValue();
+                if (n >= 1 && n <= 8) action = "hot_cue_" + juce::String (n);
+            }
+            const int deck = presetDeck (group, k, status);
+            const int kind = status & 0xF0;
+            if (action.isEmpty() || deck < -1 || deck > 1 || (kind != 0x90 && kind != 0xB0))
+                continue;
+
+            const auto lightKind = kind == 0xB0 ? MidiBinding::Kind::cc : MidiBinding::Kind::note;
+            const int channel = (status & 0x0F) + 1;
+            auto sameMessage = [&] (const MidiBinding& b) { return b.kind == lightKind && b.channel == channel && b.number == number; };
+
+            // 1. A control on that very message keeps its own logic (a PAD follows its page).
+            // 2. Else the control with that function gets its light on this message.
+            // 3. Else a light of its own.
+            bool done = false;
+            for (auto& b : r.bindings)
+                if (! b.outputOnly && b.outNumber < 0 && sameMessage (b) && ! b.shift)
+                {
+                    b.onValue = on; b.offValue = off; done = true;
+                }
+            for (auto& b : r.bindings)
+                if (! done && ! b.outputOnly && b.action == action && b.deck == juce::jmax (0, deck) && ! b.shift && b.outNumber < 0)
+                {
+                    b.outChannel = channel; b.outKind = lightKind; b.outNumber = number;
+                    b.onValue = on; b.offValue = off; done = true;
+                }
+            if (! done)
+            {
+                MidiBinding b;
+                b.kind = lightKind; b.channel = channel; b.number = number;
+                b.action = action; b.deck = juce::jmax (0, deck);
+                b.onValue = on; b.offValue = off;
+                b.outputOnly = true;
+                r.bindings.push_back (b);
+            }
+        }
     return r;
 }
 

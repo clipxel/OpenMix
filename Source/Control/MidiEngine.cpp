@@ -46,6 +46,17 @@ juce::var MidiBinding::toVar() const
     if (std::abs (scale - 1.0f) > 1e-6f) o->setProperty ("scale", scale);
     if (invert) o->setProperty ("invert", true);
     if (! ledOut) o->setProperty ("led", false);
+    if (outNumber >= 0 || outChannel > 0)
+    {
+        auto out = std::make_unique<juce::DynamicObject>();
+        if (outChannel > 0) out->setProperty ("channel", outChannel);
+        if (outNumber >= 0) { out->setProperty ("kind", kindName (outKind)); out->setProperty ("number", outNumber); }
+        o->setProperty ("out", juce::var (out.release()));
+    }
+    if (onValue != 127) o->setProperty ("on", onValue);
+    if (offValue != 0) o->setProperty ("off", offValue);
+    if (dimValue >= 0) o->setProperty ("dim", dimValue);
+    if (outputOnly) o->setProperty ("output_only", true);
     return juce::var (o.release());
 }
 
@@ -68,6 +79,19 @@ MidiBinding MidiBinding::fromVar (const juce::var& v)
     b.scale = (float) (double) v.getProperty ("scale", 1.0);
     b.invert = (bool) v.getProperty ("invert", false);
     b.ledOut = (bool) v.getProperty ("led", true);
+    if (auto out = v["out"]; out.isObject())
+    {
+        b.outChannel = juce::jlimit (0, 16, (int) out.getProperty ("channel", 0));
+        if (out.hasProperty ("number"))
+        {
+            b.outKind = out["kind"].toString() == "cc" ? Kind::cc : Kind::note;
+            b.outNumber = juce::jlimit (0, 127, (int) out["number"]);
+        }
+    }
+    b.onValue = juce::jlimit (0, 127, (int) v.getProperty ("on", 127));
+    b.offValue = juce::jlimit (0, 127, (int) v.getProperty ("off", 0));
+    b.dimValue = juce::jlimit (-1, 127, (int) v.getProperty ("dim", -1));
+    b.outputOnly = (bool) v.getProperty ("output_only", false) || Actions::isMeter (b.action);
     return b;
 }
 
@@ -93,6 +117,7 @@ MidiEngine::MidiEngine (Actions& a) : actions (a)
 
 MidiEngine::~MidiEngine()
 {
+    allLightsOff();
     cancelPendingUpdate();
     for (auto& in : inputs) in->stop();
 }
@@ -199,6 +224,7 @@ void MidiEngine::inject (const juce::String& device, const juce::MidiMessage& m)
 bool MidiEngine::matches (const MidiBinding& b, const juce::String& device, const juce::MidiMessage& m, bool lsb) const
 {
     if (b.device != "*" && b.device != device) return false;
+    if (b.outputOnly) return false;
     if (m.getChannel() != b.channel) return false;
     const int num = lsb ? b.lsbNumber : b.number;
     switch (b.kind)
@@ -373,6 +399,24 @@ juce::MidiOutput* MidiEngine::outputFor (const juce::String& device)
     for (auto& o : outputs)
         if (o->getName() == device)
             return o.get();
+
+    // Windows names the two halves of one controller "MIDIIN2 (X)" / "MIDIOUT2 (X)", and some
+    // drivers add " In" / " Out": compare what is left.
+    auto core = [] (juce::String n)
+    {
+        n = n.trim();
+        for (auto* w : { "MIDIIN", "MIDIOUT" })
+            if (n.startsWithIgnoreCase (w) && n.containsChar ('('))
+                n = n.fromFirstOccurrenceOf ("(", false, false).upToLastOccurrenceOf (")", false, false);
+        for (auto* w : { " In", " Out", " Input", " Output" })
+            if (n.endsWithIgnoreCase (w))
+                n = n.dropLastCharacters ((int) std::strlen (w));
+        return n.trim().toLowerCase();
+    };
+    const auto want = core (device);
+    for (auto& o : outputs)
+        if (core (o->getName()) == want)
+            return o.get();
     return nullptr;
 }
 
@@ -390,29 +434,75 @@ void MidiEngine::tick()
             refreshDevices();
     }
 
+    // One value per light per frame: the first binding that drives a light wins (a pad can be
+    // bound to several actions; without this its light would flicker between them).
+    std::map<juce::String, Light> frame;
+    std::array<float, 3> meters { -1.0f, -1.0f, -1.0f };     // deck 1, deck 2, master: read once
+
     for (const auto& b : map)
     {
-        if (! b.ledOut || b.encoding != MidiBinding::Encoding::button || b.kind == MidiBinding::Kind::pitchWheel || b.action == "shift")
-            continue;
-        if (b.shift != shiftHeld[b.device])
+        if (! b.ledOut || b.action == "shift" || b.kind == MidiBinding::Kind::pitchWheel && b.outNumber < 0)
             continue;
 
-        const bool on = actions.ledState (b.action, b.deck);
-        const auto key = b.device + "|" + juce::String (b.channel) + "|" + juce::String ((int) b.kind) + "|" + juce::String (b.number);
-        auto it = ledSent.find (key);
-        if (it != ledSent.end() && it->second == on)
-            continue;
-        ledSent[key] = on;
+        int value;
+        if (Actions::isMeter (b.action))
+        {
+            const auto slot = (size_t) (b.action == "vu_master" ? 2 : juce::jlimit (0, 1, b.deck));
+            if (meters[slot] < 0.0f)
+                meters[slot] = actions.meterLevel (slot == 2 ? -1 : (int) slot);
+            value = b.offValue + juce::roundToInt (meters[slot] * (float) (b.onValue - b.offValue));
+        }
+        else
+        {
+            if (b.encoding != MidiBinding::Encoding::button || b.shift != shiftHeld[b.device])
+                continue;
+            using L = Actions::Led;
+            switch (actions.ledLevel (b.action, b.deck))
+            {
+                case L::on:    value = b.onValue; break;
+                case L::dim:   value = b.dimValue >= 0 ? b.dimValue : b.offValue; break;
+                case L::blink: value = actions.blinkPhase (b.deck) ? b.onValue : b.offValue; break;
+                case L::off:
+                default:       value = b.offValue; break;
+            }
+        }
 
-        const auto msg = b.kind == MidiBinding::Kind::note
-                       ? juce::MidiMessage::noteOn (b.channel, b.number, (juce::uint8) (on ? 127 : 0))
-                       : juce::MidiMessage::controllerEvent (b.channel, b.number, on ? 127 : 0);
-
-        if (b.device == "*")
-            for (auto& o : outputs) o->sendMessageNow (msg);
-        else if (auto* o = outputFor (b.device))
-            o->sendMessageNow (msg);
+        const auto key = b.device + "|" + juce::String (b.lightChannel()) + "|" + juce::String ((int) b.lightKind()) + "|" + juce::String (b.lightNumber());
+        frame.emplace (key, Light { b.device, b.lightChannel(), b.lightKind(), b.lightNumber(), value, b.offValue });
     }
+
+    for (auto& [key, light] : frame)
+    {
+        auto it = ledSent.find (key);
+        if (it != ledSent.end() && it->second.value == light.value)
+            continue;
+        ledSent[key] = light;
+        const auto v = (juce::uint8) juce::jlimit (0, 127, light.value);
+        send (light.device, light.kind == MidiBinding::Kind::cc ? juce::MidiMessage::controllerEvent (light.channel, light.number, v)
+                                                                : juce::MidiMessage::noteOn (light.channel, light.number, v));
+    }
+}
+
+void MidiEngine::allLightsOff()
+{
+    for (auto& [key, light] : ledSent)
+        if (light.value != light.off)
+        {
+            const auto v = (juce::uint8) juce::jlimit (0, 127, light.off);
+            send (light.device, light.kind == MidiBinding::Kind::cc ? juce::MidiMessage::controllerEvent (light.channel, light.number, v)
+                                                                    : juce::MidiMessage::noteOn (light.channel, light.number, v));
+            light.value = light.off;
+        }
+}
+
+void MidiEngine::send (const juce::String& device, const juce::MidiMessage& msg)
+{
+    if (onOutput)
+        onOutput (device, msg);
+    if (device == "*")
+        for (auto& o : outputs) o->sendMessageNow (msg);
+    else if (auto* o = outputFor (device))
+        o->sendMessageNow (msg);
 }
 
 } // namespace om

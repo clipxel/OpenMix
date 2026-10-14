@@ -34,6 +34,19 @@ struct MidiBinding
     bool invert = false;
     bool ledOut = true;            // echo LED state back to the device
 
+    // Light / output message. By default the light answers on the same message as the control;
+    // some controllers use another note or channel (or a light without a control, like VU meters).
+    int outChannel = 0;            // 0 = same as `channel`
+    Kind outKind = Kind::note;     // used when outNumber ≥ 0
+    int outNumber = -1;            // −1 = same message as the control
+    int onValue = 127, offValue = 0;
+    int dimValue = -1;             // −1 = this light has no dim level (dim shows as off)
+    bool outputOnly = false;       // a light with no control (VU meter, "track loaded", end warning)
+
+    int lightChannel() const noexcept  { return outChannel > 0 ? outChannel : channel; }
+    Kind lightKind() const noexcept    { return outNumber >= 0 ? outKind : kind; }
+    int lightNumber() const noexcept   { return outNumber >= 0 ? outNumber : number; }
+
     juce::var toVar() const;
     static MidiBinding fromVar (const juce::var&);
     juce::String describeControl() const;
@@ -72,8 +85,13 @@ public:
     void cancelLearn();
     bool isLearning() const noexcept { return learning.has_value(); }
 
-    /** Per-frame: LED feedback. */
+    /** Per-frame: lights (on / dim / blinking in time / VU meters). The full state is sent again
+        when a controller is connected, and every light is switched off when OpenMix closes. */
     void tick();
+    void allLightsOff();
+
+    /** Tests: every message sent to a controller (device name, message). */
+    std::function<void (const juce::String&, const juce::MidiMessage&)> onOutput;
 
     juce::String lastMessageText() const { return lastText; }
     juce::uint32 lastMessageTime() const { return lastTime; }
@@ -93,6 +111,7 @@ private:
     void apply (const MidiBinding&, size_t index, const juce::MidiMessage&);
     bool matches (const MidiBinding&, const juce::String& device, const juce::MidiMessage&, bool lsb) const;
     juce::MidiOutput* outputFor (const juce::String& device);
+    void send (const juce::String& device, const juce::MidiMessage&);
 
     Actions& actions;
     std::vector<MidiBinding> map;
@@ -109,7 +128,8 @@ private:
     std::map<size_t, int> msbValues;                       // 14-bit: binding index → MSB
     struct Takeover { bool caught = false; float lastSent = -1.0f; };
     std::map<size_t, Takeover> takeover;
-    std::map<juce::String, bool> ledSent;                  // device|ch|num → last state
+    struct Light { juce::String device; int channel; MidiBinding::Kind kind; int number; int value; int off; };
+    std::map<juce::String, Light> ledSent;                 // device|ch|kind|num → last value sent
 
     std::function<void (const juce::String&, const juce::MidiMessage&)> capture;
     struct Learn { juce::String action; int deck; bool shift; std::function<void (const MidiBinding&)> done; };

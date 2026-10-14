@@ -82,7 +82,8 @@ private:
                                     [this] (int delta) { libraryView.moveSelection (delta); },
                                     [this] { toggleRecord(); },
                                     [this] (int d, int pad, bool down) { (d == 0 ? deckA : deckB).externalPad (pad, down); },
-                                    [this] (int d) { (d == 0 ? deckA : deckB).nextPadPage(); } } };
+                                    [this] (int d) { (d == 0 ? deckA : deckB).nextPadPage(); },
+                                    [this] (int d, int pad) { return (d == 0 ? deckA : deckB).padLed (pad); } } };
     om::KeyboardControl keyboard { actions };
     std::unique_ptr<om::MidiEngine> midi;     // not created in snapshot mode (no device access)
     std::unique_ptr<om::ControllerLibrary> controllerLib;   // plug and play: finds and installs mappings

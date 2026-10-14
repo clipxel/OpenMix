@@ -1977,6 +1977,105 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     rep.check (d2.isReverse() && ! d2.isPlaying(), "SHIFT + botón dispara la capa shift"_u);
     midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
 
+    std::cout << "== Luces del controlador" << std::endl;
+    {
+        struct Sent { int status, number, value; };
+        std::vector<Sent> sent;
+        midi.onOutput = [&sent] (const juce::String&, const juce::MidiMessage& m)
+        {
+            sent.push_back ({ m.getRawData()[0], m.getRawData()[1], m.getRawData()[2] });
+        };
+        auto valuesOf = [&sent] (int status, int number)
+        {
+            std::set<int> v;
+            for (auto& s : sent) if (s.status == status && s.number == number) v.insert (s.value);
+            return v;
+        };
+
+        MidiBinding cue; cue.device = "Test"; cue.channel = 1; cue.kind = MidiBinding::Kind::note; cue.number = 12; cue.action = "cue_button"; cue.deck = 1;
+        cue.outChannel = 3; cue.outNumber = 50; cue.outKind = MidiBinding::Kind::note; cue.onValue = 5; cue.offValue = 1;
+        MidiBinding vu; vu.device = "Test"; vu.channel = 1; vu.kind = MidiBinding::Kind::cc; vu.number = 2; vu.action = "vu_meter"; vu.deck = 1;
+        vu.encoding = MidiBinding::Encoding::absolute7; vu.outputOnly = true;
+        MidiBinding hc; hc.device = "Test"; hc.channel = 1; hc.kind = MidiBinding::Kind::note; hc.number = 20; hc.action = "hot_cue_1"; hc.deck = 1;
+        MidiBinding hc2 = hc; hc2.action = "hot_cue_2";                        // same pad bound twice: no flicker
+        b = { play, cue, vu, hc, hc2 };
+        midi.setBindings (b);
+
+        d2.setReverse (false);
+        d2.setPlaying (true);
+        midi.tick();
+        rep.check (valuesOf (0x90, 11) == std::set<int> { 127 }, "PLAY encendido mientras suena");
+
+        d2.setPlaying (false);
+        d2.seek (10.0);
+        run (d2, 0.05);
+        sent.clear();
+        for (int i = 0; i < 14; ++i) { midi.tick(); juce::Thread::sleep (50); }
+        rep.check (valuesOf (0x90, 11) == std::set<int> { 0, 127 }, "PLAY parpadea con el tema en pausa"_u);
+        rep.check (valuesOf (0x92, 50) == std::set<int> { 1, 5 }, "CUE parpadea fuera del punto de cue, en su propia nota y valores"_u);
+
+        d2.clearHotCue (0);
+        d2.clearHotCue (1);
+        sent.clear();
+        midi.tick();
+        d2.hotCue (1); d2.hotCueRelease (1);                                  // only hot cue 2 set
+        for (int i = 0; i < 4; ++i) midi.tick();
+        const auto pad = valuesOf (0x90, 20);
+        rep.check (pad.size() <= 1 && ! pad.count (127), "Un pad con dos funciones no titila entre ellas", juce::String ((int) pad.size()) + " valores");
+
+        std::vector<float> loud (512, 0.9f);
+        engine.channel (1).meter.push (loud.data(), loud.data(), 512);
+        sent.clear();
+        midi.tick();
+        const auto vuNow = valuesOf (0xB0, 2);
+        rep.check (! vuNow.empty() && *vuNow.rbegin() > 110, "VU del canal en el controlador", vuNow.empty() ? juce::String ("nada") : juce::String (*vuNow.rbegin()));
+        bool vuTriggered = false;
+        midi.onDispatch = [&vuTriggered] (const MidiBinding& x, int, float) { if (x.action == "vu_meter") vuTriggered = true; };
+        midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 2, 100));
+        midi.onDispatch = nullptr;
+        rep.check (! vuTriggered, "Una luz sin control no reacciona a mensajes entrantes");
+
+        sent.clear();
+        midi.allLightsOff();
+        bool allOff = ! sent.empty();
+        for (auto& x : sent) allOff &= (x.status == 0x92 ? x.value == 1 : x.value == 0);
+        rep.check (allOff, "Al cerrar se apagan todas las luces", juce::String ((int) sent.size()) + " mensajes");
+
+        const auto json = juce::JSON::toString (cue.toVar());
+        const auto back = MidiBinding::fromVar (juce::JSON::parse (json));
+        rep.check (back.lightNumber() == 50 && back.lightChannel() == 3 && back.onValue == 5 && back.offValue == 1
+                   && MidiBinding::fromVar (vu.toVar()).outputOnly, "La salida de luz se guarda en el mapeo");
+
+        // Importers: a table whose light answers on another message, and a "track loaded" light.
+        const auto table = MappingImport::fromCsv ("PlayPause,PlayPause,Button,900B,0,1,,,9040,0,1,\n"
+                                                   "LoadedIndicator,LoadedIndicator,Indicator,,,,,,,9B00,9B01,\n"
+                                                   "ChannelLevel,ChannelLevel,Indicator,,,,,,B002,0,1,\n");
+        int lights = 0, meters = 0, outs = 0;
+        for (auto& x : table.bindings)
+        {
+            if (x.action == "play_pause" && x.lightNumber() == 0x40) ++outs;
+            if (x.action == "load" && x.outputOnly && x.channel == 12) ++lights;
+            if (x.action == "vu_meter" && x.outputOnly && x.kind == MidiBinding::Kind::cc && x.number == 2) ++meters;
+        }
+        rep.check (outs == 2 && lights == 2 && meters == 2, "Tabla CSV: luces en otra nota, indicador de pista cargada y VU",
+                   juce::String (outs) + " / " + juce::String (lights) + " / " + juce::String (meters));
+
+        const auto preset = MappingImport::fromPreset (R"(<MixxxControllerPreset><controller><controls>
+            <control><group>[Channel1]</group><key>play</key><status>0x90</status><midino>0x0B</midino></control>
+            </controls><outputs>
+            <output><group>[Channel1]</group><key>play_indicator</key><status>0x91</status><midino>0x0B</midino><on>0x7E</on><off>0x01</off></output>
+            <output><group>[Channel1]</group><key>end_of_track</key><status>0x90</status><midino>0x30</midino></output>
+            </outputs></controller></MixxxControllerPreset>)");
+        bool playLight = false, endLight = false;
+        for (auto& x : preset.bindings)
+        {
+            playLight |= x.action == "play_pause" && x.lightChannel() == 2 && x.onValue == 0x7E && x.offValue == 1;
+            endLight |= x.action == "end_warning" && x.outputOnly && x.number == 0x30;
+        }
+        rep.check (playLight && endLight, "Preset XML: luces de <outputs> (otro canal, valores, aviso de fin)");
+        midi.onOutput = nullptr;
+    }
+
     std::cout << "== Controladores plug and play" << std::endl;
     {
         // A library like the one on the site: index + one mapping file, served from a local folder.
@@ -2457,7 +2556,7 @@ int simulateControllers (const std::vector<MappingImport::Source>& sources, cons
         std::map<juce::String, juce::String> seenMessage;        // message (+layer) → action, for conflicts
         for (auto& b : map)
         {
-            if (b.action == "shift") continue;
+            if (b.action == "shift" || b.outputOnly) continue;           // lights without a control: nothing to press
             ++checked;
             const auto* info = actions.find (b.action);
             const int expectDeck = info != nullptr && info->perDeck ? b.deck : -1;
@@ -2520,7 +2619,7 @@ int simulateControllers (const std::vector<MappingImport::Source>& sources, cons
         {
             auto find = [&map, d] (const char* action) -> const MidiBinding*
             {
-                for (auto& b : map) if (b.action == action && b.deck == d && ! b.shift) return &b;
+                for (auto& b : map) if (b.action == action && b.deck == d && ! b.shift && ! b.outputOnly) return &b;
                 return nullptr;
             };
             auto& deck = eng.deck (d);
@@ -2599,7 +2698,7 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
     {
         MappingImport::Source src { f.getFileNameWithoutExtension(), f, f };
         auto r = MappingImport::convert (src);
-        const bool twoDecks = std::count_if (r.bindings.begin(), r.bindings.end(), [] (const MidiBinding& b) { return b.action == "play_pause"; }) >= 2;
+        const bool twoDecks = std::count_if (r.bindings.begin(), r.bindings.end(), [] (const MidiBinding& b) { return b.action == "play_pause" && ! b.outputOnly; }) >= 2;
         if (r.bindings.size() < 20 || ! twoDecks || simulateControllers ({ src }, {}) != 0)
         {
             std::cout << "  descartado: " << f.getFileName().toRawUTF8() << std::endl;
