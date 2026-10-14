@@ -196,6 +196,11 @@ bool Updater::stage (const juce::File& package)
     if (! copied || ! staged.isDirectory()) { lastError = "La imagen no contiene la app"; return false; }
     return true;
    #elif JUCE_WINDOWS
+    if (package.hasFileExtension (".exe"))
+    {
+        staged = package;                                   // the installer itself: it runs after OpenMix quits
+        return true;
+    }
     juce::ZipFile zip (package);
     if (zip.getNumEntries() == 0 || zip.uncompressTo (stageDir).failed()) { lastError = "No se pudo descomprimir la actualización"; return false; }
     staged = stageDir.getChildFile ("OpenMix");
@@ -247,6 +252,21 @@ void Updater::installAndRelaunch()
                                         + workDir.getChildFile ("install.log").getFullPathName().quoted() + " 2>&1 &" });
     launcher.waitForProcessToFinish (5000);
    #elif JUCE_WINDOWS
+    if (staged.hasFileExtension (".exe"))
+    {
+        // Installer: per-user, silent, then open the installed OpenMix.
+        const auto installed = juce::File::getSpecialLocation (juce::File::windowsLocalAppData)
+                                 .getChildFile ("Programs").getChildFile ("OpenMix").getChildFile ("OpenMix.exe");
+        const auto script = workDir.getChildFile ("install.cmd");
+        script.replaceWithText ("@echo off\r\n"
+            ":wait\r\n"
+            "tasklist /FI \"PID eq " + pid + "\" | find \"" + pid + "\" >nul && (timeout /t 1 /nobreak >nul & goto wait)\r\n"
+            "\"" + staged.getFullPathName() + "\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS\r\n"
+            "start \"\" \"" + installed.getFullPathName() + "\"\r\n");
+        script.startAsProcess();
+        juce::JUCEApplicationBase::quit();
+        return;
+    }
     const auto exe = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
     const auto dir = exe.getParentDirectory();
     if (! dir.hasWriteAccess())

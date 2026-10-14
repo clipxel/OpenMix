@@ -9,7 +9,7 @@ Los instaladores están en la sección **Releases** del repositorio y en la pág
 | Sistema | Archivo | Primera vez |
 |---|---|---|
 | macOS 12+ (Apple Silicon e Intel) | `.dmg` universal | Si macOS avisa que no puede verificarla: *Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente* |
-| Windows 10/11 (64 bits) | `.zip` | Descomprimir y abrir `OpenMix.exe`; si aparece SmartScreen: *Más información › Ejecutar de todas formas* |
+| Windows 10/11 (64 bits) | instalador `.exe` | Se instala por usuario, con acceso en el menú Inicio y desinstalador; si aparece SmartScreen: *Más información › Ejecutar de todas formas* |
 | Linux x86_64 | `.tar.gz` | Descomprimir y ejecutar `./instalar.sh` |
 
 Las versiones de Windows y Linux las compila GitHub Actions (`.github/workflows/release.yml`) al
