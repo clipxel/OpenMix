@@ -51,11 +51,14 @@ void TopBar::refresh()
             using CS = ControllerLibrary::Status;
             const auto& devs = controllerLib->devices();
             const auto status = devs.empty() ? CS::noMapping : devs.front().status;
+            const bool driverMissing = ! devs.empty() && devs.front().driverPage.isNotEmpty();
             const auto col = devs.empty() ? colour (Col::textTertiary)
+                           : driverMissing ? colour (Col::warning)
                            : (status == CS::mapped || status == CS::mappedByUser) ? colour (Col::play)
                            : status == CS::searching ? colour (Col::sync) : colour (Col::warning);
             controllers.set (Icon::controller, devs.empty() ? juce::String ("Sin controlador") : text, col);
             controllers.setTooltip (devs.empty() ? juce::String ("Enchufá un controlador: OpenMix lo reconoce y lo mapea solo")
+                                   : driverMissing ? "Este controlador necesita su driver. Clic para ver dónde descargarlo (página oficial del fabricante)"_u
                                    : status == CS::noMapping ? "No hay mapeo para este controlador todavía: mapealo en Configuración › Controladores"_u
                                    : status == CS::offline ? "No se pudo descargar el mapeo (sin conexión). Se reintenta al volver a conectarlo."_u
                                    : juce::String ("Controladores — clic para configurar"));

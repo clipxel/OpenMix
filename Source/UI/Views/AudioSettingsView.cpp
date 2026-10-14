@@ -69,11 +69,32 @@ bool AudioSettingsView::isBuiltIn (const juce::String& n)
     return false;
 }
 
+// Windows: cards whose vendor driver offers low-latency mode show up a second time, marked as such.
+// The driver type is identified by the name JUCE gives it; the UI never shows that name.
+static constexpr const char* lowLatencyType = "ASIO";
+static juce::String lowLatencySuffix() { return juce::String::fromUTF8 (" · baja latencia"); }
+
+juce::String AudioSettingsView::currentDisplayName() const
+{
+    auto& dm = engine.getDeviceManager();
+    const auto name = dm.getAudioDeviceSetup().outputDeviceName;
+    return dm.getCurrentAudioDeviceType() == lowLatencyType && name.isNotEmpty() ? name + lowLatencySuffix() : name;
+}
+
 juce::StringArray AudioSettingsView::outputDevices() const
 {
-    if (auto* type = engine.getDeviceManager().getCurrentDeviceTypeObject())
-        return type->getDeviceNames (false);
-    return {};
+    auto& dm = engine.getDeviceManager();
+    juce::StringArray out;
+    for (auto* type : dm.getAvailableDeviceTypes())
+    {
+        const bool low = type->getTypeName() == lowLatencyType;
+        const bool current = type == dm.getCurrentDeviceTypeObject();
+        if (! low && ! current)
+            continue;
+        for (auto& n : type->getDeviceNames (false))
+            out.addIfNotAlreadyThere (low ? n + lowLatencySuffix() : n);
+    }
+    return out;
 }
 
 std::atomic<int>* AudioSettingsView::channelFor (Role r)
@@ -101,11 +122,25 @@ void AudioSettingsView::setMode (int mode)
     changed();
 }
 
-void AudioSettingsView::selectDevice (const juce::String& name)
+void AudioSettingsView::selectDevice (const juce::String& displayName)
 {
     auto& dm = engine.getDeviceManager();
+    if (displayName.isEmpty() || displayName == currentDisplayName()) return;
+
+    // Switch driver type when the choice needs it (standard ↔ low latency).
+    const bool low = displayName.endsWith (lowLatencySuffix());
+    const auto name = low ? displayName.dropLastCharacters (lowLatencySuffix().length()) : displayName;
+    if (low && dm.getCurrentAudioDeviceType() != lowLatencyType)
+        dm.setCurrentAudioDeviceType (lowLatencyType, true);
+    else if (! low && dm.getCurrentAudioDeviceType() == lowLatencyType)
+        for (auto* type : dm.getAvailableDeviceTypes())
+            if (type->getTypeName() != lowLatencyType && type->getDeviceNames (false).contains (name))
+            {
+                dm.setCurrentAudioDeviceType (type->getTypeName(), true);
+                break;
+            }
+
     auto setup = dm.getAudioDeviceSetup();
-    if (name.isEmpty() || name == setup.outputDeviceName) return;
     setup.outputDeviceName = name;
     setup.inputDeviceName = {};
     setup.useDefaultOutputChannels = true;
@@ -174,7 +209,7 @@ void AudioSettingsView::refresh()
     const bool split = engine.splitMono.load();
     auto& dm = engine.getDeviceManager();
     auto* dev = dm.getCurrentAudioDevice();
-    const auto current = dm.getAudioDeviceSetup().outputDeviceName;
+    const auto current = currentDisplayName();
     const int outs = dev != nullptr ? dev->getOutputChannelNames().size() : 0;
 
     outSpeakers.setToggleState (mode == AudioEngine::speakersOnly, juce::dontSendNotification);

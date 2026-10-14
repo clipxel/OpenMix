@@ -14,10 +14,13 @@ namespace om
 class ControllerLibrary : public juce::ChangeBroadcaster
 {
 public:
+    /** A driver the controller needs on this operating system. OpenMix never downloads or installs it:
+        it only notices it is missing and points the user to the vendor's official download page. */
     struct Driver
     {
-        juce::String url, sha256, args, signer;   // Windows installer (official vendor URL)
-        bool isValid() const { return url.isNotEmpty() && sha256.length() == 64; }
+        juce::String page;                        // official download page (https)
+        juce::StringArray detect;                 // files that exist once the driver is installed
+        bool isValid() const { return page.startsWithIgnoreCase ("https://"); }
     };
 
     struct Profile
@@ -25,16 +28,17 @@ public:
         juce::String id, name, file, author, description;
         juce::StringArray midiNames;              // names the device announces (port suffixes ignored; "Name *" = family)
         juce::StringArray usbIds;                 // "vvvv:pppp" (hex)
-        Driver windowsDriver;
+        Driver driver;                            // for the operating system OpenMix runs on
     };
 
-    enum class Status { searching, mapped, mappedByUser, noMapping, offline };
+    enum class Status { searching, mapped, mappedByUser, noMapping, offline, needsDriver };
     struct Device
     {
         juce::String name;                        // MIDI input name as the OS reports it
         Status status = Status::searching;
         juce::String profileName;                 // when mapped from the library
         juce::String detail;                      // last error / extra info
+        juce::String driverPage;                  // set when its driver is missing: where to get it
     };
 
     explicit ControllerLibrary (MidiEngine&);
@@ -50,6 +54,9 @@ public:
     /** Look mappings up on the internet (default on). Off: only the local cache is used. */
     void setOnlineLookup (bool on)            { online = on; }
     bool onlineLookup() const noexcept        { return online; }
+
+    /** Official driver pages recommended for these MIDI devices right now (tests; tick() does it in the background). */
+    juce::StringArray missingDriverPages (const juce::StringArray& midiDevices);
 
     /** Resolves a device right now on the calling thread (tests; tick() does it in the background). */
     Device resolveNow (const juce::String& deviceName);
@@ -70,9 +77,14 @@ private:
     static juce::File cacheFolder();
     static juce::URL& indexOverride() { static juce::URL u; return u; }
 
+    struct MissingDriver { juce::String profileName, page; juce::StringArray midiDevices; };
+    std::vector<MissingDriver> findMissingDrivers (const juce::StringArray& connected);   // background, read-only
+    void applyMissingDrivers (const std::vector<MissingDriver>&);    // message thread
+
     MidiEngine& midi;
     std::vector<Device> list;
-    std::atomic<bool> online { true };
+    std::atomic<bool> online { true }, driverJob { false };
+    juce::uint32 lastDriverScan = 0;
     juce::ThreadPool pool { juce::ThreadPoolOptions{}.withNumberOfThreads (1).withThreadName ("OpenMix controllers") };
     std::shared_ptr<std::atomic<bool>> alive = std::make_shared<std::atomic<bool>> (true);
     juce::uint32 lastScan = 0;

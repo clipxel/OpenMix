@@ -146,6 +146,8 @@ void SettingsPanel::setControllerLibrary (ControllerLibrary* lib)
 {
     controllerLib = lib;
     addChildComponent (onlineToggle);
+    addChildComponent (driverBtn);
+    driverBtn.onClick = [this] { if (driverPage.isNotEmpty()) juce::URL (driverPage).launchInDefaultBrowser(); };
     onlineToggle.onClick = [this]
     {
         if (controllerLib != nullptr) controllerLib->setOnlineLookup (onlineToggle.getToggleState());
@@ -251,6 +253,16 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
 
     vinylToggle.setVisible (midiTab);
     onlineToggle.setVisible (midiTab && controllerLib != nullptr);
+    {
+        // A plugged-in controller whose driver is missing: one button to its official download page.
+        driverPage = {};
+        juce::String who;
+        if (controllerLib != nullptr)
+            for (auto& d : controllerLib->devices())
+                if (d.driverPage.isNotEmpty()) { driverPage = d.driverPage; who = d.profileName.isNotEmpty() ? d.profileName : d.name; break; }
+        driverBtn.setButtonText (juce::String::fromUTF8 ("Descargar el driver de ") + who + juce::String::fromUTF8 (" (página oficial)"));
+        driverBtn.setVisible (midiTab && driverPage.isNotEmpty());
+    }
     learnShift.setVisible (midiTab);
     learnBtn.setVisible (midiTab);
     cancelLearnBtn.setVisible (midiTab && midi != nullptr && midi->isLearning());
@@ -268,6 +280,11 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     vinylToggle.setBounds (c.removeFromTop (24).withWidth (360));
     if (controllerLib != nullptr)
         onlineToggle.setBounds (c.removeFromTop (24).withWidth (620));
+    if (driverBtn.isVisible())
+    {
+        c.removeFromTop (Space::sm);
+        driverBtn.setBounds (c.removeFromTop (Size::controlMd).withWidth (420));
+    }
     c.removeFromTop (Space::sm);
     auto row = c.removeFromTop (Size::controlMd);
     learnBtn.setBounds (row.removeFromLeft (170));
@@ -340,7 +357,16 @@ void SettingsPanel::timerCallback()
     if (section == diagnostics || section == controllers)
         repaint (content);
     if (section == controllers)
+    {
         cancelLearnBtn.setVisible (ctrlTab.getSelected() == 0 && midi != nullptr && midi->isLearning());
+        // Controllers come and go (and may need a driver): re-layout when that changes.
+        juce::String page;
+        if (controllerLib != nullptr)
+            for (auto& d : controllerLib->devices())
+                if (d.driverPage.isNotEmpty()) { page = d.driverPage; break; }
+        if (page != driverPage)
+            resized();
+    }
 }
 
 bool SettingsPanel::keyPressed (const juce::KeyPress& k)
@@ -484,7 +510,9 @@ void SettingsPanel::paint (juce::Graphics& g)
                                 : d.status == S::mappedByUser ? juce::String ("mapeo propio")
                                 : d.status == S::searching    ? juce::String::fromUTF8 ("buscando mapeo…")
                                 : d.status == S::noMapping    ? juce::String::fromUTF8 ("sin mapeo en la biblioteca: usá Aprender control")
-                                                              : juce::String::fromUTF8 ("no se pudo descargar el mapeo")));
+                                : d.status == S::needsDriver  ? juce::String::fromUTF8 ("conectado, falta su driver")
+                                                              : juce::String::fromUTF8 ("no se pudo descargar el mapeo"))
+                               + (d.driverPage.isNotEmpty() && d.status != S::needsDriver ? juce::String::fromUTF8 (" · falta su driver") : juce::String()));
             }
             else shown = devices;
             Text::draw (g, shown.isEmpty() ? juce::String ("No hay dispositivos MIDI conectados")

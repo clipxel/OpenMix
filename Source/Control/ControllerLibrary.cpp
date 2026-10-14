@@ -1,4 +1,5 @@
 #include "ControllerLibrary.h"
+#include "DriverCheck.h"
 #include "../Library/Library.h"
 #include "../Common/Strings.h"
 
@@ -69,8 +70,17 @@ std::vector<ControllerLibrary::Profile> ControllerLibrary::parseIndex (const juc
             p.description = m["description"].toString();
             if (auto* names = m["match"]["midi"].getArray()) for (auto& n : *names) p.midiNames.add (n.toString());
             if (auto* usb = m["match"]["usb"].getArray())    for (auto& u : *usb)   p.usbIds.add (u.toString().toLowerCase());
+           #if JUCE_WINDOWS
             const auto& d = m["driver"]["windows"];
-            p.windowsDriver = { d["url"].toString(), d["sha256"].toString().toLowerCase(), d["args"].toString(), d["signer"].toString() };
+           #elif JUCE_MAC
+            const auto& d = m["driver"]["mac"];
+           #else
+            const auto& d = m["driver"]["linux"];
+           #endif
+            p.driver.page = d["page"].toString();
+            if (auto* det = d["detect"].getArray()) for (auto& x : *det) p.driver.detect.add (x.toString());
+            if (! p.driver.isValid())
+                p.driver = {};
             if (p.file.isNotEmpty() && ! p.file.contains ("..") && ! p.file.containsChar ('/') && ! p.midiNames.isEmpty())
                 out.push_back (std::move (p));
         }
@@ -275,13 +285,100 @@ void ControllerLibrary::tick()
     }
 
     if (changed) sendChangeMessage();
+
+    // Drivers: every few seconds, notice plugged-in controllers whose driver is missing (read-only).
+    if (now - lastDriverScan > 3000 && ! driverJob.exchange (true))
+    {
+        lastDriverScan = now;
+        auto flag = alive;
+        pool.addJob ([this, flag]
+        {
+            if (! flag->load()) { driverJob = false; return; }
+            auto found = findMissingDrivers (midi.connectedInputs());
+            juce::MessageManager::callAsync ([this, flag, missing = std::move (found)]
+            {
+                if (flag->load()) applyMissingDrivers (missing);
+                driverJob = false;
+            });
+        });
+    }
+}
+
+juce::StringArray ControllerLibrary::missingDriverPages (const juce::StringArray& midiDevices)
+{
+    juce::StringArray pages;
+    for (auto& m : findMissingDrivers (midiDevices))
+        pages.addIfNotAlreadyThere (m.page);
+    return pages;
+}
+
+std::vector<ControllerLibrary::MissingDriver> ControllerLibrary::findMissingDrivers (const juce::StringArray& connected)
+{
+    std::vector<MissingDriver> out;
+    const auto usb = DriverCheck::presentUsbIds();
+    juce::String error;
+    bool downloaded = false;
+    for (auto& p : parseIndex (loadIndex (online.load(), false, downloaded, error)))
+    {
+        if (! p.driver.isValid())
+            continue;
+        MissingDriver m { p.name, p.driver.page, {} };
+        for (auto& dev : connected)
+            for (auto& n : p.midiNames)
+                if (nameMatches (dev, n)) m.midiDevices.addIfNotAlreadyThere (dev);
+        const bool viaUsb = std::any_of (p.usbIds.begin(), p.usbIds.end(), [&usb] (const juce::String& id) { return usb.contains (id); });
+        if (m.midiDevices.isEmpty() && ! viaUsb)
+            continue;                                                    // not plugged in
+        const bool installed = std::any_of (p.driver.detect.begin(), p.driver.detect.end(),
+                                            [] (const juce::String& f) { return DriverCheck::expandPath (f).exists(); });
+        if (! installed)
+            out.push_back (std::move (m));
+    }
+    return out;
+}
+
+void ControllerLibrary::applyMissingDrivers (const std::vector<MissingDriver>& missing)
+{
+    bool changed = false;
+    // Placeholders for controllers that are plugged in but not visible as MIDI without their driver.
+    list.erase (std::remove_if (list.begin(), list.end(), [&] (const Device& d)
+    {
+        const bool stale = d.status == Status::needsDriver
+                        && std::none_of (missing.begin(), missing.end(), [&d] (const MissingDriver& m)
+                                         { return m.profileName == d.name && m.midiDevices.isEmpty(); });
+        changed = changed || stale;
+        return stale;
+    }), list.end());
+
+    for (auto& d : list)
+    {
+        juce::String page;
+        for (auto& m : missing)
+            if (m.midiDevices.contains (d.name)) page = m.page;
+        if (d.status != Status::needsDriver && page != d.driverPage) { d.driverPage = page; changed = true; }
+    }
+    for (auto& m : missing)
+        if (m.midiDevices.isEmpty()
+            && std::none_of (list.begin(), list.end(), [&m] (const Device& d) { return d.name == m.profileName; }))
+        {
+            Device d;
+            d.name = m.profileName;
+            d.profileName = m.profileName;
+            d.status = Status::needsDriver;
+            d.driverPage = m.page;
+            list.push_back (d);
+            changed = true;
+        }
+    if (changed) sendChangeMessage();
 }
 
 juce::String ControllerLibrary::summary() const
 {
     if (list.empty()) return {};
     const auto& d = list.front();
-    const juce::String more = list.size() > 1 ? " +" + juce::String ((int) list.size() - 1) : juce::String();
+    juce::String more = list.size() > 1 ? " +" + juce::String ((int) list.size() - 1) : juce::String();
+    if (d.driverPage.isNotEmpty() && d.status != Status::needsDriver)
+        more = juce::String::fromUTF8 (" · falta su driver") + more;
     switch (d.status)
     {
         case Status::searching:    return "Buscando mapeo…"_u + more;
@@ -289,6 +386,7 @@ juce::String ControllerLibrary::summary() const
         case Status::mappedByUser: return d.name + juce::String::fromUTF8 (" · mapeo propio") + more;
         case Status::noMapping:    return d.name + juce::String::fromUTF8 (" · sin mapeo") + more;
         case Status::offline:      return d.name + juce::String::fromUTF8 (" · sin conexión") + more;
+        case Status::needsDriver:  return d.name + juce::String::fromUTF8 (" · falta el driver") + more;
     }
     return {};
 }

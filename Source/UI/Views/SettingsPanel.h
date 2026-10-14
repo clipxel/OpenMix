@@ -74,6 +74,8 @@ private:
     void layoutControllers (juce::Rectangle<int>);
     MidiEngine* midi = nullptr;
     ControllerLibrary* controllerLib = nullptr;
+    Button driverBtn { juce::String(), Icon::none };
+    juce::String driverPage;
     juce::ToggleButton onlineToggle { "Al conectar un controlador, buscar su mapeo en internet (solo se descarga la lista pública de mapeos)" };
     Actions* actions = nullptr;
     KeyboardControl* keyboard = nullptr;

@@ -38,6 +38,7 @@ private:
     void showFormatMenu (Button&);
     static bool isBuiltIn (const juce::String& deviceName);
     juce::StringArray outputDevices() const;
+    juce::String currentDisplayName() const;
     std::atomic<int>* channelFor (Role);
     void changed();
 

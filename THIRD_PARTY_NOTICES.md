@@ -7,6 +7,12 @@ OpenMix incluye o enlaza el siguiente software de terceros.
 https://juce.com · usado bajo la GNU Affero General Public License v3 (ver LICENSE).
 Copyright © Raw Material Software Limited.
 
+## SDK de drivers de baja latencia (solo en la versión de Windows)
+
+ASIO SDK 2.3.4 de Steinberg Media Technologies GmbH, usado bajo la GNU General Public License v3
+(licencia dual del SDK). ASIO es una marca registrada de Steinberg Media Technologies GmbH.
+No se incluye en este repositorio: se descarga del sitio del fabricante al compilar.
+
 ## Signalsmith Stretch
 
 ```

@@ -47,7 +47,7 @@ Si coincide, baja el archivo del mapeo y lo instala. No se envía ningún dato d
   "mappings": [{
     "id": "modelo-x", "name": "Modelo X", "file": "modelo-x.midi.json",
     "match": { "midi": ["Modelo X"], "usb": ["1234:5678"] },
-    "driver": { "windows": { "url": "https://…/instalador.exe", "sha256": "…", "args": "/S" } }
+    "driver": { "windows": { "page": "https://…/descargas", "detect": ["%ProgramFiles%\\Fabricante\\driver.dll"] } }
   }]
 }
 ```
@@ -55,7 +55,9 @@ Si coincide, baja el archivo del mapeo y lo instala. No se envía ningún dato d
 - `match.midi`: nombre exacto del puerto (se ignoran números de puerto y el prefijo "2- " de Windows);
   terminado en `*` acepta toda la familia ("Modelo X *" también reconoce "Modelo X MK2").
 - `file`: solo el nombre del archivo, en esta misma carpeta.
-- `driver.windows`: instalador oficial del fabricante y su SHA-256 (lo usa la instalación automática de drivers).
+- `driver.<windows|mac|linux>` (opcional): si el controlador necesita un driver en ese sistema, `page` es la
+  página oficial de descarga y `detect` las rutas que existen cuando ya está instalado. OpenMix **no descarga
+  ni instala drivers**: si falta, avisa y ofrece un botón que abre esa página.
 
 ## Moderación
 

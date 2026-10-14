@@ -1985,6 +1985,14 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         auto match = std::make_unique<juce::DynamicObject>();
         match->setProperty ("midi", juce::Array<juce::var> { "Test Controller X" });
         entry->setProperty ("match", juce::var (match.release()));
+        const auto driverMarker = juce::File::createTempFile ("om-driver-installed");
+        auto drv = std::make_unique<juce::DynamicObject>();
+        drv->setProperty ("page", "https://example.com/drivers/x");
+        drv->setProperty ("detect", juce::Array<juce::var> { driverMarker.getFullPathName() });
+        auto drivers = std::make_unique<juce::DynamicObject>();
+        const juce::var drvVar (drv.release());
+        for (auto* os : { "windows", "mac", "linux" }) drivers->setProperty (os, drvVar);
+        entry->setProperty ("driver", juce::var (drivers.release()));
         auto evil = std::make_unique<juce::DynamicObject>();                       // must be ignored
         evil->setProperty ("file", "../../escape.json");
         evil->setProperty ("match", juce::JSON::parse (R"({"midi":["Unknown Box"]})"));
@@ -2033,6 +2041,15 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         midi.setBindings (own);
         const auto ownDev = lib.resolveNow ("My Own Box");
         rep.check (ownDev.status == ControllerLibrary::Status::mappedByUser, "Un mapeo hecho por el usuario nunca se reemplaza");
+
+        // Driver: OpenMix only recommends the official page while it is missing, never downloads it.
+        const auto pagesBefore = lib.missingDriverPages ({ "Test Controller X MIDI 1" });
+        driverMarker.create();
+        const auto pagesAfter = lib.missingDriverPages ({ "Test Controller X MIDI 1" });
+        driverMarker.deleteFile();
+        rep.check (pagesBefore == juce::StringArray { "https://example.com/drivers/x" } && pagesAfter.isEmpty()
+                   && ! Library::dataFolder().getChildFile ("controllers").getChildFile ("drivers").exists(),
+                   "Si falta el driver, recomienda la página oficial (y deja de hacerlo al instalarlo); no descarga nada");
 
         // Offline: the site is gone; a reconnect still works from the cache.
         site.deleteRecursively();

@@ -57,6 +57,14 @@ if(MSVC)
     target_compile_options(OpenMix PRIVATE /utf-8 /bigobj)
 endif()
 
+# Windows: low-latency vendor drivers. The SDK is not in the repository: pass its folder
+# (downloaded from the vendor at build time, GPLv3 option) with -DOPENMIX_ASIO_SDK=<path>.
+set(OPENMIX_ASIO_SDK "" CACHE PATH "Low-latency driver SDK folder (Windows)")
+if(WIN32 AND OPENMIX_ASIO_SDK)
+    target_compile_definitions(OpenMix PRIVATE JUCE_ASIO=1)
+    target_include_directories(OpenMix SYSTEM PRIVATE "${OPENMIX_ASIO_SDK}/common")
+endif()
+
 target_link_libraries(OpenMix
     PRIVATE
         juce::juce_audio_utils

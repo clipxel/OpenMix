@@ -1,10 +1,13 @@
-# Compila OpenMix para macOS, Windows y Linux, corre los autotests y sube los instaladores
-# al release del tag. Se dispara al pushear un tag v* o a mano (Actions › Compilar versiones › Run).
+# Compila OpenMix para macOS, Windows y Linux y corre los autotests.
+# Con un tag v* (o a mano: Actions › Compilar versiones › Run) además sube los instaladores al release.
+# Un push a main solo compila y prueba: no toca ningún release.
 name: Compilar versiones
 
 on:
   push:
     tags: ["v*"]
+    branches: [main]
+    paths: ["Source/**", "CMakeLists.txt", "Resources/**", ".github/workflows/release.yml"]
   workflow_dispatch:
     inputs:
       tag:
@@ -54,10 +57,17 @@ jobs:
       - name: Versión
         run: echo "VERSION=$(sed -n 's/^project(OpenMix VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)" >> "$GITHUB_ENV"
 
+      - name: SDK de drivers de baja latencia (Windows, licencia GPLv3, verificado por SHA-256)
+        if: runner.os == 'Windows'
+        run: |
+          curl -sL -o asiosdk.zip https://download.steinberg.net/sdk_downloads/ASIO-SDK_2.3.4_2025-10-15.zip
+          echo "d5ebf0c20dd2c5f43771fd0c1418f4b361bf52434ee670097cfa6b3a335e2eca  asiosdk.zip" | sha256sum -c -
+          7z x -oexternal asiosdk.zip > /dev/null
+
       - name: Compilar (Windows)
         if: runner.os == 'Windows'
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DOPENMIX_ASIO_SDK="$(pwd -W)/external/ASIOSDK"
           cmake --build build --config Release --parallel
           echo "EXE=build/OpenMix_artefacts/Release/OpenMix.exe" >> "$GITHUB_ENV"
 
@@ -146,6 +156,7 @@ jobs:
           echo "ASSET=OpenMix-$VERSION-Linux-x86_64.tar.gz" >> "$GITHUB_ENV"
 
       - name: Subir al release
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
