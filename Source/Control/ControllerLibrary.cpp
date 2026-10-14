@@ -1,6 +1,7 @@
 #include "ControllerLibrary.h"
 #include "DriverCheck.h"
 #include "MappingImport.h"
+#include <BinaryData.h>
 #include "../Library/Library.h"
 #include "../Common/Strings.h"
 
@@ -33,20 +34,29 @@ juce::File ControllerLibrary::cacheFolder()
 //==============================================================================
 juce::String ControllerLibrary::normalise (const juce::String& midiName)
 {
-    // "2- Model X MIDI 1", "Model X MIDI", "Model X" → "modelx": port numbers, the Windows "n- " prefix and
-    // generic words differ between systems; the model name does not.
+    // "2- Model X-400 MIDI 1", "Model X-400 MIDI", "Model X-400" → "modelx400". Port numbers, the
+    // Windows "n- " prefix and generic words differ between systems; the model name (numbers
+    // included: "-400" vs "-200") does not.
     auto s = midiName.toLowerCase().trim();
     if (s.length() > 3 && juce::CharacterFunctions::isDigit (s[0]) && s.substring (1, 3) == "- ")
         s = s.substring (3);
     else if (s.length() > 4 && s.substring (0, 2).containsOnly ("0123456789") && s.substring (2, 4) == "- ")
         s = s.substring (4);
-    auto words = juce::StringArray::fromTokens (s, " _-:()[]/", "");
+
+    static const juce::StringArray generic { "midi", "port", "usb", "audio", "in", "out", "input", "output", "device" };
+    auto words = juce::StringArray::fromTokens (s, " \t", "");
     words.removeEmptyStrings();
-    for (auto* generic : { "midi", "port", "usb", "audio", "in", "out", "input", "output", "device" })
-        words.removeString (generic);
-    while (! words.isEmpty() && words[words.size() - 1].containsOnly ("0123456789"))
-        words.remove (words.size() - 1);
-    return words.joinIntoString ("").retainCharacters ("abcdefghijklmnopqrstuvwxyz0123456789");
+    juce::StringArray kept;
+    for (int i = 0; i < words.size(); ++i)
+    {
+        const auto w = words[i].retainCharacters ("abcdefghijklmnopqrstuvwxyz0123456789");
+        if (generic.contains (w)) continue;
+        // A bare number right after a generic word is a port number ("MIDI 1"), not part of the model.
+        if (w.containsOnly ("0123456789") && i > 0 && generic.contains (words[i - 1].retainCharacters ("abcdefghijklmnopqrstuvwxyz0123456789")))
+            continue;
+        kept.add (w);
+    }
+    return kept.joinIntoString ("");
 }
 
 bool ControllerLibrary::nameMatches (const juce::String& deviceName, const juce::String& pattern)
@@ -130,8 +140,39 @@ juce::var ControllerLibrary::loadIndex (bool allowNetwork, bool force, bool& dow
     return juce::JSON::parse (cached);          // offline (or fresh): the last good copy
 }
 
+// The mappings that ship inside OpenMix (Resources/mappings/library.json): tested controllers that
+// work at once, offline.
+static const juce::var& bundledLibrary()
+{
+    static const juce::var lib = juce::JSON::parse (juce::String::fromUTF8 (BinaryData::library_json, BinaryData::library_jsonSize));
+    return lib;
+}
+
 ControllerLibrary::Result ControllerLibrary::lookup (const juce::String& deviceName)
 {
+    if (auto* arr = bundledLibrary()["mappings"].getArray())
+    {
+        // The most specific name wins ("Mixtrack Pro 3" before "Mixtrack 3").
+        const juce::var* best = nullptr;
+        int bestLen = 0;
+        for (auto& m : *arr)
+            if (auto* names = m["match"]["midi"].getArray())
+                for (auto& n : *names)
+                    if (nameMatches (deviceName, n.toString()) && normalise (n.toString()).length() > bestLen)
+                    {
+                        best = &m;
+                        bestLen = normalise (n.toString()).length();
+                    }
+        if (best != nullptr)
+        {
+            std::vector<MidiBinding> bindings;
+            if (auto* b = (*best)["bindings"].getArray())
+                for (auto& v : *b) bindings.push_back (MidiBinding::fromVar (v));
+            if (! bindings.empty())
+                return { Status::mapped, (*best)["name"].toString(), {}, std::move (bindings) };
+        }
+    }
+
     juce::String error;
     bool downloaded = false;
     auto index = loadIndex (online.load(), false, downloaded, error);

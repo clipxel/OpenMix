@@ -21,5 +21,8 @@ namespace om
     /** Simulates every control of these controller mappings (see SelfTest.cpp). */
     int simulateControllers (const std::vector<MappingImport::Source>&, const juce::String& only);
 
+    /** Builds Resources/mappings/library.json from a folder of mapping files (see SelfTest.cpp). */
+    int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFile);
+
     int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce::File& usbRoot = {});
 }

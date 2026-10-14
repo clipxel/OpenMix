@@ -7,9 +7,10 @@ namespace om::MappingImport
 
 /** Interoperability: controller mappings that other DJ software installed on this computer already
     has (its built-in tables or the user's own files) are read where they are and translated into
-    OpenMix bindings. Nothing is copied anywhere else or uploaded. Two formats are understood:
+    OpenMix bindings. Nothing is copied anywhere else or uploaded. Three formats are understood:
       · CSV tables ("<model>.midi.csv": function, control type, MIDI message, per-deck channel offsets)
-      · XML pairs: a device definition (MIDI message → control name) + a mapper (control → action). */
+      · XML pairs: a device definition (MIDI message → control name) + a mapper (control → action)
+      · one-file XML presets: each control's MIDI message, group ([Channel1]…) and function. */
 
 struct Source
 {
@@ -34,6 +35,7 @@ std::optional<Source> findFor (const juce::String& midiDeviceName);
 Result convert (const Source&);
 Result fromCsv (const juce::String& csvText);
 Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml);
+Result fromPreset (const juce::String& presetXml);   // one-file XML presets (<…ControllerPreset>)
 
 /** Picks the right parser for a file the user chose (.csv, or a .xml definition / mapper). */
 Result fromFile (const juce::File&);

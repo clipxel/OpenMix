@@ -15,7 +15,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -99,6 +99,15 @@ public:
             auto arg = [&args] (const juce::String& key) { auto i = args.indexOf (key); return i >= 0 ? args[i + 1].unquoted() : juce::String(); };
             om::Library::setDataFolderOverride (juce::File (arg ("--data")));
             setApplicationReturnValue (om::runAudioDeviceTest (juce::File (arg ("--usb")), juce::File (arg ("--data"))));
+            quit();
+            return;
+        }
+
+        if (commandLine.contains ("--build-library"))
+        {
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            const auto i = args.indexOf ("--build-library");
+            setApplicationReturnValue (om::buildMappingLibrary (juce::File (args[i + 1].unquoted()), juce::File (args[i + 2].unquoted())));
             quit();
             return;
         }

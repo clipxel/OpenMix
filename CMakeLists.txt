@@ -33,7 +33,7 @@ endif()
 
 target_sources(OpenMix PRIVATE ${OPENMIX_SOURCES})
 
-juce_add_binary_data(OpenMixAssets SOURCES Resources/logo-mark.png)
+juce_add_binary_data(OpenMixAssets SOURCES Resources/logo-mark.png Resources/mappings/library.json)
 target_include_directories(OpenMix PRIVATE Source)
 target_include_directories(OpenMix SYSTEM PRIVATE
     external/signalsmith-stretch

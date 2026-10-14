@@ -2013,7 +2013,9 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         rep.check (ControllerLibrary::nameMatches ("2- Test Controller X MIDI 1", "Test Controller X")
                    && ControllerLibrary::nameMatches ("TEST CONTROLLER X", "Test Controller X")
                    && ! ControllerLibrary::nameMatches ("Test Controller X2", "Test Controller X")
-                   && ControllerLibrary::nameMatches ("Test Controller X MK2", "Test Controller X *"),
+                   && ControllerLibrary::nameMatches ("Test Controller X MK2", "Test Controller X *")
+                   && ! ControllerLibrary::nameMatches ("Model X-200", "Model X-400") && ! ControllerLibrary::nameMatches ("Board 200", "Board 400")
+                   && ControllerLibrary::nameMatches ("Model X-400 MIDI 1", "Model X-400"),
                    "Reconoce el modelo aunque cambie el puerto o el prefijo del sistema (y no confunde modelos parecidos)");
 
         ControllerLibrary lib (midi);
@@ -2052,6 +2054,37 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         rep.check (pagesBefore == juce::StringArray { "https://example.com/drivers/x" } && pagesAfter.isEmpty()
                    && ! Library::dataFolder().getChildFile ("controllers").getChildFile ("drivers").exists(),
                    "Si falta el driver, recomienda la página oficial (y deja de hacerlo al instalarlo); no descarga nada"_u);
+
+        // Built-in library: real controllers recognised by the names they announce, the right model each.
+        {
+            ControllerLibrary builtIn (midi);
+            builtIn.setOnlineLookup (false);
+            builtIn.setLocalImport (false);
+            const auto inpulse = builtIn.resolveNow ("DJControl Inpulse 200");
+            const auto ddj4 = builtIn.resolveNow ("DDJ-400 MIDI 1");
+            const auto ddj2 = builtIn.resolveNow ("2- DDJ-200");
+            const auto mt3 = builtIn.resolveNow ("Mixtrack Pro 3");
+            const auto mtfx = builtIn.resolveNow ("Mixtrack Pro FX");
+            rep.check (inpulse.profileName.contains ("Inpulse 200") && ddj4.profileName.contains ("DDJ-400") && ddj2.profileName.contains ("DDJ-200")
+                       && mt3.profileName.contains ("(Pro) 3") && mtfx.profileName.contains ("Pro FX"),
+                       "Biblioteca incluida: cada controlador se reconoce como su modelo exacto (400 ≠ 200, Pro 3 ≠ Pro FX)"_u,
+                       inpulse.profileName + " · " + ddj4.profileName + " · " + ddj2.profileName);
+
+            // Plug in the Inpulse 200 and press its PLAY: the deck starts, no setup.
+            const MidiBinding* playB = nullptr;
+            for (auto& mb : midi.bindings()) if (mb.device == "DJControl Inpulse 200" && mb.action == "play_pause" && mb.deck == 0 && ! mb.shift) { playB = &mb; break; }
+            auto& dk = engine.deck (0);
+            dk.setPlaying (false);
+            if (playB != nullptr)
+            {
+                const auto msg = playB->kind == MidiBinding::Kind::note ? juce::MidiMessage::noteOn (playB->channel, playB->number, (juce::uint8) 127)
+                                                                        : juce::MidiMessage::controllerEvent (playB->channel, playB->number, 127);
+                midi.inject ("DJControl Inpulse 200", msg);
+                midi.inject ("DJControl Inpulse 200", juce::MidiMessage::noteOff (playB->channel, playB->number));
+            }
+            rep.check (playB != nullptr && dk.isPlaying(), "Controlador de la biblioteca (Inpulse 200): se enchufa y PLAY funciona sin configurar nada");
+            dk.setPlaying (false);
+        }
 
         // Offline: the site is gone; a reconnect still works from the cache.
         site.deleteRecursively();
@@ -2211,6 +2244,29 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    && jogRow != x.bindings.end() && jogRow->encoding == MidiBinding::Encoding::relativeOffset,
                    "Definición + mapeo XML: decks, capa SHIFT, fader de 14 bits y jog"_u);
 
+        // One-file XML preset, with script-driven controls named by their path.
+        const juce::String preset = R"(<SomeControllerPreset schemaVersion="1"><info><name>Test Board 4</name></info>
+              <controller id="TB4"><controls>
+              <control><group>[Channel1]</group><key>play</key><status>0x90</status><midino>0x0B</midino><options><normal/></options></control>
+              <control><group>[Channel2]</group><key>TB4.rightDeck.playButton.input</key><status>0x91</status><midino>0x0B</midino><options><script-binding/></options></control>
+              <control><group>[Channel1]</group><key>TB4.leftDeck.wheelTurn</key><status>0xB0</status><midino>0x06</midino><options><script-binding/></options></control>
+              <control><group>[Channel1]</group><key>TB4.leftDeck.wheelTouch</key><status>0x90</status><midino>0x06</midino><options><script-binding/></options></control>
+              <control><group>[EqualizerRack1_[Channel1]_Effect1]</group><key>TB4.deckA.eqKnob[3].inputMSB</key><status>0xB0</status><midino>0x10</midino><options><script-binding/></options></control>
+              <control><group>[EqualizerRack1_[Channel1]_Effect1]</group><key>TB4.deckA.eqKnob[3].inputLSB</key><status>0xB0</status><midino>0x30</midino><options><script-binding/></options></control>
+              <control><group>[Channel1]</group><key>TB4.leftDeck.padSection.padPress</key><status>0x94</status><midino>0x15</midino><options><script-binding/></options></control>
+              <control><group>[Channel1]</group><key>TB4.leftDeck.padSection.padPress</key><status>0x94</status><midino>0x14</midino><options><script-binding/></options></control>
+              </controls></controller></SomeControllerPreset>)";
+        const auto p = MappingImport::fromPreset (preset);
+        auto hasP = [&p] (const char* act, int dk, int nm)
+        {
+            return std::any_of (p.bindings.begin(), p.bindings.end(), [=] (const MidiBinding& mb) { return mb.action == act && mb.deck == dk && mb.number == nm; });
+        };
+        const auto eqRow = std::find_if (p.bindings.begin(), p.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "eq_high"; });
+        rep.check (p.controller == "Test Board 4" && hasP ("play_pause", 0, 11) && hasP ("play_pause", 1, 11) && hasP ("jog", 0, 6)
+                   && hasP ("jog_touch", 0, 6) && hasP ("pad_1", 0, 0x14) && hasP ("pad_2", 0, 0x15)
+                   && eqRow != p.bindings.end() && eqRow->encoding == MidiBinding::Encoding::absolute14 && eqRow->lsbNumber == 0x30,
+                   "Preset XML de un archivo: controles directos y por script (jog, pads en orden, EQ de 14 bits)");
+
         // The simulator plays every control of both through OpenMix.
         const auto dir = juce::File::createTempFile ("om-import");
         dir.createDirectory();
@@ -2328,8 +2384,12 @@ int simulateControllers (const std::vector<MappingImport::Source>& sources, cons
     {
         if (only.isNotEmpty() && src.controller != only) continue;
         const auto conv = MappingImport::convert (src);
-        if (conv.bindings.empty()) continue;
         ++controllers;
+        if (conv.bindings.empty())
+        {
+            print (juce::String::fromUTF8 ("  FALLA ") + src.controller + juce::String::fromUTF8 ("  ·  no se pudo traducir ningún control"));
+            continue;
+        }
 
         AudioEngine eng;
         eng.prepareForTest (sr, block);
@@ -2463,11 +2523,24 @@ int simulateControllers (const std::vector<MappingImport::Source>& sources, cons
         }
         problems.addArray (effects);
 
+        // Core functions a two-deck controller is expected to drive.
+        juce::StringArray missing;
+        for (auto* core : { "play_pause", "cue_button", "sync", "jog", "pitch", "volume", "eq_high", "eq_mid", "eq_low", "hot_cue_1", "load", "crossfader" })
+            for (int d = 0; d < 2; ++d)
+            {
+                const bool perDeck = actions.find (core) != nullptr && actions.find (core)->perDeck;
+                if (! perDeck && d == 1) continue;
+                const juce::String alt = juce::String (core) == "hot_cue_1" ? "pad_1" : juce::String();   // pads start on the hot cue page
+                if (std::none_of (map.begin(), map.end(), [&] (const MidiBinding& mb) { return (mb.action == core || (alt.isNotEmpty() && mb.action == alt)) && (! perDeck || mb.deck == d); }))
+                    missing.add (juce::String (core) + (perDeck ? " (deck " + juce::String (d + 1) + ")" : juce::String()));
+            }
+
         const bool allGood = problems.isEmpty();
         if (allGood) ++clean;
         print ((allGood ? "  OK    " : "  FALLA ") + src.controller + "  ·  " + juce::String (ok) + "/" + juce::String (checked)
                + juce::String::fromUTF8 (" controles responden · ") + juce::String (conv.untranslated.size())
-               + juce::String::fromUTF8 (" funciones sin equivalente"));
+               + juce::String::fromUTF8 (" funciones sin equivalente")
+               + (missing.isEmpty() ? juce::String::fromUTF8 (" · funciones básicas completas") : juce::String::fromUTF8 (" · faltan: ") + missing.joinIntoString (", ")));
         for (int i = 0; i < juce::jmin (problems.size(), 12); ++i)
             print ("          - " + problems[i]);
         if (problems.size() > 12) print ("          … y " + juce::String (problems.size() - 12) + " más");
@@ -2476,6 +2549,94 @@ int simulateControllers (const std::vector<MappingImport::Source>& sources, cons
     scratch.deleteRecursively();
     Library::setDataFolderOverride (previousData);
     return clean == controllers && controllers > 0 ? 0 : 1;
+}
+
+//==============================================================================
+/** Builds the mapping library that ships inside OpenMix: every source that passes the full
+    simulation is converted, given the MIDI names its controller may announce, and written to one
+    JSON file (Resources/mappings/library.json). */
+int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFile)
+{
+    juce::Array<juce::var> entries;
+    juce::StringArray notices;
+    std::vector<juce::File> files;
+    for (const auto& e : juce::RangedDirectoryIterator (sourceFolder, false, "*.xml;*.csv", juce::File::findFiles))
+        files.push_back (e.getFile());
+    std::sort (files.begin(), files.end(), [] (const juce::File& a, const juce::File& b) { return a.getFileName().compareNatural (b.getFileName()) < 0; });
+
+    for (auto& f : files)
+    {
+        MappingImport::Source src { f.getFileNameWithoutExtension(), f, f };
+        auto r = MappingImport::convert (src);
+        const bool twoDecks = std::count_if (r.bindings.begin(), r.bindings.end(), [] (const MidiBinding& b) { return b.action == "play_pause"; }) >= 2;
+        if (r.bindings.size() < 20 || ! twoDecks || simulateControllers ({ src }, {}) != 0)
+        {
+            std::cout << "  descartado: " << f.getFileName().toRawUTF8() << std::endl;
+            continue;
+        }
+
+        // Names to recognise it by: the full model name and its tail ("Brand Model X" → "Model X"),
+        // for every variant the title covers ("Mix 2/4" → "Mix 2", "Mix 4"; "(Pro) 3" with and without
+        // "Pro"; version tags dropped).
+        auto name = r.controller.isNotEmpty() ? r.controller : src.controller;
+        auto words = juce::StringArray::fromTokens (name, " ", "");
+        words.removeEmptyStrings();
+        for (int i = words.size(); --i >= 0;)
+            if (words[i].startsWithIgnoreCase ("v") && words[i].substring (1).containsOnly ("0123456789."))
+                words.remove (i);                                   // "v0.995"
+        name = words.joinIntoString (" ");
+        std::vector<juce::StringArray> variants { {} };
+        for (auto& w : words)
+        {
+            std::vector<juce::StringArray> next;
+            juce::StringArray options;
+            if (w.startsWithChar ('(') && w.endsWithChar (')')) options = juce::StringArray (w.substring (1, w.length() - 1), juce::String());
+            else if (w.containsChar ('/'))                      options = juce::StringArray::fromTokens (w, "/", "");
+            else                                                options = { w };
+            for (auto& v : variants)
+                for (auto& o : options) { auto c = v; if (o.isNotEmpty()) c.add (o); next.push_back (c); }
+            variants = next;
+        }
+        juce::Array<juce::var> match;
+        for (auto& v : variants)
+            for (int i = 0; i < v.size(); ++i)
+            {
+                juce::StringArray tail;
+                for (int j = i; j < v.size(); ++j) tail.add (v[j]);
+                const auto pattern = tail.joinIntoString (" ");
+                const bool specific = tail.size() >= 2 || pattern.containsAnyOf ("0123456789");   // not just "Platinum"
+                if (specific && ControllerLibrary::normalise (pattern).length() >= 5 && ! match.contains (pattern))
+                    match.add (pattern);
+            }
+
+        juce::String author;
+        if (auto xml = juce::XmlDocument::parse (f))
+            if (auto* info = xml->getChildByName ("info"))
+                author = info->getChildElementAllSubText ("author", {}).trim();
+
+        juce::Array<juce::var> bindings;
+        for (auto b : r.bindings) { b.device = "*"; bindings.add (b.toVar()); }
+        auto o = std::make_unique<juce::DynamicObject>();
+        o->setProperty ("id", ControllerLibrary::normalise (name));
+        o->setProperty ("name", name);
+        o->setProperty ("author", author);
+        auto m = std::make_unique<juce::DynamicObject>();
+        m->setProperty ("midi", match);
+        o->setProperty ("match", juce::var (m.release()));
+        o->setProperty ("bindings", bindings);
+        entries.add (juce::var (o.release()));
+        notices.add ("- " + name + (author.isNotEmpty() ? " — " + author : juce::String()));
+        std::cout << "  incluido: " << name.toRawUTF8() << " (" << bindings.size() << " asignaciones)" << std::endl;
+    }
+
+    auto root = std::make_unique<juce::DynamicObject>();
+    root->setProperty ("version", 1);
+    root->setProperty ("mappings", entries);
+    outFile.getParentDirectory().createDirectory();
+    outFile.replaceWithText (juce::JSON::toString (juce::var (root.release()), juce::JSON::FormatOptions{}.withSpacing (juce::JSON::Spacing::none)));
+    outFile.getSiblingFile ("CREDITS.txt").replaceWithText (notices.joinIntoString ("\n") + "\n");
+    std::cout << entries.size() << " mapeos en la biblioteca incluida" << std::endl;
+    return entries.isEmpty() ? 1 : 0;
 }
 
 } // namespace om

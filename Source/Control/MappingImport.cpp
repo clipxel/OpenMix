@@ -185,16 +185,17 @@ Result fromCsv (const juce::String& text)
         auto f = juce::StringArray::fromTokens (line, ",", "\"");
         while (f.size() < 8) f.add ({});
         const auto name = f[0].trim(), function = f[1].trim(), type = f[2].trim(), input = f[3].trim();
-        if (function.isEmpty() || type.isEmpty())
+        if (type.isEmpty() || (function.isEmpty() && name.isEmpty()))
             continue;
+        const auto functionOrName = function.isNotEmpty() ? function : name;   // some tables leave "function" blank
 
-        auto parts = juce::StringArray::fromTokens (function, "+", "");
+        auto parts = juce::StringArray::fromTokens (functionOrName, "+", "");
         const bool isShiftButton = parts.size() == 1 && parts[0] == "Shift";
         const bool shift = parts.contains ("Shift") && ! isShiftButton;     // "X+Shift": X with SHIFT held
         if (! isShiftButton) parts.removeString ("Shift");
         if (parts.size() > 1)                                  // "Browse+Press" and other gestures: not mapped
         {
-            r.untranslated.addIfNotAlreadyThere (function);
+            r.untranslated.addIfNotAlreadyThere (functionOrName);
             continue;
         }
 
@@ -206,7 +207,7 @@ Result fromCsv (const juce::String& text)
         csvEncoding (type, encOk, lsbDummy, 0);
         if (action.isEmpty() || ! encOk)
         {
-            if (encOk) r.untranslated.addIfNotAlreadyThere (function);
+            if (encOk) r.untranslated.addIfNotAlreadyThere (functionOrName);
             continue;
         }
 
@@ -224,7 +225,7 @@ Result fromCsv (const juce::String& text)
                 }
             if (! anyDeck) codes.push_back ({ -1, code });
             if (f[6].trim().isNotEmpty() || f[7].trim().isNotEmpty())
-                r.untranslated.addIfNotAlreadyThere (function + juce::String::fromUTF8 (" (decks 3–4)"));
+                r.untranslated.addIfNotAlreadyThere (functionOrName + juce::String::fromUTF8 (" (decks 3–4)"));
         }
         else
         {
@@ -434,6 +435,226 @@ Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml
 }
 
 //==============================================================================
+// XML "controller preset": one <control> per MIDI message with a group ([Channel1], [Master]…), the
+// function it drives, and options. Many controls go through the program's own scripts; those are
+// recognised by the function name in the script path (deck[0].playButton, wheelTurn…).
+
+static juce::String presetAction (const juce::String& group, const juce::String& key, bool script)
+{
+    const auto g = group.toLowerCase(), k = key.toLowerCase();
+    if (! script)
+    {
+        static const std::map<juce::String, juce::String> direct {
+            { "play", "play_pause" }, { "cue_default", "cue_button" }, { "cue_gotoandstop", "goto_cue_stop" },
+            { "sync_enabled", "sync" }, { "beatsync", "sync" }, { "keylock", "key_lock" }, { "slip_enabled", "slip_mode" },
+            { "reverse", "reverse" }, { "pfl", "pfl" }, { "volume", "volume" }, { "pregain", "gain" }, { "rate", "pitch" },
+            { "loadselectedtrack", "load" }, { "beatloop_activate", "loop" }, { "beatloop_4_toggle", "loop" },
+            { "loop_halve", "loop_half" }, { "loop_double", "loop_double" }, { "loop_in", "loop_in" }, { "loop_out", "loop_out" },
+            { "reloop_toggle", "reloop" }, { "reloop_exit", "reloop" }, { "beatjump_forward", "beatjump_fwd" },
+            { "beatjump_backward", "beatjump_back" }, { "crossfader", "crossfader" }, { "headgain", "headphone_volume" },
+            { "headmix", "headphone_mix" }, { "quantize", "quantize" }, { "pitch_adjust_up", "key_up" }, { "pitch_adjust_down", "key_down" },
+            { "jog", "jog" }, { "movevertical", "browser_scroll" }, { "selecttrackknob", "browser_scroll" },
+            { "filterhigh", "eq_high" }, { "filtermid", "eq_mid" }, { "filterlow", "eq_low" },   // older EQ names
+        };
+        if (k.startsWith ("hotcue_") && k.endsWith ("_activate")) return "hot_cue_" + juce::String (k.substring (7).getIntValue());
+        if (k.startsWith ("hotcue_") && k.endsWith ("_clear"))    return "delete_hot_cue_" + juce::String (k.substring (7).getIntValue());
+        if (g.contains ("equalizerrack"))
+            return k == "parameter3" ? "eq_high" : k == "parameter2" ? "eq_mid" : k == "parameter1" ? "eq_low" : juce::String();
+        if (g.contains ("quickeffectrack") && k == "super1") return "filter";
+        if ((g == "[master]" || g == "[mixer]") && k == "gain") return "master_volume";
+        if (auto it = direct.find (k); it != direct.end()) return it->second;
+        return {};
+    }
+
+    // Script: the path after the script's own name ("Model.leftDeck.playButton.input") names the
+    // control; the script name itself (often the model) must not be read as a control.
+    const auto path = k.containsChar ('.') ? k.fromFirstOccurrenceOf (".", false, false) : k;
+    auto has = [&path] (const char* w) { return path.contains (w); };
+    if (has ("indicator") || has ("toneplay") || has ("sampler") || has ("effect") || has ("slicer") || has ("roll")) return {};
+    if (has ("shift"))                                           return "shift";
+    if (has ("wheeltouch") || has ("jogtouch") || has ("touch")) return "jog_touch";
+    if (has ("wheelturn") || has ("jogturn") || has ("jogwheel") || has ("jogspin") || (has ("wheel") && ! has ("pitch")) || has (".jog") || path.startsWith ("jog")) return "jog";
+    if (has ("hotcue"))                                          return "hot_cue_*";
+    if (has ("pads["))                                          // "pads[0]": numbered by the script itself
+    {
+        const int n = path.fromFirstOccurrenceOf ("pads[", false, false).getIntValue() + 1;
+        if (n >= 1 && n <= 8) return "pad_" + juce::String (n);
+    }
+    if (has ("padpress") || has ("padbutton"))                   return "pad_*";
+    if (has ("pitchbendup"))                                     return "pitch_bend_plus";
+    if (has ("pitchbenddown"))                                   return "pitch_bend_minus";
+    if (has ("loophalf"))                                        return "loop_half";
+    if (has ("loopdouble"))                                      return "loop_double";
+    if (has ("loopin"))                                          return "loop_in";
+    if (has ("loopout"))                                         return "loop_out";
+    if (has ("reloop"))                                          return "reloop";
+    if (has ("loop"))                                            return "loop";
+    if (has ("sync"))                                            return "sync";
+    if (has ("play"))                                            return "play_pause";
+    if (has ("cue") && ! has ("pfl"))                            return "cue_button";
+    if (has ("pfl") || has ("headphone"))                        return "pfl";
+    if (has ("load"))                                            return "load";
+    if (has ("keylock"))                                         return "key_lock";
+    if (has ("slip"))                                            return "slip_mode";
+    if (has ("scratchtoggle") || has ("vinyl"))                  return "vinyl_mode";
+    if (has ("maingain") || has ("mastergain") || has ("mastervol")) return "master_volume";
+    if (has ("gain") || has ("trim"))                            return "gain";
+    {
+        // EQ knobs numbered low → high, as the equalizer's parameters 1–3 ("eqKnob[2]", "parameter2").
+        const int n = has ("eqknob[") ? path.fromFirstOccurrenceOf ("eqknob[", false, false).getIntValue()
+                    : (g.contains ("equalizerrack") && has ("parameter")) ? path.fromFirstOccurrenceOf ("parameter", false, false).getIntValue() : 0;
+        if (n == 1) return "eq_low";
+        if (n == 2) return "eq_mid";
+        if (n == 3) return "eq_high";
+    }
+    if (has ("eqhi") || has ("high") || has ("treble"))          return "eq_high";
+    if (has ("eqmid") || has (".mid"))                           return "eq_mid";
+    if (has ("eqlo") || has ("low") || has ("bass"))             return "eq_low";
+    if (has ("filter") || has ("quickeffect") || has ("super"))  return "filter";
+    if (has ("pitch") || has ("rate") || has ("tempo"))          return "pitch";
+    if (has ("volume") || has ("fader"))                         return g == "[master]" ? "crossfader" : "volume";
+    if (has ("browse") || has ("scroll") || has ("library"))     return "browser_scroll";
+    return {};
+}
+
+static int presetDeck (const juce::String& group, const juce::String& key, int status)
+{
+    const auto g = group.toLowerCase(), k = key.toLowerCase();
+    for (int n = 1; n <= 4; ++n)
+        if (g.contains ("[channel" + juce::String (n) + "]")) return n - 1;
+    if (k.contains ("deck[0]") || k.contains ("decks[0]") || k.contains ("decka") || k.contains ("leftdeck") || k.contains ("deck1")) return 0;
+    if (k.contains ("deck[1]") || k.contains ("decks[1]") || k.contains ("deckb") || k.contains ("rightdeck") || k.contains ("deck2")) return 1;
+    const int ch = status & 0x0F;
+    return ch <= 1 ? ch : -1;
+}
+
+Result fromPreset (const juce::String& xmlText)
+{
+    Result r;
+    auto xml = juce::XmlDocument::parse (xmlText);
+    if (xml == nullptr || ! xml->getTagName().endsWithIgnoreCase ("Preset"))
+        return r;
+    if (auto* info = xml->getChildByName ("info"))
+        r.controller = info->getChildElementAllSubText ("name", {}).trim();
+    auto* controller = xml->getChildByName ("controller");
+    auto* controls = controller != nullptr ? controller->getChildByName ("controls") : nullptr;
+    if (controls == nullptr) return r;
+
+    struct Raw { juce::String group, key; int status, number; bool script, invert, msb, lsb, spread64, diff; };
+    std::vector<Raw> raws;
+    for (auto* c : controls->getChildWithTagNameIterator ("control"))
+    {
+        Raw raw;
+        raw.group = c->getChildElementAllSubText ("group", {}).trim();
+        raw.key = c->getChildElementAllSubText ("key", {}).trim();
+        auto parseNum = [] (juce::String v) { v = v.trim(); return v.startsWithIgnoreCase ("0x") ? v.substring (2).getHexValue32() : v.getIntValue(); };
+        raw.status = parseNum (c->getChildElementAllSubText ("status", {}));
+        raw.number = parseNum (c->getChildElementAllSubText ("midino", {})) & 0x7F;
+        raw.script = raw.invert = raw.msb = raw.lsb = raw.spread64 = raw.diff = false;
+        if (auto* o = c->getChildByName ("options"))
+            for (auto* opt : o->getChildIterator())
+            {
+                const auto t = opt->getTagName().toLowerCase();
+                raw.script   |= t == "script-binding";
+                raw.invert   |= t == "invert";
+                raw.msb      |= t == "fourteen-bit-msb";
+                raw.lsb      |= t == "fourteen-bit-lsb";
+                raw.spread64 |= t == "spread64";
+                raw.diff     |= t == "diff" || t == "selectknob";
+            }
+        // Script halves of a 14-bit control: "….inputMSB" / "….inputLSB".
+        const auto lk = raw.key.toLowerCase();
+        if (raw.script && lk.endsWith ("lsb")) raw.lsb = true;
+        if (raw.script && lk.endsWith ("msb")) raw.msb = true;
+        raws.push_back (raw);
+    }
+    auto baseKey = [] (const juce::String& k) { auto l = k.toLowerCase(); return l.endsWith ("msb") || l.endsWith ("lsb") ? l.dropLastCharacters (3) : l; };
+
+    // Pads / hot cues behind a script: numbered by their note within each deck.
+    std::map<juce::String, std::vector<int>> ranks;            // "deck|kind|status" → sorted numbers
+    for (auto& raw : raws)
+    {
+        const auto a = presetAction (raw.group, raw.key, raw.script);
+        if (a.endsWith ("_*"))
+        {
+            auto& v = ranks[juce::String (presetDeck (raw.group, raw.key, raw.status)) + "|" + a + "|" + juce::String (raw.status)];
+            if (std::find (v.begin(), v.end(), raw.number) == v.end()) v.push_back (raw.number);
+        }
+    }
+    for (auto& [k, v] : ranks) std::sort (v.begin(), v.end());
+
+    std::set<juce::String> taken;                              // one function per message
+    for (auto& raw : raws)
+    {
+        if (raw.lsb) continue;                                 // paired with its MSB below
+        auto action = presetAction (raw.group, raw.key, raw.script);
+        const int deck = presetDeck (raw.group, raw.key, raw.status);
+        if (action.isEmpty() || deck < -1 || deck > 1)
+        {
+            if (raw.key.isNotEmpty()) r.untranslated.addIfNotAlreadyThere (raw.key);
+            continue;
+        }
+        if (action.endsWith ("_*"))
+        {
+            const auto& v = ranks[juce::String (deck) + "|" + action + "|" + juce::String (raw.status)];
+            const int n = (int) (std::find (v.begin(), v.end(), raw.number) - v.begin()) + 1;
+            if (n < 1 || n > 8) continue;
+            action = action.replace ("_*", "_" + juce::String (n));
+        }
+
+        MidiBinding b;
+        const int kind = raw.status & 0xF0;
+        b.channel = (raw.status & 0x0F) + 1;
+        b.number = raw.number;
+        b.invert = raw.invert;
+        b.action = action;
+        b.deck = deck < 0 ? 0 : deck;
+        const bool relative = action == "jog" || action == "browser_scroll";
+        const bool continuous = relative || action == "pitch" || action == "volume" || action == "gain" || action == "crossfader"
+                             || action.startsWith ("eq_") || action == "filter" || action.endsWith ("_volume") || action == "headphone_mix";
+        if (kind == 0x90 || kind == 0x80)
+        {
+            if (continuous) continue;                          // a note cannot drive a fader
+            b.kind = MidiBinding::Kind::note;
+            b.encoding = MidiBinding::Encoding::button;
+        }
+        else if (kind == 0xE0)
+        {
+            b.kind = MidiBinding::Kind::pitchWheel;
+            b.number = 0;
+            b.encoding = MidiBinding::Encoding::absolute7;
+        }
+        else if (kind == 0xB0)
+        {
+            b.kind = MidiBinding::Kind::cc;
+            if (! continuous)
+                b.encoding = MidiBinding::Encoding::button;
+            else if (relative)
+            {
+                b.encoding = raw.spread64 ? MidiBinding::Encoding::relativeOffset : MidiBinding::Encoding::relativeTwos;
+                if (action == "jog") b.scale = 1.0f / 512.0f;
+            }
+            else if (raw.msb)
+            {
+                b.encoding = MidiBinding::Encoding::absolute14;
+                for (auto& o : raws)                           // its LSB: same function, other CC
+                    if (o.lsb && baseKey (o.key) == baseKey (raw.key) && o.group == raw.group && (o.status & 0x0F) == (raw.status & 0x0F))
+                        b.lsbNumber = o.number;
+                if (b.lsbNumber < 0) b.encoding = MidiBinding::Encoding::absolute7;
+            }
+            else
+                b.encoding = MidiBinding::Encoding::absolute7;
+        }
+        else continue;
+
+        const auto key = juce::String ((int) b.kind) + ":" + juce::String (b.channel) + ":" + juce::String (b.number);
+        if (! taken.insert (key).second) continue;
+        r.bindings.push_back (b);
+    }
+    return r;
+}
+
+//==============================================================================
 Result convert (const Source& s)
 {
     if (s.file.hasFileExtension (".csv"))
@@ -442,6 +663,13 @@ Result convert (const Source& s)
         if (r.controller.isEmpty()) r.controller = s.controller;
         return r;
     }
+    if (s.definition == juce::File() || s.definition == s.file)
+        if (auto xml = juce::XmlDocument::parse (s.file); xml != nullptr && xml->getTagName().endsWithIgnoreCase ("Preset"))
+        {
+            auto r = fromPreset (s.file.loadFileAsString());
+            if (r.controller.isEmpty()) r.controller = s.controller;
+            return r;
+        }
     const auto mapper = s.file != s.definition ? s.file.loadFileAsString() : juce::String();
     auto r = fromXml (s.definition.loadFileAsString(), mapper);
     if (r.controller.isEmpty()) r.controller = s.controller;
@@ -455,6 +683,8 @@ Result fromFile (const juce::File& f)
 
     auto xml = juce::XmlDocument::parse (f);
     if (xml == nullptr) return {};
+    if (xml->getTagName().endsWithIgnoreCase ("Preset"))
+        return fromPreset (f.loadFileAsString());
     if (xml->hasTagName ("device"))
     {
         // A definition: its mapper, if any, sits in the sibling "Mappers" folder.
