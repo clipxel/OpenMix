@@ -52,7 +52,8 @@ std::optional<Updater::Info> Updater::parseManifest (const juce::var& m)
    #if JUCE_MAC
     const auto& a = m["assets"]["mac"];
    #elif JUCE_WINDOWS
-    const auto& a = m["assets"]["windows"];
+    // The installer when the manifest has it; "windows" is the .zip older versions understand.
+    const auto& a = m["assets"].hasProperty ("windows_setup") ? m["assets"]["windows_setup"] : m["assets"]["windows"];
    #else
     const auto& a = m["assets"]["linux"];
    #endif

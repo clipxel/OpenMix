@@ -126,7 +126,9 @@ jobs:
           W=$(pwd -W)
           MSYS_NO_PATHCONV=1 "$ISCC" /Q "/DAppVersion=$VERSION" "/DSourceDir=$W/OpenMix" "/O$W" installer/openmix.iss
           ls -la "OpenMix-$VERSION-Windows-Setup.exe"
-          echo "ASSET=OpenMix-$VERSION-Windows-Setup.exe" >> "$GITHUB_ENV"
+          # También en .zip: lo que saben instalar las versiones 2.0.0 al actualizarse solas.
+          7z a -tzip "OpenMix-$VERSION-Windows-x64.zip" OpenMix > /dev/null
+          echo "ASSET=OpenMix-$VERSION-Windows-Setup.exe OpenMix-$VERSION-Windows-x64.zip" >> "$GITHUB_ENV"
 
       - name: Empaquetar (Linux)
         if: runner.os == 'Linux'
@@ -171,7 +173,7 @@ jobs:
             [ -f "$NOTES" ] || { echo "OpenMix $VERSION" > notes.md; NOTES=notes.md; }
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "OpenMix $VERSION" --notes-file "$NOTES" --verify-tag || true
           fi
-          gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$TAG" $ASSET --clobber --repo "$GITHUB_REPOSITORY"
 
   # Manifiesto de actualización: versión + SHA-256 de cada instalador. OpenMix lo lee al abrirse
   # (releases/latest/download/update.json) para ofrecer "Actualizar ahora / Más tarde".
@@ -195,7 +197,9 @@ jobs:
           version, tag, repo = sys.argv[1:4]
           notes = subprocess.run(["gh", "release", "view", tag, "--repo", repo, "--json", "body", "-q", ".body"],
                                  capture_output=True, text=True).stdout.strip()
-          kinds = {"macOS-universal.dmg": "mac", "Windows-Setup.exe": "windows", "Linux-x86_64.tar.gz": "linux"}
+          # "windows": .zip (2.0.0 solo sabe instalar eso); "windows_setup": el instalador (2.0.2 en adelante).
+          kinds = {"macOS-universal.dmg": "mac", "Windows-x64.zip": "windows", "Windows-Setup.exe": "windows_setup",
+                   "Linux-x86_64.tar.gz": "linux"}
           assets = {}
           for f in os.listdir("."):
               for suffix, kind in kinds.items():
