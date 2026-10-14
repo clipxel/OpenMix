@@ -110,7 +110,12 @@ jobs:
           codesign --force --deep -s - "$APP"
           mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/Applications
           lipo -archs "$APP/Contents/MacOS/OpenMix"                      # arm64 x86_64
-          hdiutil create -volname "OpenMix $VERSION" -srcfolder dmg -ov -format UDZO "OpenMix-$VERSION-macOS-universal.dmg"
+          # hdiutil a veces falla con "Resource busy" en los runners: reintentar.
+          for i in 1 2 3 4 5; do
+            hdiutil create -volname "OpenMix $VERSION" -srcfolder dmg -ov -format UDZO "OpenMix-$VERSION-macOS-universal.dmg" && break
+            sleep 10
+          done
+          [ -f "OpenMix-$VERSION-macOS-universal.dmg" ]
           echo "ASSET=OpenMix-$VERSION-macOS-universal.dmg" >> "$GITHUB_ENV"
 
       - name: Empaquetar (Windows)
