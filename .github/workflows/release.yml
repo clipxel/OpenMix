@@ -159,7 +159,14 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
+        run: |
+          # El release se crea solo (con .github/release-notes/<tag>.md) si todavía no existe.
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            NOTES=".github/release-notes/$TAG.md"
+            [ -f "$NOTES" ] || { echo "OpenMix $VERSION" > notes.md; NOTES=notes.md; }
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "OpenMix $VERSION" --notes-file "$NOTES" --verify-tag || true
+          fi
+          gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
 
   # Manifiesto de actualización: versión + SHA-256 de cada instalador. OpenMix lo lee al abrirse
   # (releases/latest/download/update.json) para ofrecer "Actualizar ahora / Más tarde".

@@ -5,6 +5,12 @@
 namespace om::MappingImport
 {
 
+#if JUCE_MAC
+static constexpr bool onMac = true;
+#else
+static constexpr bool onMac = false;
+#endif
+
 //==============================================================================
 // Where installed DJ software keeps controller mappings. Found by folder shape, not by product:
 //   · "MidiMappings" folders of CSV tables inside installed applications;
@@ -41,7 +47,7 @@ static void addXmlPair (const juce::File& base, std::vector<Source>& out)
         auto xml = juce::XmlDocument::parse (e.getFile());
         if (xml == nullptr || ! xml->hasTagName ("device")) continue;
         const auto id = xml->getStringAttribute ("name");
-        auto name = xml->getStringAttribute (JUCE_MAC ? "macdrivername" : "drivername");
+        auto name = xml->getStringAttribute (onMac ? "macdrivername" : "drivername");
         if (name.isEmpty()) name = xml->getStringAttribute ("drivername");
         if (name.isEmpty()) name = xml->getStringAttribute ("description", id);
 
@@ -334,7 +340,7 @@ Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml
     auto def = juce::XmlDocument::parse (definitionXml);
     if (def == nullptr || ! def->hasTagName ("device"))
         return r;
-    r.controller = def->getStringAttribute (JUCE_MAC ? "macdrivername" : "drivername");
+    r.controller = def->getStringAttribute (onMac ? "macdrivername" : "drivername");
     if (r.controller.isEmpty()) r.controller = def->getStringAttribute ("drivername", def->getStringAttribute ("description"));
 
     // Control name → the MIDI messages that carry it.
