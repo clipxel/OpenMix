@@ -140,6 +140,25 @@ void MidiEngine::save() const
     Library::dataFolder().getChildFile ("midi.json").replaceWithText (juce::JSON::toString (juce::var (root.release())));
 }
 
+bool MidiEngine::hasBindingsFor (const juce::String& device) const
+{
+    return std::any_of (map.begin(), map.end(), [&device] (const MidiBinding& b) { return b.device == device; });
+}
+
+void MidiEngine::installMapping (const juce::String& device, const std::vector<MidiBinding>& mapping)
+{
+    map.erase (std::remove_if (map.begin(), map.end(), [&device] (const MidiBinding& b) { return b.device == device; }), map.end());
+    for (auto b : mapping)
+    {
+        b.device = device;
+        map.push_back (b);
+    }
+    takeover.clear();
+    msbValues.clear();
+    ledSent.clear();
+    save();
+}
+
 //==============================================================================
 void MidiEngine::handleIncomingMidiMessage (juce::MidiInput* source, const juce::MidiMessage& m)
 {

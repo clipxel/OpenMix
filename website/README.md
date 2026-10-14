@@ -35,6 +35,28 @@ canal, número y acción de cada asignación antes de publicarlo.
 curl -X POST -H "X-Admin-Token: $OPENMIX_ADMIN_TOKEN" -H "Content-Type: application/json" -d '{}' http://localhost:8080/api/mappings/<id>/official
 ```
 
+### Reconocimiento automático en la app (2.0)
+
+Al enchufar un controlador sin mapeo, OpenMix descarga `official/index.json` (cacheado 12 h, sigue
+andando sin conexión) y compara **en la computadora** el nombre MIDI del dispositivo con `match.midi`.
+Si coincide, baja el archivo del mapeo y lo instala. No se envía ningún dato del usuario ni del equipo.
+
+```json
+{
+  "version": 2,
+  "mappings": [{
+    "id": "modelo-x", "name": "Modelo X", "file": "modelo-x.midi.json",
+    "match": { "midi": ["Modelo X"], "usb": ["1234:5678"] },
+    "driver": { "windows": { "url": "https://…/instalador.exe", "sha256": "…", "args": "/S" } }
+  }]
+}
+```
+
+- `match.midi`: nombre exacto del puerto (se ignoran números de puerto y el prefijo "2- " de Windows);
+  terminado en `*` acepta toda la familia ("Modelo X *" también reconoce "Modelo X MK2").
+- `file`: solo el nombre del archivo, en esta misma carpeta.
+- `driver.windows`: instalador oficial del fabricante y su SHA-256 (lo usa la instalación automática de drivers).
+
 ## Moderación
 
 Arrancá el servidor con `OPENMIX_ADMIN_TOKEN=<secreto>`. Con el header `X-Admin-Token`:

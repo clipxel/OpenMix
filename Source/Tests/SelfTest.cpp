@@ -2,6 +2,7 @@
 #include "../Engine/AudioEngine.h"
 #include "../Control/Actions.h"
 #include "../Control/MidiEngine.h"
+#include "../Control/ControllerLibrary.h"
 #include "../Library/Library.h"
 #include "../Library/UsbExport.h"
 #include "../Library/VolumeCueStore.h"
@@ -1971,6 +1972,78 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     midi.inject ("Test", juce::MidiMessage::noteOn (1, 11, (juce::uint8) 127));
     rep.check (d2.isReverse() && ! d2.isPlaying(), "SHIFT + botón dispara la capa shift"_u);
     midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
+
+    std::cout << "== Controladores plug and play" << std::endl;
+    {
+        // A library like the one on the site: index + one mapping file, served from a local folder.
+        const auto site = juce::File::createTempFile ("om-ctl-site");
+        site.createDirectory();
+        auto entry = std::make_unique<juce::DynamicObject>();
+        entry->setProperty ("id", "test-x");
+        entry->setProperty ("name", "Controlador de prueba X");
+        entry->setProperty ("file", "test-x.midi.json");
+        auto match = std::make_unique<juce::DynamicObject>();
+        match->setProperty ("midi", juce::Array<juce::var> { "Test Controller X" });
+        entry->setProperty ("match", juce::var (match.release()));
+        auto evil = std::make_unique<juce::DynamicObject>();                       // must be ignored
+        evil->setProperty ("file", "../../escape.json");
+        evil->setProperty ("match", juce::JSON::parse (R"({"midi":["Unknown Box"]})"));
+        auto root = std::make_unique<juce::DynamicObject>();
+        root->setProperty ("version", 2);
+        root->setProperty ("mappings", juce::Array<juce::var> { juce::var (entry.release()), juce::var (evil.release()) });
+        site.getChildFile ("index.json").replaceWithText (juce::JSON::toString (juce::var (root.release())));
+        MidiBinding p; p.device = "*"; p.channel = 1; p.kind = MidiBinding::Kind::note; p.number = 11; p.action = "play_pause"; p.deck = 0;
+        auto mapping = std::make_unique<juce::DynamicObject>();
+        mapping->setProperty ("version", 1);
+        mapping->setProperty ("bindings", juce::Array<juce::var> { p.toVar() });
+        site.getChildFile ("test-x.midi.json").replaceWithText (juce::JSON::toString (juce::var (mapping.release())));
+        ControllerLibrary::setIndexUrlOverride (juce::URL (site.getChildFile ("index.json")));
+        Library::dataFolder().getChildFile ("controllers").deleteRecursively();
+
+        rep.check (ControllerLibrary::nameMatches ("2- Test Controller X MIDI 1", "Test Controller X")
+                   && ControllerLibrary::nameMatches ("TEST CONTROLLER X", "Test Controller X")
+                   && ! ControllerLibrary::nameMatches ("Test Controller X2", "Test Controller X")
+                   && ControllerLibrary::nameMatches ("Test Controller X MK2", "Test Controller X *"),
+                   "Reconoce el modelo aunque cambie el puerto o el prefijo del sistema (y no confunde modelos parecidos)");
+
+        ControllerLibrary lib (midi);
+        const auto before = midi.bindings().size();
+        const auto dev = lib.resolveNow ("Test Controller X MIDI 1");
+        const bool installed = dev.status == ControllerLibrary::Status::mapped && midi.hasBindingsFor ("Test Controller X MIDI 1")
+                            && midi.bindings().size() == before + 1;
+        rep.check (installed, "Al enchufar un controlador conocido, su mapeo se instala solo", dev.profileName);
+
+        auto& d1 = engine.deck (0);
+        d1.prepare (sr);
+        d1.setTrack (ta);
+        d1.setPlaying (false);
+        midi.inject ("Test Controller X MIDI 1", juce::MidiMessage::noteOn (1, 11, (juce::uint8) 127));
+        midi.inject ("Test Controller X MIDI 1", juce::MidiMessage::noteOff (1, 11));
+        rep.check (d1.isPlaying(), "El controlador funciona apenas se conecta (PLAY del mapeo instalado)");
+        d1.setPlaying (false);
+
+        const auto unknown = lib.resolveNow ("Unknown Box");
+        rep.check (unknown.status == ControllerLibrary::Status::noMapping && ! midi.hasBindingsFor ("Unknown Box")
+                   && ! site.getParentDirectory().getParentDirectory().getChildFile ("escape.json").existsAsFile(),
+                   "Controlador desconocido: queda sin mapeo (y un índice malicioso no escribe fuera de la caché)");
+
+        auto own = midi.bindings();
+        MidiBinding mine = p; mine.device = "My Own Box"; mine.number = 40;
+        own.push_back (mine);
+        midi.setBindings (own);
+        const auto ownDev = lib.resolveNow ("My Own Box");
+        rep.check (ownDev.status == ControllerLibrary::Status::mappedByUser, "Un mapeo hecho por el usuario nunca se reemplaza");
+
+        // Offline: the site is gone; a reconnect still works from the cache.
+        site.deleteRecursively();
+        lib.setOnlineLookup (false);
+        ControllerLibrary again (midi);
+        again.setOnlineLookup (false);
+        const auto re = again.resolveNow ("Test Controller X MIDI 1");
+        rep.check (re.status == ControllerLibrary::Status::mapped && re.profileName == "Controlador de prueba X",
+                   "Sin internet, un controlador ya instalado se reconoce igual", re.profileName);
+        ControllerLibrary::setIndexUrlOverride ({});
+    }
 
     if (usbRoot.isDirectory())
     {

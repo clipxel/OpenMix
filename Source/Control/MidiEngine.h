@@ -57,6 +57,11 @@ public:
     void load();
     void save() const;
 
+    /** True if some binding targets this device by name (a mapping the user or the library made). */
+    bool hasBindingsFor (const juce::String& device) const;
+    /** Replaces every binding of `device` with `mapping` (its device field is rewritten) and saves. */
+    void installMapping (const juce::String& device, const std::vector<MidiBinding>& mapping);
+
     /** MIDI Learn: the next control moved on any device is bound to this action. */
     void startLearn (const juce::String& action, int deck, bool shift, std::function<void (const MidiBinding&)> done);
     void cancelLearn();

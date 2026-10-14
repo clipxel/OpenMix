@@ -153,8 +153,12 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     if (! snapshotMode)
     {
         midi = std::make_unique<MidiEngine> (actions);
+        controllerLib = std::make_unique<ControllerLibrary> (*midi);
         keyboard.load (om::Library::dataFolder().getChildFile ("keyboard.json"));
         settingsPanel.setControllers (midi.get(), &actions, &keyboard);
+        settingsPanel.setControllerLibrary (controllerLib.get());
+        topBar.setControllerLibrary (controllerLib.get());
+        settingsPanel.onControllerOnlineChanged = [this] { if (settings != nullptr) saveSettings(); };
 
         juce::PropertiesFile::Options o;
         o.applicationName = "OpenMix";
@@ -206,6 +210,7 @@ void MainComponent::frame()
     actions.tick();
     keyboard.tick();
     if (midi != nullptr) midi->tick();
+    if (controllerLib != nullptr) controllerLib->tick();
 
     waveforms.refresh();
     deckA.refresh();
@@ -378,6 +383,9 @@ void MainComponent::applyLayout()
 //==============================================================================
 void MainComponent::loadSettings()
 {
+    if (controllerLib != nullptr)
+        controllerLib->setOnlineLookup (settings->getBoolValue ("controllerOnlineLookup", true));
+
     if (auto accentHex = settings->getValue ("accent"); accentHex.isNotEmpty())
         Theme::get().setAccent (juce::Colour::fromString (accentHex));
 
@@ -416,6 +424,8 @@ void MainComponent::saveSettings()
         return;
 
     settings->setValue ("accent", accent().toString());
+    if (controllerLib != nullptr)
+        settings->setValue ("controllerOnlineLookup", controllerLib->onlineLookup());
     settings->setValue ("layout", juce::JSON::toString (current.toVar(), true));
     for (auto* oldKey : { "workspaces", "currentWorkspace", "currentIsCustom" })
         settings->removeValue (oldKey);

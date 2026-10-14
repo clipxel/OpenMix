@@ -142,6 +142,17 @@ SettingsPanel::~SettingsPanel()
     bindingBox.setModel (nullptr);
 }
 
+void SettingsPanel::setControllerLibrary (ControllerLibrary* lib)
+{
+    controllerLib = lib;
+    addChildComponent (onlineToggle);
+    onlineToggle.onClick = [this]
+    {
+        if (controllerLib != nullptr) controllerLib->setOnlineLookup (onlineToggle.getToggleState());
+        if (onControllerOnlineChanged) onControllerOnlineChanged();
+    };
+}
+
 void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* k)
 {
     midi = m;
@@ -239,6 +250,7 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     c.removeFromTop (Space::md);
 
     vinylToggle.setVisible (midiTab);
+    onlineToggle.setVisible (midiTab && controllerLib != nullptr);
     learnShift.setVisible (midiTab);
     learnBtn.setVisible (midiTab);
     cancelLearnBtn.setVisible (midiTab && midi != nullptr && midi->isLearning());
@@ -254,6 +266,8 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
 
     monitorArea = c.removeFromTop (44);
     vinylToggle.setBounds (c.removeFromTop (24).withWidth (360));
+    if (controllerLib != nullptr)
+        onlineToggle.setBounds (c.removeFromTop (24).withWidth (620));
     c.removeFromTop (Space::sm);
     auto row = c.removeFromTop (Size::controlMd);
     learnBtn.setBounds (row.removeFromLeft (170));
@@ -296,6 +310,8 @@ void SettingsPanel::setSection (int s)
         c->setVisible (s == layout);
     for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &bindingBox })
         c->setVisible (s == controllers);
+    onlineToggle.setVisible (s == controllers && ctrlTab.getSelected() == 0 && controllerLib != nullptr);
+    if (controllerLib != nullptr) onlineToggle.setToggleState (controllerLib->onlineLookup(), juce::dontSendNotification);
     if (keyMap != nullptr) keyMap->setVisible (s == controllers && ctrlTab.getSelected() == 1);
     vinylToggle.setToggleState (engine.deck (0).isVinylMode() && engine.deck (1).isVinylMode(), juce::dontSendNotification);
     bindingBox.updateContent();
@@ -458,8 +474,21 @@ void SettingsPanel::paint (juce::Graphics& g)
             Icons::draw (g, Icon::controller, mon.removeFromLeft (16.0f).withHeight (20.0f).withSizeKeepingCentre (14, 14),
                          devices.isEmpty() ? colour (Col::textTertiary) : colour (Col::sync));
             mon.removeFromLeft (8.0f);
-            Text::draw (g, devices.isEmpty() ? juce::String ("No hay dispositivos MIDI conectados")
-                                             : devices.joinIntoString ("  ·  "_u),
+            juce::StringArray shown;
+            if (controllerLib != nullptr)
+            {
+                using S = ControllerLibrary::Status;
+                for (auto& d : controllerLib->devices())
+                    shown.add (d.name + juce::String::fromUTF8 (" — ")
+                               + (d.status == S::mapped       ? juce::String::fromUTF8 ("mapeo de la biblioteca (") + d.profileName + ")"
+                                : d.status == S::mappedByUser ? juce::String ("mapeo propio")
+                                : d.status == S::searching    ? juce::String::fromUTF8 ("buscando mapeo…")
+                                : d.status == S::noMapping    ? juce::String::fromUTF8 ("sin mapeo en la biblioteca: usá Aprender control")
+                                                              : juce::String::fromUTF8 ("no se pudo descargar el mapeo")));
+            }
+            else shown = devices;
+            Text::draw (g, shown.isEmpty() ? juce::String ("No hay dispositivos MIDI conectados")
+                                           : shown.joinIntoString ("  ·  "_u),
                         mon.removeFromTop (20.0f), font (Type::body, Weight::medium), colour (Col::textPrimary));
             const bool recent = juce::Time::getMillisecondCounter() - midi->lastMessageTime() < 1500;
             Text::draw (g, midi->lastMessageText().isNotEmpty() ? juce::String::fromUTF8 ("Último mensaje: ") + midi->lastMessageText()

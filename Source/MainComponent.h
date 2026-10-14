@@ -12,6 +12,7 @@
 #include "UI/Views/SettingsPanel.h"
 #include "Control/Actions.h"
 #include "Control/MidiEngine.h"
+#include "Control/ControllerLibrary.h"
 #include "Control/KeyboardControl.h"
 #include "Library/VolumeCueStore.h"
 
@@ -80,6 +81,7 @@ private:
                                     [this] (int d) { (d == 0 ? deckA : deckB).nextPadPage(); } } };
     om::KeyboardControl keyboard { actions };
     std::unique_ptr<om::MidiEngine> midi;     // not created in snapshot mode (no device access)
+    std::unique_ptr<om::ControllerLibrary> controllerLib;   // plug and play: finds and installs mappings
     om::SettingsPanel settingsPanel { engine, library };
     juce::TooltipWindow tooltips { this, 600 };
 

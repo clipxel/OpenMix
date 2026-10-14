@@ -39,9 +39,31 @@ void TopBar::refresh()
     }
     audio.setTooltip ("Dispositivo de audio — clic para configurar"_u);
 
-    // MIDI device list is polled at 1 Hz (enumeration is not free).
+    // Controllers: what the plug-and-play library found for the connected devices.
     const auto now = juce::Time::getMillisecondCounter();
-    if (now - lastMidiPoll > 1000 || lastMidiCount < 0)
+    if (controllerLib != nullptr)
+    {
+        const auto text = controllerLib->summary();
+        if (text != lastControllerText || lastMidiCount < 0)
+        {
+            lastControllerText = text;
+            lastMidiCount = 0;
+            using CS = ControllerLibrary::Status;
+            const auto& devs = controllerLib->devices();
+            const auto status = devs.empty() ? CS::noMapping : devs.front().status;
+            const auto col = devs.empty() ? colour (Col::textTertiary)
+                           : (status == CS::mapped || status == CS::mappedByUser) ? colour (Col::play)
+                           : status == CS::searching ? colour (Col::sync) : colour (Col::warning);
+            controllers.set (Icon::controller, devs.empty() ? juce::String ("Sin controlador") : text, col);
+            controllers.setTooltip (devs.empty() ? juce::String ("Enchufá un controlador: OpenMix lo reconoce y lo mapea solo")
+                                   : status == CS::noMapping ? "No hay mapeo para este controlador todavía: mapealo en Configuración › Controladores"_u
+                                   : status == CS::offline ? "No se pudo descargar el mapeo (sin conexión). Se reintenta al volver a conectarlo."_u
+                                   : juce::String ("Controladores — clic para configurar"));
+            resized();
+        }
+    }
+    // MIDI device list is polled at 1 Hz (enumeration is not free).
+    else if (now - lastMidiPoll > 1000 || lastMidiCount < 0)
     {
         lastMidiPoll = now;
         const int n = juce::MidiInput::getAvailableDevices().size();
@@ -50,8 +72,7 @@ void TopBar::refresh()
             lastMidiCount = n;
             if (n == 0) controllers.set (Icon::controller, "Sin controlador", colour (Col::textTertiary));
             else        controllers.set (Icon::controller, juce::String (n) + " MIDI", colour (Col::sync));
-            controllers.setTooltip (n == 0 ? "No hay dispositivos MIDI conectados"
-                                           : "Dispositivos MIDI detectados (mapeo de controladores aún no implementado)"_u);
+            controllers.setTooltip (n == 0 ? "No hay dispositivos MIDI conectados" : "Dispositivos MIDI detectados");
             resized();
         }
     }

@@ -5,6 +5,7 @@
 #include "../../Engine/AudioEngine.h"
 #include "../../Library/Library.h"
 #include "../../Control/MidiEngine.h"
+#include "../../Control/ControllerLibrary.h"
 #include "../../Control/KeyboardControl.h"
 #include "KeyboardMapView.h"
 #include "AudioSettingsView.h"
@@ -25,6 +26,8 @@ public:
     void show (int section);
     void showControllerTab (int tab)               { ctrlTab.setSelected (tab); setSection (controllers); }
     void setControllers (MidiEngine*, Actions*, KeyboardControl*);
+    void setControllerLibrary (ControllerLibrary*);
+    std::function<void()> onControllerOnlineChanged;
     void close();
 
     // Layout section talks to the main window through these.
@@ -70,6 +73,8 @@ private:
     void startLearnFlow();
     void layoutControllers (juce::Rectangle<int>);
     MidiEngine* midi = nullptr;
+    ControllerLibrary* controllerLib = nullptr;
+    juce::ToggleButton onlineToggle { "Al conectar un controlador, buscar su mapeo en internet (solo se descarga la lista pública de mapeos)" };
     Actions* actions = nullptr;
     KeyboardControl* keyboard = nullptr;
     Segmented ctrlTab { { "MIDI", "TECLADO" } };

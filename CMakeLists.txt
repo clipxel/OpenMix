@@ -41,13 +41,17 @@ target_include_directories(OpenMix SYSTEM PRIVATE
 
 target_compile_definitions(OpenMix PRIVATE
     JUCE_WEB_BROWSER=0
-    JUCE_USE_CURL=0
+    $<IF:$<PLATFORM_ID:Linux>,JUCE_USE_CURL=1,JUCE_USE_CURL=0>   # Linux downloads with libcurl; macOS/Windows use the OS
     JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:OpenMix,JUCE_PRODUCT_NAME>"
     JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:OpenMix,JUCE_VERSION>"
     $<$<NOT:$<PLATFORM_ID:Darwin>>:JUCE_USE_MP3AUDIOFORMAT=1>)   # macOS decodes MP3/AAC with the OS
 
 if(APPLE)
     target_link_libraries(OpenMix PRIVATE "-framework AudioToolbox")
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(CURL REQUIRED)
+    target_link_libraries(OpenMix PRIVATE CURL::libcurl)
 endif()
 if(MSVC)
     target_compile_options(OpenMix PRIVATE /utf-8 /bigobj)
