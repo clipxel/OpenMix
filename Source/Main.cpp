@@ -4,6 +4,7 @@
 #include "Library/Library.h"
 #include "Tests/SelfTest.h"
 #include "Control/MappingImport.h"
+#include "Common/Updater.h"
 #include <iostream>
 
 class OpenMixApplication : public juce::JUCEApplication
@@ -15,7 +16,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -99,6 +100,35 @@ public:
             auto arg = [&args] (const juce::String& key) { auto i = args.indexOf (key); return i >= 0 ? args[i + 1].unquoted() : juce::String(); };
             om::Library::setDataFolderOverride (juce::File (arg ("--data")));
             setApplicationReturnValue (om::runAudioDeviceTest (juce::File (arg ("--usb")), juce::File (arg ("--data"))));
+            quit();
+            return;
+        }
+
+        if (commandLine.contains ("--update-install-test"))
+        {
+            // Diagnostics: full self-update of THIS copy of the app (download, verify, swap, relaunch).
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            const auto info = om::Updater::parseManifest (juce::JSON::parse (juce::File (args[args.indexOf ("--update-install-test") + 1].unquoted())));
+            static om::Updater u;
+            if (info) { u.setAvailable (*info); if (u.downloadNow()) { u.markReady(); u.installAndRelaunch(); return; } }
+            std::cout << ("FALLA: " + u.error()).toRawUTF8() << std::endl;
+            setApplicationReturnValue (1);
+            quit();
+            return;
+        }
+
+        if (commandLine.contains ("--update-test"))
+        {
+            // Diagnostics: download + verify + stage the update a manifest describes (does not install).
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            const auto mf = juce::File (args[args.indexOf ("--update-test") + 1].unquoted());
+            const auto info = om::Updater::parseManifest (juce::JSON::parse (mf));
+            if (! info) { std::cout << "manifiesto invalido" << std::endl; setApplicationReturnValue (1); quit(); return; }
+            om::Updater u;
+            u.setAvailable (*info);
+            const bool ok = u.downloadNow();
+            std::cout << (ok ? "OK, version " + info->version + " preparada en " + u.stagedApp().getFullPathName() : "FALLA: " + u.error()).toRawUTF8() << std::endl;
+            setApplicationReturnValue (ok ? 0 : 1);
             quit();
             return;
         }

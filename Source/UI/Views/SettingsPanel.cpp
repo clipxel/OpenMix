@@ -145,6 +145,8 @@ SettingsPanel::~SettingsPanel()
 
 void SettingsPanel::setControllerLibrary (ControllerLibrary* lib)
 {
+    addChildComponent (updateToggle);
+    updateToggle.onClick = [this] { if (onUpdateCheckChanged) onUpdateCheckChanged(); };
     controllerLib = lib;
     addChildComponent (onlineToggle);
     addChildComponent (driverBtn);
@@ -515,6 +517,10 @@ void SettingsPanel::resized()
     if (section == controllers)
         layoutControllers (c);
 
+    updateToggle.setVisible (section == diagnostics);
+    if (section == diagnostics)
+        updateToggle.setBounds (content.withTop (content.getBottom() - 30).withWidth (520));
+
     if (section == layout)
     {
         c.removeFromTop (28);
@@ -632,6 +638,9 @@ void SettingsPanel::paint (juce::Graphics& g)
 
         case diagnostics:
         {
+            title ("OpenMix");
+            line (juce::String::fromUTF8 ("Versión"), JUCE_APPLICATION_VERSION_STRING);
+            c.removeFromTop (Space::lg);
             title ("Motor de audio");
             line ("Estado", engine.getStatusDetail());
             line ("Frecuencia de muestreo", juce::String (engine.getSampleRate(), 0) + " Hz");

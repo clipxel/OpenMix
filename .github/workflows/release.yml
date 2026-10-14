@@ -160,3 +160,38 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
+
+  # Manifiesto de actualización: versión + SHA-256 de cada instalador. OpenMix lo lee al abrirse
+  # (releases/latest/download/update.json) para ofrecer "Actualizar ahora / Más tarde".
+  update-manifest:
+    name: Manifiesto de actualización
+    needs: build
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Armar update.json
+        run: |
+          VERSION=$(sed -n 's/^project(OpenMix VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          mkdir assets && cd assets
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "OpenMix-$VERSION-*"
+          python3 - "$VERSION" "$TAG" "$GITHUB_REPOSITORY" <<'PY'
+          import hashlib, json, os, subprocess, sys
+          version, tag, repo = sys.argv[1:4]
+          notes = subprocess.run(["gh", "release", "view", tag, "--repo", repo, "--json", "body", "-q", ".body"],
+                                 capture_output=True, text=True).stdout.strip()
+          kinds = {"macOS-universal.dmg": "mac", "Windows-x64.zip": "windows", "Linux-x86_64.tar.gz": "linux"}
+          assets = {}
+          for f in os.listdir("."):
+              for suffix, kind in kinds.items():
+                  if f.endswith(suffix):
+                      data = open(f, "rb").read()
+                      assets[kind] = {"file": f, "size": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+                                      "url": f"https://github.com/{repo}/releases/download/{tag}/{f}"}
+          json.dump({"version": version, "notes": notes[:4000], "assets": assets}, open("update.json", "w"), indent=1)
+          print(json.dumps(assets, indent=1))
+          PY
+          gh release upload "$TAG" update.json --clobber --repo "$GITHUB_REPOSITORY"

@@ -5,6 +5,8 @@
 #include "../Control/ControllerLibrary.h"
 #include "../Control/MappingWizard.h"
 #include "../Control/MappingImport.h"
+#include "../Common/Updater.h"
+#include <juce_cryptography/juce_cryptography.h>
 #include "../Library/Library.h"
 #include "../Library/UsbExport.h"
 #include "../Library/VolumeCueStore.h"
@@ -2181,6 +2183,35 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         const int odd2 = (int) std::count_if (w2.bindings().begin(), w2.bindings().end(), [] (const MidiBinding& mb) { return mb.deck == 1; });
         rep.check (done2 && odd2 == 24, "Si los decks no son espejo, el asistente pide el deck derecho control por control",
                    juce::String (odd2) + " controles del deck 2");
+    }
+
+    std::cout << "== Actualización automática" << std::endl;
+    {
+        rep.check (Updater::compareVersions ("1.10.0", "1.9.2") > 0 && Updater::compareVersions ("2.0", "2.0.0") == 0
+                   && Updater::compareVersions ("v1.0.1", "1.0.0") > 0 && Updater::compareVersions ("1.0.0", "1.0.1") < 0,
+                   "Compara versiones por número (1.10 > 1.9)"_u);
+
+        // A published package (here: any local file) and its manifest.
+        const auto dir = juce::File::createTempFile ("om-upd");
+        dir.createDirectory();
+        const auto pkg = dir.getChildFile ("OpenMix-9.9.9-test.bin");
+        pkg.replaceWithText ("contenido de prueba");
+        juce::FileInputStream hin (pkg);
+        const auto sha = juce::SHA256 (hin).toHexString();
+        auto manifest = [&] (const juce::String& hash)
+        {
+            const juce::String entry = R"({"file":")" + pkg.getFileName() + R"(","size":19,"sha256":")" + hash + R"(","url":")" + juce::URL (pkg).toString (false) + R"("})";
+            return juce::JSON::parse (R"({"version":"9.9.9","notes":"x","assets":{"mac":)" + entry + R"(,"windows":)" + entry + R"(,"linux":)" + entry + "}}");
+        };
+        const auto good = Updater::parseManifest (manifest (sha));
+        rep.check (good.has_value() && good->version == "9.9.9" && good->sha256 == sha && ! Updater::parseManifest (juce::JSON::parse ("{}")).has_value(),
+                   "Lee el manifiesto de la versión publicada para este sistema"_u);
+
+        Updater bad;
+        bad.setAvailable (*Updater::parseManifest (manifest (juce::String::repeatedString ("0", 64))));
+        rep.check (! bad.downloadNow() && bad.error().contains ("no coincide"),
+                   "Una descarga alterada (huella distinta) se rechaza y no se instala"_u, bad.error());
+        dir.deleteRecursively();
     }
 
     std::cout << "== Importar mapeos de otros programas" << std::endl;

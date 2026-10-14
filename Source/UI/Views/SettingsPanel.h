@@ -30,6 +30,9 @@ public:
     void openMappingWizard()                       { if (wizardBtn.onClick) wizardBtn.onClick(); }
     void setControllers (MidiEngine*, Actions*, KeyboardControl*);
     void setControllerLibrary (ControllerLibrary*);
+    /** Diagnostics ▸ updates: check on launch (persisted by MainComponent). */
+    juce::ToggleButton updateToggle { juce::String::fromUTF8 ("Buscar actualizaciones al abrir OpenMix (te pregunta antes de actualizar)") };
+    std::function<void()> onUpdateCheckChanged;
     std::function<void()> onControllerOnlineChanged;
     void close();
 

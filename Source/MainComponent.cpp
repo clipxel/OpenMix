@@ -159,6 +159,8 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
         settingsPanel.setControllerLibrary (controllerLib.get());
         topBar.setControllerLibrary (controllerLib.get());
         settingsPanel.onControllerOnlineChanged = [this] { if (settings != nullptr) saveSettings(); };
+        settingsPanel.onUpdateCheckChanged = [this] { if (settings != nullptr) saveSettings(); };
+        updater.addChangeListener (this);
 
         juce::PropertiesFile::Options o;
         o.applicationName = "OpenMix";
@@ -167,6 +169,11 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
         o.osxLibrarySubFolder = "Application Support";
         settings = std::make_unique<juce::PropertiesFile> (Library::dataFolder().getChildFile ("settings.xml"), o);
         loadSettings();
+
+        // Updates: a quiet check a few seconds after start (only asks if there is something new).
+        settingsPanel.updateToggle.setToggleState (settings->getBoolValue ("updateCheck", true), juce::dontSendNotification);
+        if (settingsPanel.updateToggle.getToggleState())
+            juce::Timer::callAfterDelay (3000, [safe = juce::Component::SafePointer<MainComponent> (this)] { if (safe) safe->updater.checkForUpdates(); });
 
         auto audioState = settings->getXmlValue ("audioDevice");
         engine.initialiseDevice (audioState.get());
@@ -196,6 +203,7 @@ MainComponent::~MainComponent()
     vblank = nullptr;
     if (! snapshotMode)
         saveSettings();
+    updater.removeChangeListener (this);
     Theme::get().removeChangeListener (this);
     engine.removeChangeListener (this);
     for (int i = 0; i < 2; ++i)
@@ -239,8 +247,64 @@ void MainComponent::frame()
     }
 }
 
+void MainComponent::updaterChanged()
+{
+    using S = Updater::State;
+    const auto& info = updater.available();
+    switch (updater.state())
+    {
+        case S::available:
+        {
+            juce::String msg = juce::String::fromUTF8 ("OpenMix ") + info.version + juce::String::fromUTF8 (" ya está disponible (tenés la ")
+                             + Updater::currentVersion() + juce::String::fromUTF8 (").\n\nSe descarga, se verifica y se reemplaza sola: no hace falta reinstalar.");
+            if (info.notes.isNotEmpty())
+                msg << "\n\n" << info.notes.substring (0, 600) << (info.notes.length() > 600 ? juce::String::fromUTF8 ("…") : juce::String());
+            juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::InfoIcon, juce::String::fromUTF8 ("Hay una nueva versión de OpenMix"), msg,
+                                                "Actualizar ahora", juce::String::fromUTF8 ("Más tarde"), this,
+                                                juce::ModalCallbackFunction::create ([this] (int r) { if (r == 1) updater.download(); }));
+            break;
+        }
+        case S::downloading:
+            if (updateProgress == nullptr)
+            {
+                updateProgress = std::make_unique<juce::AlertWindow> (juce::String::fromUTF8 ("Actualizando OpenMix"),
+                                                                      juce::String::fromUTF8 ("Descargando y verificando la versión ") + info.version + juce::String::fromUTF8 ("…"),
+                                                                      juce::MessageBoxIconType::NoIcon);
+                updateProgress->addProgressBarComponent (updateProgressValue);
+                updateProgress->enterModalState (false);
+                juce::Timer::callAfterDelay (100, [safe = juce::Component::SafePointer<MainComponent> (this)]
+                {
+                    auto t = std::make_shared<std::function<void()>>();
+                    *t = [safe, t]
+                    {
+                        if (safe == nullptr || safe->updater.state() != Updater::State::downloading) return;
+                        safe->updateProgressValue = safe->updater.progress();
+                        juce::Timer::callAfterDelay (100, *t);
+                    };
+                    (*t)();
+                });
+            }
+            break;
+        case S::ready:
+            updateProgress = nullptr;
+            if (settings != nullptr) saveSettings();
+            updater.installAndRelaunch();                      // swaps the app as soon as OpenMix quits, then opens it
+            break;
+        case S::failed:
+            updateProgress = nullptr;
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, juce::String::fromUTF8 ("No se pudo actualizar"),
+                                                    updater.error() + juce::String::fromUTF8 ("\n\nPodés bajar la versión nueva desde la página de OpenMix."));
+            break;
+        case S::idle:
+        case S::checking:
+        case S::upToDate:
+            break;
+    }
+}
+
 void MainComponent::changeListenerCallback (juce::ChangeBroadcaster* source)
 {
+    if (source == &updater) { updaterChanged(); return; }
     if (source == &Theme::get())
     {
         // Accent changed: everything repaints with the new token.
@@ -426,6 +490,7 @@ void MainComponent::saveSettings()
     settings->setValue ("accent", accent().toString());
     if (controllerLib != nullptr)
         settings->setValue ("controllerOnlineLookup", controllerLib->onlineLookup());
+    settings->setValue ("updateCheck", settingsPanel.updateToggle.getToggleState());
     settings->setValue ("layout", juce::JSON::toString (current.toVar(), true));
     for (auto* oldKey : { "workspaces", "currentWorkspace", "currentIsCustom" })
         settings->removeValue (oldKey);

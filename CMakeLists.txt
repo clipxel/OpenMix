@@ -69,6 +69,7 @@ target_link_libraries(OpenMix
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        juce::juce_cryptography
         OpenMixAssets
     PUBLIC
         juce::juce_recommended_config_flags

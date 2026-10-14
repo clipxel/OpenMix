@@ -13,6 +13,7 @@
 #include "Control/Actions.h"
 #include "Control/MidiEngine.h"
 #include "Control/ControllerLibrary.h"
+#include "Common/Updater.h"
 #include "Control/KeyboardControl.h"
 #include "Library/VolumeCueStore.h"
 
@@ -85,6 +86,10 @@ private:
     om::KeyboardControl keyboard { actions };
     std::unique_ptr<om::MidiEngine> midi;     // not created in snapshot mode (no device access)
     std::unique_ptr<om::ControllerLibrary> controllerLib;   // plug and play: finds and installs mappings
+    om::Updater updater;
+    void updaterChanged();
+    std::unique_ptr<juce::AlertWindow> updateProgress;
+    double updateProgressValue = 0.0;
     om::SettingsPanel settingsPanel { engine, library };
     juce::TooltipWindow tooltips { this, 600 };
 
