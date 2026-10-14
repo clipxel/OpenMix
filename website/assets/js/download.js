@@ -20,6 +20,21 @@
     return;
   }
 
+  // macOS: instalar desde la Terminal (sin el aviso de "no se pudo verificar" de la primera apertura).
+  const INSTALL_CMD = "curl -fsSL https://clipxel.github.io/OpenMix/install.sh | sh";
+  function terminalInstall() {
+    const code = el("code", { text: INSTALL_CMD });
+    const copy = el("button", { class: "copy", type: "button" }, "Copiar");
+    copy.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(INSTALL_CMD); copy.textContent = "Copiado"; }
+      catch { const r = document.createRange(); r.selectNodeContents(code); getSelection().removeAllRanges(); getSelection().addRange(r); }
+      setTimeout(() => (copy.textContent = "Copiar"), 1800);
+    });
+    return el("div", { class: "terminal-install" },
+      el("p", { class: "label", text: "O instalalo desde la Terminal, sin avisos de seguridad:" }),
+      el("div", { class: "cmd" }, code, copy));
+  }
+
   const p = config.platforms;
   // "release": true → el instalador está en GitHub Releases (repo de config.repo, tag v<versión>).
   for (const info of Object.values(p))
@@ -44,6 +59,7 @@
         linux: "Descomprimí el archivo y ejecutá ./instalar.sh: OpenMix aparece en tus aplicaciones.",
       };
       if (notice) notice.textContent = firstRun[os] || "";
+      if (os === "mac") btn.parentElement.insertBefore(terminalInstall(), notice ? notice.nextSibling : null);
       return;
     }
 
