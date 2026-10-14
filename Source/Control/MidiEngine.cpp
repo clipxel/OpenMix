@@ -356,6 +356,7 @@ void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMess
         }
     }
 
+    if (onDispatch) onDispatch (b, deck, value);
     actions.trigger (b.action, deck, value);
 }
 

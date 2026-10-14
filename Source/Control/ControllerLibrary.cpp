@@ -1,5 +1,6 @@
 #include "ControllerLibrary.h"
 #include "DriverCheck.h"
+#include "MappingImport.h"
 #include "../Library/Library.h"
 #include "../Common/Strings.h"
 
@@ -154,7 +155,17 @@ ControllerLibrary::Result ControllerLibrary::lookup (const juce::String& deviceN
         profile = find (profiles);
     }
     if (! profile)
+    {
+        // Not in the OpenMix library: maybe DJ software installed on this computer knows it.
+        if (localImport.load())
+            if (auto src = MappingImport::findFor (deviceName))
+            {
+                auto imported = MappingImport::convert (*src);
+                if (! imported.bindings.empty())
+                    return { Status::mapped, src->controller + juce::String::fromUTF8 (" (importado de otro programa)"), {}, std::move (imported.bindings) };
+            }
         return { index.isObject() ? Status::noMapping : Status::offline, {}, error, {} };
+    }
 
     // The mapping file sits next to the index; it is downloaded once and cached.
     const auto local = cacheFolder().getChildFile (profile->file);

@@ -78,6 +78,9 @@ public:
     juce::String lastMessageText() const { return lastText; }
     juce::uint32 lastMessageTime() const { return lastTime; }
 
+    /** Tests and the controller simulator: called with every action a message triggers. */
+    std::function<void (const MidiBinding&, int deck, float value)> onDispatch;
+
     /** Inject a message as if it came from `device` (tests, virtual controllers). */
     void inject (const juce::String& device, const juce::MidiMessage&);
 

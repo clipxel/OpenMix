@@ -4,6 +4,7 @@
 #include "../Control/MidiEngine.h"
 #include "../Control/ControllerLibrary.h"
 #include "../Control/MappingWizard.h"
+#include "../Control/MappingImport.h"
 #include "../Library/Library.h"
 #include "../Library/UsbExport.h"
 #include "../Library/VolumeCueStore.h"
@@ -2149,6 +2150,77 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    juce::String (odd2) + " controles del deck 2");
     }
 
+    std::cout << "== Importar mapeos de otros programas" << std::endl;
+    {
+        // A CSV table in the same shape as the ones DJ software ships (fictional controller).
+        const juce::String csv = juce::String::fromUTF8 (
+            "@file,1,Test Board 2\n"
+            "#name,function,type,input,deck1,deck2,deck3,deck4,output,deck1,deck2,deck3,deck4,option,comment\n"
+            "Browse,Browse,Rotary,B640,,,,,,,,,,,\n"
+            "Load,Load,Button,,9646,9647,,,,,,,,,\n"
+            "Shift,Shift,Button,903F,0,1,,,,,,,,RO,\n"
+            "PlayPause,PlayPause,Button,900B,0,1,,,900B,0,1,,,,\n"
+            "PlayPause,PlayPause+Shift,Button,9047,0,1,,,,,,,,,\n"
+            "Cue,Cue,Button,900C,0,1,,,900C,0,1,,,,\n"
+            "Sync,Sync,Button,9058,0,1,,,,,,,,,\n"
+            "JogScratch,JogScratch,JogRotate,B022,0,1,,,,,,,,RO,\n"
+            "JogTouch,JogTouch,JogTouch,9036,0,1,,,,,,,,RO,\n"
+            "TempoSlider,TempoSlider,KnobSliderHiRes,B000,0,1,,,,,,,,,\n"
+            "ChannelFader,ChannelFader,KnobSliderHiRes,B013,0,1,,,,,,,,,\n"
+            "EQHigh,EQHigh,KnobSliderHiRes,B007,0,1,,,,,,,,,\n"
+            "CrossFader,CrossFader,KnobSliderHiRes,B61F,,,,,,,,,,,\n"
+            "CFXParameterCH1,CFXParameterCH1,KnobSliderHiRes,B617,,,,,,,,,,,\n"
+            "PAD1_HotCue,PAD1_PadMode1,Pad,9000,7,9,,,,,,,,,\n"
+            "PAD1_HotCue,PAD1_PadMode1+Shift,Pad,9000,8,10,,,,,,,,,\n"
+            "FX1-1On,FX1-1On,Button,9447,,,,,,,,,,,\n");
+        const auto r = MappingImport::fromCsv (csv);
+        auto has = [&r] (const char* act, int dk, int chn, int nm, bool sh)
+        {
+            return std::any_of (r.bindings.begin(), r.bindings.end(), [=] (const MidiBinding& mb)
+                { return mb.action == act && mb.deck == dk && mb.channel == chn && mb.number == nm && mb.shift == sh; });
+        };
+        rep.check (r.controller == "Test Board 2" && has ("play_pause", 0, 1, 11, false) && has ("play_pause", 1, 2, 11, false)
+                   && has ("hot_cue_1", 0, 8, 0, false) && has ("delete_hot_cue_1", 1, 11, 0, false)
+                   && has ("load", 1, 7, 71, false) && has ("filter", 0, 7, 23, false) && has ("play_pause", 0, 1, 71, false)
+                   && r.untranslated.contains ("FX1-1On"),
+                   "Tabla CSV de otro programa: decks, pads por canal, SHIFT del hardware, filtro y funciones sin equivalente");
+        const auto pitchRow = std::find_if (r.bindings.begin(), r.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "pitch" && mb.deck == 1; });
+        rep.check (pitchRow != r.bindings.end() && pitchRow->encoding == MidiBinding::Encoding::absolute14 && pitchRow->lsbNumber == 32,
+                   "Los faders de alta resolución se importan como 14 bits (MSB + LSB)"_u);
+
+        // Definition + mapper pair (XML).
+        const juce::String def = R"(<device name="TB3" type="MIDI" decks="2" drivername="Test Board 3">
+              <button note="0x0B" name="PLAY" deck="1" channel="0"/><button note="0x0B" name="PLAY" deck="2" channel="1"/>
+              <slider cc="0x33" ccmsb="0x13" name="VOLUME" deck="1" channel="0"/>
+              <jog cc="0x22" name="JOG" deck="1" channel="0" zero="0x40"/>
+              <button note="0x3F" name="SHIFT" channel="0"/></device>)";
+        const juce::String mapper = R"(<mapper device="TB3" version="800">
+              <map value="PLAY" action="shift ? reverse : play_pause"/><map value="VOLUME" action="volume"/>
+              <map value="JOG" action="jogwheel"/><map value="SHIFT" action="shift"/></mapper>)";
+        const auto x = MappingImport::fromXml (def, mapper);
+        auto hasX = [&x] (const char* act, int dk, int chn, bool sh)
+        {
+            return std::any_of (x.bindings.begin(), x.bindings.end(), [=] (const MidiBinding& mb)
+                { return mb.action == act && mb.deck == dk && mb.channel == chn && mb.shift == sh; });
+        };
+        const auto volRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "volume"; });
+        const auto jogRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "jog"; });
+        rep.check (x.controller == "Test Board 3" && hasX ("play_pause", 0, 1, false) && hasX ("play_pause", 1, 2, false)
+                   && hasX ("reverse", 0, 1, true) && hasX ("shift", 0, 1, false)
+                   && volRow != x.bindings.end() && volRow->encoding == MidiBinding::Encoding::absolute14 && volRow->number == 0x13 && volRow->lsbNumber == 0x33
+                   && jogRow != x.bindings.end() && jogRow->encoding == MidiBinding::Encoding::relativeOffset,
+                   "Definición + mapeo XML: decks, capa SHIFT, fader de 14 bits y jog"_u);
+
+        // The simulator plays every control of both through OpenMix.
+        const auto dir = juce::File::createTempFile ("om-import");
+        dir.createDirectory();
+        dir.getChildFile ("Test Board 2.midi.csv").replaceWithText (csv);
+        std::vector<MappingImport::Source> srcs { { "Test Board 2", dir.getChildFile ("Test Board 2.midi.csv"), {} } };
+        const int simOk = simulateControllers (srcs, {});
+        dir.deleteRecursively();
+        rep.check (simOk == 0, "Simulación: cada control importado responde con la función, el deck y el valor correctos"_u);
+    }
+
     if (usbRoot.isDirectory())
     {
         std::cout << "== Pendrive exportado (solo lectura)" << std::endl;
@@ -2237,6 +2309,173 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
 
     std::cout << std::endl << rep.passed << " OK, " << rep.failed << " fallas" << std::endl;
     return rep.failed == 0 ? 0 : 1;
+}
+
+//==============================================================================
+/** Plays every control of a controller mapping through OpenMix as the real device would (the exact
+    MIDI messages), and checks that each one reaches the right function, deck and value, that no
+    message is claimed by two functions, and that the decks really react. */
+int simulateControllers (const std::vector<MappingImport::Source>& sources, const juce::String& only)
+{
+    auto print = [] (const juce::String& s) { std::cout << s.toRawUTF8() << std::endl; };
+    const auto previousData = Library::dataFolder();
+    const auto scratch = juce::File::createTempFile ("om-sim");
+    scratch.createDirectory();
+    Library::setDataFolderOverride (scratch);                 // never touch the user's own mappings
+
+    int controllers = 0, clean = 0;
+    for (auto& src : sources)
+    {
+        if (only.isNotEmpty() && src.controller != only) continue;
+        const auto conv = MappingImport::convert (src);
+        if (conv.bindings.empty()) continue;
+        ++controllers;
+
+        AudioEngine eng;
+        eng.prepareForTest (sr, block);
+        auto ta = sineTrack (220.0, sr, 60.0, 0.3f); ta->setGrid ({ 124.0, 0.0 });
+        auto tb = sineTrack (330.0, sr, 60.0, 0.3f); tb->setGrid ({ 128.0, 0.0 });
+        eng.deck (0).setTrack (ta);
+        eng.deck (1).setTrack (tb);
+        std::vector<float> l (block), r (block);
+        float* outs[2] = { l.data(), r.data() };
+        auto runE = [&] (int n) { for (int i = 0; i < n; ++i) eng.audioDeviceIOCallbackWithContext (nullptr, 0, outs, 2, block, {}); };
+
+        Actions actions (eng, {});
+        MidiEngine midi (actions);
+        std::vector<MidiBinding> map;
+        for (auto b : conv.bindings) { b.device = "SIM"; map.push_back (b); }
+        midi.setBindings (map);
+
+        struct Hit { juce::String action; int deck; float value; };
+        std::vector<Hit> hits;
+        midi.onDispatch = [&hits] (const MidiBinding& b, int deck, float v) { hits.push_back ({ b.action, deck, v }); };
+
+        const MidiBinding* shiftKey = nullptr;
+        for (auto& b : map) if (b.action == "shift") { shiftKey = &b; break; }
+        auto send = [&midi] (const juce::MidiMessage& m) { midi.inject ("SIM", m); };
+        auto press = [&] (const MidiBinding& b, bool down)
+        {
+            const int v = down ? 127 : 0;
+            if (b.kind == MidiBinding::Kind::note) send (down ? juce::MidiMessage::noteOn (b.channel, b.number, (juce::uint8) v) : juce::MidiMessage::noteOff (b.channel, b.number));
+            else send (juce::MidiMessage::controllerEvent (b.channel, b.number, v));
+        };
+
+        juce::StringArray problems;
+        int ok = 0, checked = 0;
+        std::map<juce::String, juce::String> seenMessage;        // message (+layer) → action, for conflicts
+        for (auto& b : map)
+        {
+            if (b.action == "shift") continue;
+            ++checked;
+            const auto* info = actions.find (b.action);
+            const int expectDeck = info != nullptr && info->perDeck ? b.deck : -1;
+            const auto key = juce::String ((int) b.kind) + ":" + juce::String (b.channel) + ":" + juce::String (b.number) + (b.shift ? ":S" : "");
+            if (auto it = seenMessage.find (key); it != seenMessage.end() && it->second != b.action)
+                problems.add (juce::String::fromUTF8 ("conflicto: ") + b.describeControl() + " → " + it->second + " y " + b.action);
+            seenMessage[key] = b.action;
+
+            if (b.shift)
+            {
+                if (shiftKey == nullptr) { problems.add (b.action + " necesita SHIFT y no hay botón SHIFT"); continue; }
+                press (*shiftKey, true);
+            }
+
+            hits.clear();
+            float target = -1.0f;
+            switch (b.encoding)
+            {
+                case MidiBinding::Encoding::button:
+                    press (b, true);
+                    break;
+                case MidiBinding::Encoding::absolute7:
+                case MidiBinding::Encoding::absolute14:
+                {
+                    // Catch the control first (soft takeover), then move it to a known place.
+                    const float cur = actions.currentValue (b.action, expectDeck);
+                    auto move = [&] (float v)
+                    {
+                        if (b.kind == MidiBinding::Kind::pitchWheel) { send (juce::MidiMessage::pitchWheel (b.channel, juce::jlimit (0, 16383, (int) std::round (v * 16383.0f)))); return; }
+                        const int v14 = juce::jlimit (0, 16383, (int) std::round (v * 16383.0f));
+                        send (juce::MidiMessage::controllerEvent (b.channel, b.number, b.encoding == MidiBinding::Encoding::absolute14 ? v14 >> 7 : juce::jlimit (0, 127, (int) std::round (v * 127.0f))));
+                        if (b.encoding == MidiBinding::Encoding::absolute14) send (juce::MidiMessage::controllerEvent (b.channel, b.lsbNumber, v14 & 127));
+                    };
+                    if (cur >= 0.0f) move (cur);
+                    target = cur >= 0.5f ? 0.2f : 0.8f;
+                    hits.clear();
+                    move (target);
+                    break;
+                }
+                case MidiBinding::Encoding::relativeOffset: send (juce::MidiMessage::controllerEvent (b.channel, b.number, 65)); break;
+                case MidiBinding::Encoding::relativeTwos:   send (juce::MidiMessage::controllerEvent (b.channel, b.number, 1)); break;
+                case MidiBinding::Encoding::relativeSign:   send (juce::MidiMessage::controllerEvent (b.channel, b.number, 1)); break;
+            }
+
+            bool reached = false;
+            for (auto& h : hits)
+                if (h.action == b.action && h.deck == expectDeck
+                    && (target < 0.0f || std::abs (h.value - (b.invert ? 1.0f - target : target)) < 0.02f))
+                    reached = true;
+            if (reached) ++ok;
+            else problems.add (b.action + " (deck " + juce::String (expectDeck + 1) + ") no respondió a " + b.describeControl());
+
+            if (b.encoding == MidiBinding::Encoding::button) press (b, false);
+            if (b.shift && shiftKey != nullptr) press (*shiftKey, false);
+        }
+
+        // The decks really react: PLAY, volume, EQ, pitch, hot cue, jog — on both decks.
+        juce::StringArray effects;
+        for (int d = 0; d < 2; ++d)
+        {
+            auto find = [&map, d] (const char* action) -> const MidiBinding*
+            {
+                for (auto& b : map) if (b.action == action && b.deck == d && ! b.shift) return &b;
+                return nullptr;
+            };
+            auto& deck = eng.deck (d);
+            if (auto* p = find ("play_pause"))
+            {
+                deck.setPlaying (false);
+                press (*p, true); press (*p, false); runE (4);
+                if (! deck.isPlaying()) effects.add ("PLAY no arranca el deck " + juce::String (d + 1));
+                press (*p, true); press (*p, false); runE (2);
+            }
+            if (auto* hc = find ("hot_cue_1"))
+            {
+                deck.setPlaying (false);
+                deck.seek (10.0); runE (2);
+                press (*hc, true); press (*hc, false); runE (2);
+                if (deck.getHotCue (0) < 0.0) effects.add ("el pad 1 no guarda el hot cue en el deck " + juce::String (d + 1));
+            }
+            if (find ("volume") != nullptr)
+                if (std::abs (eng.channel (d).fader.load() - actions.currentValue ("volume", d)) > 0.01f || actions.currentValue ("volume", d) < 0.0f)
+                    effects.add ("el fader de volumen no movió el canal " + juce::String (d + 1));
+            if (auto* j = find ("jog"))
+            {
+                deck.setPlaying (false);
+                runE (2);
+                const double before = deck.getPosition();
+                for (int i = 0; i < 64; ++i)
+                    send (juce::MidiMessage::controllerEvent (j->channel, j->number, j->encoding == MidiBinding::Encoding::relativeOffset ? 65 : 1));
+                runE (2);
+                if (std::abs (deck.getPosition() - before) < 0.01) effects.add ("el jog no mueve el deck " + juce::String (d + 1));
+            }
+        }
+        problems.addArray (effects);
+
+        const bool allGood = problems.isEmpty();
+        if (allGood) ++clean;
+        print ((allGood ? "  OK    " : "  FALLA ") + src.controller + "  ·  " + juce::String (ok) + "/" + juce::String (checked)
+               + juce::String::fromUTF8 (" controles responden · ") + juce::String (conv.untranslated.size())
+               + juce::String::fromUTF8 (" funciones sin equivalente"));
+        for (int i = 0; i < juce::jmin (problems.size(), 12); ++i)
+            print ("          - " + problems[i]);
+        if (problems.size() > 12) print ("          … y " + juce::String (problems.size() - 12) + " más");
+    }
+    print ("\n" + juce::String (clean) + " de " + juce::String (controllers) + juce::String::fromUTF8 (" controladores sin fallas"));
+    scratch.deleteRecursively();
+    Library::setDataFolderOverride (previousData);
+    return clean == controllers && controllers > 0 ? 0 : 1;
 }
 
 } // namespace om

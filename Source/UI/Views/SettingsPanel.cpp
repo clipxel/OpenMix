@@ -1,4 +1,5 @@
 #include "SettingsPanel.h"
+#include "../../Control/MappingImport.h"
 #include "../../Engine/Recorder.h"
 
 namespace om
@@ -155,6 +156,39 @@ void SettingsPanel::setControllerLibrary (ControllerLibrary* lib)
     };
 }
 
+void SettingsPanel::importMapping (const juce::File& file, const juce::String& controllerHint)
+{
+    if (midi == nullptr) return;
+    MappingImport::Result r;
+    if (file != juce::File())
+        r = MappingImport::fromFile (file);
+    else
+        for (auto& s : MappingImport::findInstalled())
+            if (s.controller == controllerHint) { r = MappingImport::convert (s); break; }
+    if (r.controller.isEmpty()) r.controller = controllerHint;
+
+    if (r.bindings.empty())
+    {
+        learnStatus = juce::String::fromUTF8 ("No se pudo leer ningún control de ese archivo");
+        repaint();
+        return;
+    }
+
+    // Which connected controller gets it: the one with that model name, the only one connected,
+    // or any (it will apply to whatever controller sends those messages).
+    juce::String target = "*";
+    const auto connected = midi->connectedInputs();
+    for (auto& d : connected)
+        if (ControllerLibrary::nameMatches (d, r.controller)) target = d;
+    if (target == "*" && connected.size() == 1) target = connected[0];
+    midi->installMapping (target, r.bindings);
+    learnStatus = juce::String::fromUTF8 ("Importado: ") + juce::String ((int) r.bindings.size())
+                + juce::String::fromUTF8 (" asignaciones") + (r.untranslated.isEmpty() ? juce::String()
+                : juce::String::fromUTF8 (" · ") + juce::String (r.untranslated.size()) + juce::String::fromUTF8 (" funciones sin equivalente en OpenMix"));
+    bindingBox.updateContent();
+    repaint();
+}
+
 void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* k)
 {
     midi = m;
@@ -167,8 +201,37 @@ void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* 
     bindingBox.setColour (juce::ListBox::backgroundColourId, colour (Col::bgField));
     addChildComponent (bindingBox);
 
-    for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &wizardBtn })
+    for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &wizardBtn, &importBtn })
         addChildComponent (c);
+
+    importBtn.onClick = [this]
+    {
+        // Mappings that DJ software on this computer already has, plus "choose a file".
+        const auto found = MappingImport::findInstalled();
+        juce::PopupMenu menu;
+        menu.addSectionHeader (found.empty() ? juce::String::fromUTF8 ("No se encontraron mapeos de otros programas en esta computadora")
+                                             : juce::String::fromUTF8 ("Encontrados en esta computadora"));
+        for (size_t i = 0; i < found.size(); ++i)
+            menu.addItem ((int) i + 1, found[i].controller);
+        menu.addSeparator();
+        menu.addItem (100000, juce::String::fromUTF8 ("Elegir archivo (.csv o .xml)…"));
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (importBtn), [this, found] (int r)
+        {
+            if (r == 100000)
+            {
+                importChooser = std::make_unique<juce::FileChooser> (juce::String::fromUTF8 ("Mapeo de otro programa"), juce::File(), "*.csv;*.xml");
+                importChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                                            [this] (const juce::FileChooser& fc) { if (fc.getResult().existsAsFile()) importMapping (fc.getResult(), {}); });
+            }
+            else if (juce::isPositiveAndBelow (r - 1, (int) found.size()))
+            {
+                const auto& s = found[(size_t) (r - 1)];
+                auto res = MappingImport::convert (s);
+                importMapping ({}, s.controller);
+                juce::ignoreUnused (res);
+            }
+        });
+    };
 
     if (midi != nullptr && actions != nullptr)
     {
@@ -283,6 +346,7 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     learnShift.setVisible (midiTab);
     learnBtn.setVisible (midiTab);
     wizardBtn.setVisible (midiTab && wizardView != nullptr);
+    importBtn.setVisible (midiTab && midi != nullptr);
     if (wizardView != nullptr && wizardView->isVisible() && ! (midiTab && section == controllers))
         wizardView->setVisible (false);
     cancelLearnBtn.setVisible (midiTab && midi != nullptr && midi->isLearning());
@@ -312,6 +376,8 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     if (wizardView != nullptr)
     {
         wizardBtn.setBounds (row.removeFromRight (190));
+        row.removeFromRight (Space::md);
+        importBtn.setBounds (row.removeFromRight (260));
         row.removeFromRight (Space::md);
     }
     learnShift.setBounds (row.removeFromLeft (120));
@@ -356,6 +422,7 @@ void SettingsPanel::setSection (int s)
         c->setVisible (s == controllers);
     onlineToggle.setVisible (s == controllers && ctrlTab.getSelected() == 0 && controllerLib != nullptr);
     wizardBtn.setVisible (s == controllers && ctrlTab.getSelected() == 0 && wizardView != nullptr);
+    importBtn.setVisible (s == controllers && ctrlTab.getSelected() == 0 && midi != nullptr);
     if (wizardView != nullptr && s != controllers && wizardView->isVisible()) { wizardView->setVisible (false); midi->setCapture (nullptr); }
     if (controllerLib != nullptr) onlineToggle.setToggleState (controllerLib->onlineLookup(), juce::dontSendNotification);
     if (keyMap != nullptr) keyMap->setVisible (s == controllers && ctrlTab.getSelected() == 1);

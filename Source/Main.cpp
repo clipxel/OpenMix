@@ -3,6 +3,8 @@
 #include "UI/Theme/LookAndFeel.h"
 #include "Library/Library.h"
 #include "Tests/SelfTest.h"
+#include "Control/MappingImport.h"
+#include <iostream>
 
 class OpenMixApplication : public juce::JUCEApplication
 {
@@ -13,7 +15,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -97,6 +99,48 @@ public:
             auto arg = [&args] (const juce::String& key) { auto i = args.indexOf (key); return i >= 0 ? args[i + 1].unquoted() : juce::String(); };
             om::Library::setDataFolderOverride (juce::File (arg ("--data")));
             setApplicationReturnValue (om::runAudioDeviceTest (juce::File (arg ("--usb")), juce::File (arg ("--data"))));
+            quit();
+            return;
+        }
+
+        if (commandLine.contains ("--simulate-controllers"))
+        {
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            const auto i = args.indexOf ("--simulate-controllers");
+            const auto path = args[i + 1].unquoted();
+            // A folder of mapping files to test, or the ones installed on this computer.
+            std::vector<om::MappingImport::Source> sources;
+            if (juce::File::isAbsolutePath (path) && juce::File (path).isDirectory())
+                for (const auto& e : juce::RangedDirectoryIterator (juce::File (path), false, "*.csv;*.xml", juce::File::findFiles))
+                    sources.push_back ({ e.getFile().getFileNameWithoutExtension(), e.getFile(), e.getFile() });
+            else
+                sources = om::MappingImport::findInstalled();
+            const auto only = juce::File::isAbsolutePath (path) ? args[i + 2].unquoted() : path;
+            setApplicationReturnValue (om::simulateControllers (sources, only.startsWith ("-") ? juce::String() : only));
+            quit();
+            return;
+        }
+
+        if (commandLine.contains ("--import-check"))
+        {
+            // Diagnostics: translate every controller mapping installed by other DJ software (read-only).
+            int total = 0;
+            const auto args = juce::StringArray::fromTokens (commandLine, true);
+            const auto only = args[args.indexOf ("--import-check") + 1].unquoted();
+            for (auto& s : om::MappingImport::findInstalled())
+            {
+                const auto r = om::MappingImport::convert (s);
+                if (only.isNotEmpty() && ! only.startsWith ("-") && s.controller == only)
+                    for (auto& b : r.bindings)
+                        std::cout << ("  " + b.action + " deck " + juce::String (b.deck) + (b.shift ? " SHIFT" : "") + " · " + b.describeControl()
+                                      + " enc " + juce::String ((int) b.encoding) + (b.lsbNumber >= 0 ? " lsb " + juce::String (b.lsbNumber) : juce::String())).toRawUTF8() << std::endl;
+                juce::StringArray actions;
+                for (auto& b : r.bindings) actions.addIfNotAlreadyThere (b.action);
+                std::cout << (s.controller + " | " + juce::String ((int) r.bindings.size()) + " asignaciones, "
+                              + juce::String (actions.size()) + " funciones | sin traducir: " + juce::String (r.untranslated.size())).toRawUTF8() << std::endl;
+                ++total;
+            }
+            std::cout << "Mapeos encontrados: " << total << std::endl;
             quit();
             return;
         }

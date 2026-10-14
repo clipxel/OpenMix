@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../Control/MappingImport.h"
+
 #include <juce_core/juce_core.h>
 
 namespace om
@@ -15,6 +17,9 @@ namespace om
 
     /** Compares OpenMix's analyser against the analysis stored on a real exported USB (read-only). */
     int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File& reportFile);
+
+    /** Simulates every control of these controller mappings (see SelfTest.cpp). */
+    int simulateControllers (const std::vector<MappingImport::Source>&, const juce::String& only);
 
     int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce::File& usbRoot = {});
 }

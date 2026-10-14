@@ -51,6 +51,9 @@ public:
     /** One-line status for the top bar ("Controlador listo", "Sin mapeo"…). */
     juce::String summary() const;
 
+    /** Also use the mappings of other DJ software installed on this computer (default on). */
+    void setLocalImport (bool on)             { localImport = on; }
+
     /** Look mappings up on the internet (default on). Off: only the local cache is used. */
     void setOnlineLookup (bool on)            { online = on; }
     bool onlineLookup() const noexcept        { return online; }
@@ -83,7 +86,7 @@ private:
 
     MidiEngine& midi;
     std::vector<Device> list;
-    std::atomic<bool> online { true }, driverJob { false };
+    std::atomic<bool> online { true }, driverJob { false }, localImport { true };
     juce::uint32 lastDriverScan = 0;
     juce::ThreadPool pool { juce::ThreadPoolOptions{}.withNumberOfThreads (1).withThreadName ("OpenMix controllers") };
     std::shared_ptr<std::atomic<bool>> alive = std::make_shared<std::atomic<bool>> (true);

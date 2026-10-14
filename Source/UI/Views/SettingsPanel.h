@@ -78,6 +78,9 @@ private:
     MidiEngine* midi = nullptr;
     ControllerLibrary* controllerLib = nullptr;
     Button wizardBtn { "Mapear con asistente" };
+    Button importBtn { juce::String::fromUTF8 ("Importar mapeo de otro programa…") };
+    std::unique_ptr<juce::FileChooser> importChooser;
+    void importMapping (const juce::File& file, const juce::String& controllerHint);
     std::unique_ptr<MappingWizardView> wizardView;
     Button driverBtn { juce::String(), Icon::none };
     juce::String driverPage;
