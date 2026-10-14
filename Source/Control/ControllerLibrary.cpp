@@ -158,11 +158,17 @@ ControllerLibrary::Result ControllerLibrary::lookup (const juce::String& deviceN
         for (auto& m : *arr)
             if (auto* names = m["match"]["midi"].getArray())
                 for (auto& n : *names)
-                    if (nameMatches (deviceName, n.toString()) && normalise (n.toString()).length() > bestLen)
+                {
+                    // Exact, or the device adds a brand in front ("BRAND MODEL-X" for "MODEL-X").
+                    const auto pat = normalise (n.toString());
+                    const bool ok = nameMatches (deviceName, n.toString())
+                                 || (pat.length() >= 5 && normalise (deviceName).endsWith (pat));
+                    if (ok && pat.length() > bestLen)
                     {
                         best = &m;
-                        bestLen = normalise (n.toString()).length();
+                        bestLen = pat.length();
                     }
+                }
         if (best != nullptr)
         {
             std::vector<MidiBinding> bindings;

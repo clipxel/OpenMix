@@ -1,5 +1,9 @@
 - Behringer CMD Micro â tecywiz121
 - Behringer CMD STUDIO 4a â Craig Easton
+- DDJ-REV1
+- DDJ-RX
+- DDJ-SX2
+- DDJ-SZ
 - Denon MC3000 â BeMixxx
 - Denon MC4000 â Tim Rae
 - Denon MC6000MK2 â Uwe Klotz a/k/a tapir
@@ -13,6 +17,7 @@
 - Hercules DJControl Jogvision â DJ Phatso for Hercules Technical Support
 - Ion Discover DJ Pro â joachim,meltedpianoman
 - Korg KAOSS DJ â Seb Dooris, Fayaaz Ahmed, Lee Arromba, Raphael Quast
+- Numark DJ2Go â Alimantado, mod by Coval
 - Numark Mixtrack Platinum FX â Evoixmr mixxx 2.4 version updated from - QGazQ tweaks of Octopussy based on mapping from h67ma, bad1dea5, photoenix, Matthew Nicholson, Ending, Kaj Bostrom
 - Numark Mixtrack Platinum â Matthew Nicholson
 - Numark Mixtrack Pro FX â h67ma, bad1dea5, photoenix

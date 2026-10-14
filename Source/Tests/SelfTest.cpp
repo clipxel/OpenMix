@@ -2635,7 +2635,7 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
                 juce::StringArray tail;
                 for (int j = i; j < v.size(); ++j) tail.add (v[j]);
                 const auto pattern = tail.joinIntoString (" ");
-                const bool specific = tail.size() >= 2 || pattern.containsAnyOf ("0123456789");   // not just "Platinum"
+                const bool specific = i == 0 || tail.size() >= 2 || pattern.containsAnyOf ("0123456789-");   // the full name always; not just "Platinum"
                 if (specific && ControllerLibrary::normalise (pattern).length() >= 5 && ! match.contains (pattern))
                     match.add (pattern);
             }
