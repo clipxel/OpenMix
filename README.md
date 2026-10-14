@@ -1,12 +1,19 @@
 # OpenMix
 
-Software de DJ para macOS (JUCE 8 / C++20), con un lenguaje visual minimalista e identidad propia.
+Software de DJ para macOS, Windows y Linux (JUCE 8 / C++20), con un lenguaje visual minimalista e identidad propia.
 
 ## Descargar
 
-El instalador para macOS (Apple Silicon, macOS 12+) está en la sección **Releases** del repositorio
-y en la página web. La app no está notarizada por Apple: la primera vez, si macOS avisa que no puede
-verificarla, andá a *Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente*.
+Los instaladores están en la sección **Releases** del repositorio y en la página web:
+
+| Sistema | Archivo | Primera vez |
+|---|---|---|
+| macOS 12+ (Apple Silicon) | `.dmg` | Si macOS avisa que no puede verificarla: *Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente* |
+| Windows 10/11 (64 bits) | `.zip` | Descomprimir y abrir `OpenMix.exe`; si aparece SmartScreen: *Más información › Ejecutar de todas formas* |
+| Linux x86_64 | `.tar.gz` | Descomprimir y ejecutar `./instalar.sh` |
+
+Las versiones de Windows y Linux las compila GitHub Actions (`.github/workflows/release.yml`) al
+publicar un tag `v*`, y las sube solas al release junto con la de macOS.
 
 ## Compilar
 

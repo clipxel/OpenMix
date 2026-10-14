@@ -8,7 +8,7 @@ namespace om
 
 /** Cue points that travel with an external drive.
 
-    For tracks on an external volume (/Volumes/<name>/…) cues created in OpenMix are
+    For tracks on an external drive cues created in OpenMix are
     stored in "<volume>/.OpenMix/cues.json", keyed by the path relative to the volume
     root, so they follow the drive between computers. The folder is only created on
     the first cue edit; nothing else on the drive is ever written (never the export

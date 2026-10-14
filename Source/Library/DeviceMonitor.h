@@ -38,7 +38,7 @@ public:
 
     void rescanNow() { timerCallback(); }
 
-    /** Folder whose subfolders are the mounted volumes (/Volumes). Snapshots point it at an empty
+    /** Folder whose subfolders stand in for the mounted drives. Snapshots point it at an empty
         folder so the picture never shows the drives plugged into this computer. */
     static void setVolumesFolderOverride (const juce::File& f) { volumesOverride() = f; }
 

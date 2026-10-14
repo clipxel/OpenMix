@@ -37,9 +37,13 @@
       btn.setAttribute("download", p[os].file);
       btn.innerHTML = `${ARROW}<span></span>`;
       btn.querySelector("span").textContent = `Descargar para ${OS_NAMES[os]}`;
-      if (meta) meta.textContent = `v${config.version} · ${p[os].size} · ${p[os].requirements}`;
-      if (notice && os === "mac")
-        notice.textContent = "Primera vez: si macOS avisa que no puede verificar OpenMix, andá a Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente.";
+      if (meta) meta.textContent = [`v${config.version}`, p[os].size, p[os].requirements].filter(Boolean).join(" · ");
+      const firstRun = {
+        mac: "Primera vez: si macOS avisa que no puede verificar OpenMix, andá a Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente.",
+        windows: "Descomprimí el .zip y abrí OpenMix.exe. Si Windows muestra “Windows protegió su PC”, hacé clic en Más información › Ejecutar de todas formas.",
+        linux: "Descomprimí el archivo y ejecutá ./instalar.sh: OpenMix aparece en tus aplicaciones.",
+      };
+      if (notice) notice.textContent = firstRun[os] || "";
       return;
     }
 

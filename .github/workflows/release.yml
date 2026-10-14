@@ -1,0 +1,150 @@
+# Compila OpenMix para macOS, Windows y Linux, corre los autotests y sube los instaladores
+# al release del tag. Se dispara al pushear un tag v* o a mano (Actions › Compilar versiones › Run).
+name: Compilar versiones
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag del release donde subir los instaladores"
+        required: true
+        default: "v1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-14
+          - name: Windows
+            os: windows-2022
+          - name: Linux
+            os: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias (JUCE y Signalsmith, mismas versiones que scripts/bootstrap.sh)
+        run: |
+          git clone --depth 1 --branch 8.0.16-security https://github.com/juce-framework/JUCE.git external/JUCE
+          git clone --depth 1 --branch 1.4.0 https://github.com/Signalsmith-Audio/signalsmith-stretch.git external/signalsmith-stretch
+          git clone --depth 1 --branch 0.6.4 https://github.com/Signalsmith-Audio/linear.git external/signalsmith-linear
+
+      - name: Paquetes de Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libjack-jackd2-dev libfreetype6-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+            libgl1-mesa-dev xvfb
+
+      - name: Versión
+        run: echo "VERSION=$(sed -n 's/^project(OpenMix VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)" >> "$GITHUB_ENV"
+
+      - name: Compilar (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          cmake --build build --config Release --parallel
+          echo "EXE=build/OpenMix_artefacts/Release/OpenMix.exe" >> "$GITHUB_ENV"
+
+      - name: Compilar (macOS / Linux)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then brew list ninja >/dev/null 2>&1 || brew install ninja; fi
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            echo "EXE=build/OpenMix_artefacts/Release/OpenMix.app/Contents/MacOS/OpenMix" >> "$GITHUB_ENV"
+          else
+            echo "EXE=build/OpenMix_artefacts/Release/OpenMix" >> "$GITHUB_ENV"
+          fi
+
+      - name: Autotests
+        run: |
+          python3 - <<'EOF'
+          import math, struct, wave
+          def make(path, bpm, base):
+              sr = 44100; frames = bytearray()
+              for i in range(sr * 60):
+                  t = i / sr; ph = t % (60 / bpm)
+                  v = math.sin(2 * math.pi * (50 + 120 * math.exp(-ph * 30)) * ph) * math.exp(-ph * 8) * 0.8
+                  v += math.sin(2 * math.pi * base * t) * 0.2 * (1 - math.exp(-ph * 20))
+                  s = int(max(-1, min(1, v)) * 30000); frames += struct.pack('<hh', s, s)
+              w = wave.open(path, 'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(sr); w.writeframes(bytes(frames)); w.close()
+          make('a.wav', 124, 55); make('b.wav', 128, 49)
+          EOF
+          case "$RUNNER_OS" in
+            Linux)   xvfb-run -a "$EXE" --selftest --data selftest-data --a a.wav --b b.wav | tee selftest.log ;;
+            Windows) powershell -Command "\$p = Start-Process -FilePath '$EXE' -ArgumentList '--selftest','--data','selftest-data','--a','a.wav','--b','b.wav' -Wait -PassThru -NoNewWindow; exit \$p.ExitCode" ;;
+            *)       "$EXE" --selftest --data selftest-data --a a.wav --b b.wav | tee selftest.log ;;
+          esac
+
+      - name: Empaquetar (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          APP=build/OpenMix_artefacts/Release/OpenMix.app
+          codesign --force --deep -s - "$APP"
+          mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "OpenMix $VERSION" -srcfolder dmg -ov -format UDZO "OpenMix-$VERSION-macOS-arm64.dmg"
+          echo "ASSET=OpenMix-$VERSION-macOS-arm64.dmg" >> "$GITHUB_ENV"
+
+      - name: Empaquetar (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir OpenMix
+          cp "$EXE" OpenMix/
+          cp LICENSE OpenMix/LICENSE.txt
+          cp THIRD_PARTY_NOTICES.md OpenMix/
+          7z a "OpenMix-$VERSION-Windows-x64.zip" OpenMix
+          echo "ASSET=OpenMix-$VERSION-Windows-x64.zip" >> "$GITHUB_ENV"
+
+      - name: Empaquetar (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p OpenMix
+          cp "$EXE" OpenMix/openmix
+          cp Resources/AppIcon.png OpenMix/openmix.png
+          cp LICENSE THIRD_PARTY_NOTICES.md OpenMix/
+          cat > OpenMix/openmix.desktop <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=OpenMix
+          Comment=Software de DJ
+          Exec=openmix
+          Icon=openmix
+          Categories=AudioVideo;Audio;
+          EOF
+          cat > OpenMix/instalar.sh <<'EOF'
+          #!/bin/sh
+          # Instala OpenMix para este usuario (~/.local), con su ícono en el menú de aplicaciones.
+          set -e
+          cd "$(dirname "$0")"
+          mkdir -p ~/.local/bin ~/.local/share/applications ~/.local/share/openmix
+          install -m 755 openmix ~/.local/bin/openmix
+          install -m 644 openmix.png ~/.local/share/openmix/openmix.png
+          sed -e "s|^Exec=.*|Exec=$HOME/.local/bin/openmix|" -e "s|^Icon=.*|Icon=$HOME/.local/share/openmix/openmix.png|" \
+              openmix.desktop > ~/.local/share/applications/openmix.desktop
+          echo "Listo: buscá OpenMix en tus aplicaciones (o ejecutá ~/.local/bin/openmix)."
+          EOF
+          chmod +x OpenMix/openmix OpenMix/instalar.sh
+          tar -czf "OpenMix-$VERSION-Linux-x86_64.tar.gz" OpenMix
+          echo "ASSET=OpenMix-$VERSION-Linux-x86_64.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Subir al release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"

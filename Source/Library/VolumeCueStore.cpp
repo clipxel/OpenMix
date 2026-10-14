@@ -1,4 +1,5 @@
 #include "VolumeCueStore.h"
+#include "Volumes.h"
 #include "../Common/Strings.h"
 
 namespace om
@@ -12,18 +13,7 @@ juce::File VolumeCueStore::externalVolumeFor (const juce::File& f)
     if (extraRoot() != juce::File() && f.isAChildOf (extraRoot()))
         return extraRoot();
 
-    const auto path = f.getFullPathName();
-    if (! path.startsWith ("/Volumes/"))
-        return {};
-
-    const auto name = path.fromFirstOccurrenceOf ("/Volumes/", false, false).upToFirstOccurrenceOf ("/", false, false);
-    if (name.isEmpty())
-        return {};
-
-    const juce::File root ("/Volumes/" + name);
-    if (root.isSymbolicLink())   // "/Volumes/Macintosh HD" → the boot disk
-        return {};
-    return root;
+    return Volumes::rootOf (f);
 }
 
 VolumeCueStore::Volume& VolumeCueStore::volume (const juce::File& root)

@@ -1,4 +1,5 @@
 #include "DeviceMonitor.h"
+#include "Volumes.h"
 
 namespace om
 {
@@ -35,22 +36,26 @@ UsbExport::Analysis DeviceMonitor::analysisFor (const Track& t)
 
 void DeviceMonitor::timerCallback()
 {
-    // Which mounted volumes carry an export right now? Listing /Volumes can block for a long time on
+    // Which mounted drives carry an export right now? Listing drives can block for a long time on
     // a stuck or sleeping disk, so it never runs on the message thread.
     if (scanning.exchange (true)) return;
     auto aliveFlag = alive;
-    const auto volumesFolder = volumesOverride() != juce::File() ? volumesOverride() : juce::File ("/Volumes");
-    scanPool.addJob ([this, aliveFlag, volumesFolder]
+    const auto folderOverride = volumesOverride();
+    scanPool.addJob ([this, aliveFlag, folderOverride]
     {
         juce::Array<juce::File> roots, mounted;
-        for (const auto& entry : juce::RangedDirectoryIterator (volumesFolder, false, "*", juce::File::findDirectories))
+        if (folderOverride != juce::File())
         {
-            const auto f = entry.getFile();
-            if (f.isSymbolicLink()) continue;                 // "Macintosh HD" → / (the system disk)
-            mounted.add (f);
+            for (const auto& entry : juce::RangedDirectoryIterator (folderOverride, false, "*", juce::File::findDirectories))
+                mounted.add (entry.getFile());
+        }
+        else
+        {
+            mounted = Volumes::mounted();
+        }
+        for (auto& f : mounted)
             if (UsbExport::isExportVolume (f))
                 roots.add (f);
-        }
         juce::MessageManager::callAsync ([this, aliveFlag, roots, mounted]
         {
             if (! aliveFlag->load()) return;

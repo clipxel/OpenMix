@@ -470,6 +470,8 @@ void LibraryView::searchComputer (const juce::String& text)
     explorerBusy = true;
     repaint();
 
+    auto flag = alive;
+   #if JUCE_MAC
     // The system search index macOS already keeps: audio files whose name, title or artist match every word.
     juce::String query = "kMDItemContentTypeTree == \"public.audio\"";
     for (auto& t : tokens)
@@ -480,7 +482,6 @@ void LibraryView::searchComputer (const juce::String& text)
         args.addArray ({ "-onlyin", v.getFullPathName() });
     args.add (query);
 
-    auto flag = alive;
     explorerPool.addJob ([this, flag, gen, args]
     {
         juce::Thread::sleep (250);                                        // still typing: search only the last text
@@ -499,6 +500,39 @@ void LibraryView::searchComputer (const juce::String& text)
             if (Library::isAudioFile (f) && ! f.getFileName().startsWith ("."))
                 files.add (f);
         }
+   #else
+    // No system index to ask: walk the usual music places and the external drives, matching file names.
+    juce::Array<juce::File> roots;
+    for (auto where : { juce::File::userMusicDirectory, juce::File::userDesktopDirectory, juce::File::userDocumentsDirectory })
+        roots.addIfNotAlreadyThere (juce::File::getSpecialLocation (where));
+    roots.addIfNotAlreadyThere (juce::File::getSpecialLocation (juce::File::userHomeDirectory).getChildFile ("Downloads"));
+    for (auto& v : devices.volumes())
+        roots.addIfNotAlreadyThere (v);
+    juce::StringArray words;
+    for (auto& t : tokens) words.add (t.toLowerCase());
+
+    explorerPool.addJob ([this, flag, gen, roots, words]
+    {
+        juce::Thread::sleep (250);                                        // still typing: search only the last text
+        juce::Array<juce::File> files;
+        int visited = 0;
+        for (auto& root : roots)
+        {
+            if (! root.isDirectory()) continue;
+            for (const auto& e : juce::RangedDirectoryIterator (root, true, "*", juce::File::findFiles))
+            {
+                if (! *flag || gen != explorerGen) return;
+                if (++visited > 200000 || files.size() >= 500) break;
+                const auto f = e.getFile();
+                if (! Library::isAudioFile (f) || f.getFileName().startsWith (".")) continue;
+                const auto name = f.getFileName().toLowerCase();
+                bool all = true;
+                for (auto& w : words) if (! name.contains (w)) { all = false; break; }
+                if (all) files.add (f);
+            }
+        }
+        if (! *flag || gen != explorerGen) return;
+   #endif
         std::sort (files.begin(), files.end(), [] (const juce::File& a, const juce::File& b)
                    { return a.getFileName().compareNatural (b.getFileName()) < 0; });
         juce::MessageManager::callAsync ([this, flag, gen, files]

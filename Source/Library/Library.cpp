@@ -39,8 +39,12 @@ juce::File Library::dataFolder()
         return dataOverride();
     }
 
-    auto f = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-               .getChildFile ("Application Support").getChildFile ("OpenMix");
+    // macOS: ~/Library/Application Support/OpenMix · Windows: %APPDATA%\OpenMix · Linux: ~/.config/OpenMix
+    auto base = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
+   #if JUCE_MAC
+    base = base.getChildFile ("Application Support");
+   #endif
+    auto f = base.getChildFile ("OpenMix");
     f.createDirectory();
     return f;
 }
