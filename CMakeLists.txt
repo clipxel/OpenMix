@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
 
+# macOS: one universal app for Apple Silicon and Intel (ignored on Windows / Linux).
+if(NOT CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Universal macOS build" FORCE)
+endif()
+
 project(OpenMix VERSION 1.0.0 LANGUAGES C CXX)
 if(APPLE)
     enable_language(OBJCXX)

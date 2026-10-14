@@ -99,8 +99,9 @@ jobs:
           APP=build/OpenMix_artefacts/Release/OpenMix.app
           codesign --force --deep -s - "$APP"
           mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/Applications
-          hdiutil create -volname "OpenMix $VERSION" -srcfolder dmg -ov -format UDZO "OpenMix-$VERSION-macOS-arm64.dmg"
-          echo "ASSET=OpenMix-$VERSION-macOS-arm64.dmg" >> "$GITHUB_ENV"
+          lipo -archs "$APP/Contents/MacOS/OpenMix"                      # arm64 x86_64
+          hdiutil create -volname "OpenMix $VERSION" -srcfolder dmg -ov -format UDZO "OpenMix-$VERSION-macOS-universal.dmg"
+          echo "ASSET=OpenMix-$VERSION-macOS-universal.dmg" >> "$GITHUB_ENV"
 
       - name: Empaquetar (Windows)
         if: runner.os == 'Windows'

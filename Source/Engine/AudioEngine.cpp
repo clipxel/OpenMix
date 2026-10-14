@@ -170,7 +170,7 @@ void AudioEngine::loadRmxSample (int deckIndex, int pad, const juce::File& file,
         if (reader == nullptr) error = "Formato no soportado";
         else
         {
-            const int len = (int) juce::jmin<juce::int64> (reader->lengthInSamples, (juce::int64) (reader->sampleRate * 10.0));  // ≤ 10 s
+            const int len = (int) std::min (reader->lengthInSamples, (juce::int64) (reader->sampleRate * 10.0));  // ≤ 10 s
             juce::AudioBuffer<float> src (2, len);
             src.clear();
             reader->read (&src, 0, len, 0, true, reader->numChannels > 1);

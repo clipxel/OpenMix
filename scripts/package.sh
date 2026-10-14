@@ -1,6 +1,6 @@
 #!/bin/bash
 # Empaqueta OpenMix para macOS: compila Release, corre los autotests, firma (ad-hoc) y arma
-# dist/OpenMix-<versión>-macOS-arm64.dmg con el acceso directo a Aplicaciones.
+# dist/OpenMix-<versión>-macOS-universal.dmg con el acceso directo a Aplicaciones.
 #
 #   ./scripts/package.sh
 #
@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 
 VERSION=$(sed -n 's/^project(OpenMix VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
 APP=build/OpenMix_artefacts/Release/OpenMix.app
-DMG=dist/OpenMix-$VERSION-macOS-$(uname -m).dmg
+DMG=dist/OpenMix-$VERSION-macOS-universal.dmg     # Apple Silicon + Intel
 
 .tools/venv/bin/cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
 .tools/venv/bin/ninja -C build

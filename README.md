@@ -8,7 +8,7 @@ Los instaladores están en la sección **Releases** del repositorio y en la pág
 
 | Sistema | Archivo | Primera vez |
 |---|---|---|
-| macOS 12+ (Apple Silicon) | `.dmg` | Si macOS avisa que no puede verificarla: *Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente* |
+| macOS 12+ (Apple Silicon e Intel) | `.dmg` universal | Si macOS avisa que no puede verificarla: *Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente* |
 | Windows 10/11 (64 bits) | `.zip` | Descomprimir y abrir `OpenMix.exe`; si aparece SmartScreen: *Más información › Ejecutar de todas formas* |
 | Linux x86_64 | `.tar.gz` | Descomprimir y ejecutar `./instalar.sh` |
 
@@ -27,7 +27,7 @@ open build/OpenMix_artefacts/Release/OpenMix.app
 La versión sale de `project(OpenMix VERSION …)` en `CMakeLists.txt`.
 
 ```bash
-./scripts/package.sh        # compila, corre los autotests, firma y arma dist/OpenMix-<versión>-macOS-arm64.dmg
+./scripts/package.sh        # compila, corre los autotests, firma y arma dist/OpenMix-<versión>-macOS-universal.dmg
 ```
 
 Después: crear el release `v<versión>` en GitHub y adjuntar el `.dmg`. La página web

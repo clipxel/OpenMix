@@ -16,12 +16,10 @@ python3 server.py                     # http://localhost:8080
 
 ## Descargas
 
-Las URLs están en `config/downloads.json`. Una plataforma con `"url": null` aparece como
-“próximamente”. Los instaladores van en `downloads/` (no se versionan). Para regenerar el de macOS:
-
-```bash
-hdiutil create -volname OpenMix -srcfolder build/OpenMix_artefacts/Release/OpenMix.app -ov -format UDZO website/downloads/OpenMix-0.1.0-macOS-arm64.dmg
-```
+Las URLs se arman desde `config/downloads.json`: `repo` + `version` + `file` de cada plataforma
+apuntan al release `v<versión>` de GitHub. Los instaladores (macOS universal, Windows y Linux) los
+compila y sube `.github/workflows/release.yml` al publicar un tag; en local, `./scripts/package.sh`
+arma el de macOS.
 
 `index.html?descargar` inicia la descarga del sistema detectado automáticamente.
 
