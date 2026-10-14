@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Foro — OpenMix</title>
+  <meta name="description" content="Foro de la comunidad de OpenMix: ayuda, controladores, ideas y técnica de mezcla.">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="assets/img/favicon.png">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wide">
+    <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="">OpenMix</a>
+    <button class="menu-toggle" aria-label="Menú">Menú</button>
+    <nav class="nav">
+      <a href="index.html#funciones">Funciones</a>
+      <a href="index.html#atajos">Atajos</a>
+      <a href="mapeos.html">Mapeos</a>
+      <a class="active" href="foro.html">Foro</a>
+      <a href="index.html#novedades">Novedades</a>
+      <a class="btn-dl push" href="index.html#descarga"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg>Descargar</a>
+      <a class="btn-line" href="mapeos.html">Subir mapeo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="page-hero">
+    <div class="bg" aria-hidden="true"></div>
+    <div class="wrap">
+      <p class="en">Community</p>
+      <h1>Foro</h1>
+      <p>Preguntá, proponé y compartí. Sé amable: del otro lado hay otro DJ.</p>
+    </div>
+  </section>
+
+  <section class="page-body">
+  <div class="wrap forum">
+    <aside class="cats" id="cats" aria-label="Categorías"></aside>
+
+    <div>
+      <!-- Lista de hilos -->
+      <div id="view-list">
+        <div class="toolbar">
+          <input class="search" id="search" type="search" placeholder="Buscar en el foro…" aria-label="Buscar en el foro">
+          <span class="spacer"></span>
+          <button class="more" id="new-thread">Nuevo tema</button>
+        </div>
+        <div class="panel"><div class="list" id="threads"><div class="empty">Cargando…</div></div></div>
+      </div>
+
+      <!-- Hilo -->
+      <div id="view-thread" hidden>
+        <div class="toolbar"><button class="back" id="back">← Volver</button></div>
+        <div class="panel" id="thread"></div>
+        <form class="panel panel-pad form" id="reply-form" style="margin-top:16px" novalidate>
+          <h3>Responder</h3>
+          <label class="field"><span class="label">Tu nombre</span><input type="text" name="author" maxlength="40" required></label>
+          <label class="field"><span class="label">Mensaje</span><textarea name="body" maxlength="8000" required></textarea></label>
+          <label class="hp">No completar <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+          <p class="msg" id="reply-msg" hidden></p>
+          <div style="display:flex;justify-content:flex-end"><button class="btn primary" type="submit">Publicar respuesta</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+  </section>
+</main>
+
+<!-- Nuevo tema -->
+<div class="dialog-backdrop" id="compose" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="compose-title">
+    <header><h3 id="compose-title">Nuevo tema</h3><button class="x" data-close aria-label="Cerrar">×</button></header>
+    <form class="content form" id="compose-form" novalidate>
+      <div class="two">
+        <label class="field"><span class="label">Categoría</span><select name="category" id="compose-cat"></select></label>
+        <label class="field"><span class="label">Tu nombre</span><input type="text" name="author" maxlength="40" required></label>
+      </div>
+      <label class="field"><span class="label">Título</span><input type="text" name="title" maxlength="120" required></label>
+      <label class="field"><span class="label">Mensaje</span>
+        <textarea name="body" maxlength="8000" required placeholder="Contá con detalle: versión de OpenMix, sistema, controlador…"></textarea></label>
+      <label class="hp">No completar <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      <p class="msg" id="compose-msg" hidden></p>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" class="btn ghost" data-close>Cancelar</button>
+        <button type="submit" class="btn primary">Publicar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="">OpenMix</a>
+    </div>
+    <div class="cols">
+      <div><h4>Producto</h4><ul><li><a href="index.html#funciones">Funciones</a></li><li><a href="index.html#todas">Todas las funciones</a></li><li><a href="index.html#atajos">Atajos de teclado</a></li></ul></div>
+      <div><h4>Comunidad</h4><ul><li><a href="mapeos.html">Mapeos</a></li><li><a href="foro.html">Foro</a></li><li><a href="index.html#novedades">Novedades</a></li></ul></div>
+      <div><h4>Ayuda</h4><ul><li><a href="https://github.com/clipxel/OpenMix/discussions" target="_blank" rel="noopener">Discusiones en GitHub</a></li><li><a href="foro.html#c=ayuda">Ayuda</a></li><li><a href="foro.html#c=controladores">Controladores</a></li><li><a href="foro.html#c=errores">Reportar un error</a></li></ul></div>
+      <div><h4>Descargar</h4><ul><li><a href="index.html#descarga">macOS</a></li><li><a href="index.html#descarga">Windows</a></li><li><a href="index.html#descarga">Linux</a></li></ul></div>
+    </div>
+    <div class="legal">
+      <span>© <span id="year"></span> OpenMix · Software libre (AGPLv3) · <a href="https://github.com/clipxel/OpenMix" target="_blank" rel="noopener">Código fuente en GitHub</a></span>
+      <button class="totop" aria-label="Volver arriba" onclick="scrollTo({top:0})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4h16M6 14l6-6 6 6M12 8v13"/></svg></button>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/common.js"></script>
+<script src="assets/js/foro.js"></script>
+</body>
+</html>

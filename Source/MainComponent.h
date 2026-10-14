@@ -1,0 +1,94 @@
+#pragma once
+
+#include "Engine/AudioEngine.h"
+#include "Library/Library.h"
+#include "UI/Workspace.h"
+#include "UI/Views/TopBar.h"
+#include "UI/Views/WaveformViews.h"
+#include "UI/Views/DeckView.h"
+#include "UI/Views/MixerView.h"
+#include "UI/Views/LibraryView.h"
+#include "UI/Views/FxPanel.h"
+#include "UI/Views/SettingsPanel.h"
+#include "Control/Actions.h"
+#include "Control/MidiEngine.h"
+#include "Control/KeyboardControl.h"
+#include "Library/VolumeCueStore.h"
+
+/** Main screen: top bar · stacked waveforms · [deck 1 | mixer | deck 2] · library.
+    One fixed arrangement; only its sizes are adjustable (and persisted). Adapts to the window size. */
+class MainComponent : public juce::Component,
+                      public juce::DragAndDropContainer,
+                      private juce::ChangeListener
+{
+public:
+    explicit MainComponent (bool snapshotMode = false);
+    ~MainComponent() override;
+
+    void paint (juce::Graphics&) override;
+    void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
+
+    /** Verification helper (--snapshot): load files, then call back. */
+    /** Snapshot mode: advance both decks' pad pages (5 = SAMPLES/RMX). */
+    void showPadPageForSnapshot (int pages)       { for (int i = 0; i < pages; ++i) { deckA.nextPadPage(); deckB.nextPadPage(); } }
+    /** Snapshot mode: open a settings section (and controllers tab) for the picture. */
+    void showSettingsForSnapshot (int section, int tab)
+    {
+        settingsPanel.setControllers (nullptr, &actions, &keyboard);
+        settingsPanel.setBounds (getLocalBounds());
+        settingsPanel.show (section);
+        if (section == om::SettingsPanel::controllers) settingsPanel.showControllerTab (tab);
+    }
+    void prepareSnapshot (const juce::File& a, const juce::File& b, std::function<void()> done,
+                          const juce::String& devicePlaylist = {});
+
+private:
+    class Splitter;
+
+    void frame();
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
+
+    void loadToDeck (const om::TrackPtr&, int deck);
+    void loadFileToDeck (const juce::File&, int deck);
+    void addFolder();
+    void toggleRecord();
+
+    void applyLayout();
+    void loadSettings();
+    void saveSettings();
+
+    const bool snapshotMode;
+    std::unique_ptr<juce::PropertiesFile> settings;
+
+    om::AudioEngine engine;
+    om::Library library { engine.getFormatManager() };
+    om::DeviceMonitor devices;
+    om::VolumeCueStore cueStore;      // cues that travel with external drives (<drive>/.OpenMix)
+
+    om::TopBar topBar { engine };
+    om::WaveformStrip waveforms { engine.deck (0), engine.deck (1) };
+    om::FxPanel fxPanel { engine };
+    om::DeckView deckA { engine, 0 }, deckB { engine, 1 };
+    om::MixerView mixer { engine };
+    om::LibraryView libraryView { library, engine, devices };
+    std::unique_ptr<Splitter> splitter, waveSplitter;
+    om::Actions actions { engine, { [this] (int d) { loadToDeck (libraryView.selectedTrack(), d); },
+                                    [this] (int delta) { libraryView.moveSelection (delta); },
+                                    [this] { toggleRecord(); },
+                                    [this] (int d, int pad, bool down) { (d == 0 ? deckA : deckB).externalPad (pad, down); },
+                                    [this] (int d) { (d == 0 ? deckA : deckB).nextPadPage(); } } };
+    om::KeyboardControl keyboard { actions };
+    std::unique_ptr<om::MidiEngine> midi;     // not created in snapshot mode (no device access)
+    om::SettingsPanel settingsPanel { engine, library };
+    juce::TooltipWindow tooltips { this, 600 };
+
+    om::Workspace current;   // sizes of the single layout
+
+    std::array<bool, 2> playNoted { false, false };
+    std::array<const void*, 2> trackSeen { nullptr, nullptr };
+    std::unique_ptr<juce::FileChooser> chooser;
+    std::unique_ptr<juce::VBlankAttachment> vblank;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
+};

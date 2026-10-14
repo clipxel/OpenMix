@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mapeos de controladores — OpenMix</title>
+  <meta name="description" content="Mapeos MIDI oficiales y de la comunidad para usar tu controlador de DJ con OpenMix.">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="assets/img/favicon.png">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wide">
+    <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="">OpenMix</a>
+    <button class="menu-toggle" aria-label="Menú">Menú</button>
+    <nav class="nav">
+      <a href="index.html#funciones">Funciones</a>
+      <a href="index.html#atajos">Atajos</a>
+      <a class="active" href="mapeos.html">Mapeos</a>
+      <a href="foro.html">Foro</a>
+      <a href="index.html#novedades">Novedades</a>
+      <a class="btn-dl push" href="index.html#descarga"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg>Descargar</a>
+      <a class="btn-line" href="mapeos.html">Subir mapeo</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="page-hero">
+    <div class="bg" aria-hidden="true"></div>
+    <div class="wrap">
+      <p class="en">Controllers</p>
+      <h1>Mapeos</h1>
+      <p>Mapeos MIDI listos para usar con tu controlador. Los oficiales los prueba el equipo de OpenMix;
+        el resto los comparte la comunidad.</p>
+    </div>
+  </section>
+
+  <section class="page-body">
+    <div class="wrap">
+      <div class="toolbar">
+        <div class="segmented" id="filter">
+          <button class="on" data-type="">Todos</button>
+          <button data-type="official">Oficiales</button>
+          <button data-type="community">Comunidad</button>
+        </div>
+        <input class="search" id="search" type="search" placeholder="Buscar marca, modelo o autor…" aria-label="Buscar mapeos">
+        <select class="sort" id="sort" aria-label="Ordenar">
+          <option value="recent">Más recientes</option>
+          <option value="downloads">Más descargados</option>
+        </select>
+        <span class="spacer"></span>
+        <button class="more" id="open-upload">Subir mapeo</button>
+      </div>
+      <div class="panel"><div class="list" id="list"><div class="empty">Cargando…</div></div></div>
+    </div>
+  </section>
+
+  <section class="howto-wrap">
+    <div class="wrap">
+      <div class="sec-heading">
+        <p class="en">How to</p>
+        <h2>Cómo instalar un mapeo</h2>
+      </div>
+      <div class="howto">
+        <div class="step"><span class="num">STEP 01</span><h3>Descargá</h3>
+          <p>Bajá el archivo <code>.midi.json</code> del controlador que tengas.</p></div>
+        <div class="step"><span class="num">STEP 02</span><h3>Copialo</h3>
+          <p>Cerrá OpenMix y guardalo como <code>midi.json</code> en
+            <code>~/Library/Application Support/OpenMix/</code>. Reemplaza tu mapeo actual: hacé una copia antes.</p></div>
+        <div class="step"><span class="num">STEP 03</span><h3>Conectá y mezclá</h3>
+          <p>Abrí OpenMix con el controlador conectado. Ajustá lo que quieras en
+            <code>Configuración › Controladores</code> con MIDI Learn.</p></div>
+      </div>
+      <div class="share">
+        <div>
+          <h3>¿Armaste el mapeo de tu controlador?</h3>
+          <p>Asigná los controles con MIDI Learn y subí <code>~/Library/Application Support/OpenMix/midi.json</code>.
+            Se comprueba que sea un mapeo válido antes de publicarlo.</p>
+        </div>
+        <button class="more" onclick="document.getElementById('open-upload').click()">Subir mapeo</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Diálogo de subida -->
+<div class="dialog-backdrop" id="upload" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+    <header><h3 id="upload-title">Subir mapeo</h3><button class="x" data-close aria-label="Cerrar">×</button></header>
+    <form class="content form" id="upload-form" novalidate>
+      <div class="two">
+        <label class="field"><span class="label">Marca</span><input type="text" name="brand" maxlength="40" placeholder="Marca del controlador" required></label>
+        <label class="field"><span class="label">Modelo</span><input type="text" name="model" maxlength="60" placeholder="Modelo del controlador" required></label>
+      </div>
+      <label class="field"><span class="label">Tu nombre</span><input type="text" name="author" maxlength="40" required></label>
+      <label class="field"><span class="label">Descripción</span>
+        <textarea name="description" maxlength="1500" placeholder="Qué funciones mapeaste, qué hace SHIFT, LEDs, versión de firmware…"></textarea></label>
+      <div class="field">
+        <span class="label">Archivo</span>
+        <div class="drop" id="drop" tabindex="0" role="button">Arrastrá tu <strong>midi.json</strong> acá o hacé clic para elegirlo</div>
+        <input type="file" id="file" accept=".json,application/json" hidden>
+        <span class="hint">Máximo 512 KB. Solo se publica la lista de asignaciones.</span>
+      </div>
+      <label class="hp">No completar <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      <p class="msg" id="upload-msg" hidden></p>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" class="btn ghost" data-close>Cancelar</button>
+        <button type="submit" class="btn primary" id="upload-submit">Publicar mapeo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="top">
+      <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="">OpenMix</a>
+    </div>
+    <div class="cols">
+      <div><h4>Producto</h4><ul><li><a href="index.html#funciones">Funciones</a></li><li><a href="index.html#todas">Todas las funciones</a></li><li><a href="index.html#atajos">Atajos de teclado</a></li></ul></div>
+      <div><h4>Comunidad</h4><ul><li><a href="mapeos.html">Mapeos</a></li><li><a href="foro.html">Foro</a></li><li><a href="index.html#novedades">Novedades</a></li></ul></div>
+      <div><h4>Ayuda</h4><ul><li><a href="https://github.com/clipxel/OpenMix/discussions" target="_blank" rel="noopener">Discusiones en GitHub</a></li><li><a href="foro.html#c=ayuda">Ayuda</a></li><li><a href="foro.html#c=controladores">Controladores</a></li><li><a href="foro.html#c=errores">Reportar un error</a></li></ul></div>
+      <div><h4>Descargar</h4><ul><li><a href="index.html#descarga">macOS</a></li><li><a href="index.html#descarga">Windows</a></li><li><a href="index.html#descarga">Linux</a></li></ul></div>
+    </div>
+    <div class="legal">
+      <span>© <span id="year"></span> OpenMix · Software libre (AGPLv3) · <a href="https://github.com/clipxel/OpenMix" target="_blank" rel="noopener">Código fuente en GitHub</a></span>
+      <button class="totop" aria-label="Volver arriba" onclick="scrollTo({top:0})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 4h16M6 14l6-6 6 6M12 8v13"/></svg></button>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/common.js"></script>
+<script src="assets/js/mapeos.js"></script>
+</body>
+</html>

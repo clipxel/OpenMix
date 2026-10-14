@@ -1,0 +1,20 @@
+#pragma once
+
+#include <juce_core/juce_core.h>
+
+namespace om
+{
+    /** Headless functional test of the engine and controller layer (no audio device).
+        Returns the process exit code: 0 when everything passed. */
+    /** Read-only inspection of a real exported USB (prints a summary, verifies nothing changed). */
+    int inspectUsbExport (const juce::File& volumeRoot);
+
+    /** Plays through the real default audio device (low volume) and reports dropouts,
+        DSP load and clicks in the recorded output. */
+    int runAudioDeviceTest (const juce::File& usbRoot, const juce::File& scratchDir);
+
+    /** Compares OpenMix's analyser against the analysis stored on a real exported USB (read-only). */
+    int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File& reportFile);
+
+    int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce::File& usbRoot = {});
+}

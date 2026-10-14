@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "released": "2026-10-14",
+  "repo": "clipxel/OpenMix",
+  "platforms": {
+    "mac": {
+      "release": true,
+      "file": "OpenMix-1.0.0-macOS-arm64.dmg",
+      "size": "3,2 MB",
+      "requirements": "macOS 12 o posterior · Apple Silicon (M1 o más nuevo)"
+    },
+    "windows": {
+      "url": null,
+      "file": "OpenMix-1.0.0-Windows-x64.exe",
+      "size": null,
+      "requirements": "Windows 10 u 11 · 64 bits"
+    },
+    "linux": {
+      "url": null,
+      "file": "OpenMix-1.0.0-Linux-x86_64.AppImage",
+      "size": null,
+      "requirements": "x86_64 · ALSA o JACK"
+    }
+  }
+}

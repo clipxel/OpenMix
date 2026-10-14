@@ -1,0 +1,7 @@
+/build/
+/.tools/
+/external/JUCE/
+/external/signalsmith-stretch/
+/external/signalsmith-linear/
+.DS_Store
+/dist/
