@@ -39,13 +39,17 @@ void MasterLimiter::prepare (double sampleRate, int)
     boxPos = 0;
     sampleIndex = 0;
     gain = 1.0f;
+    sustained = 0.0f;
 }
 
 void MasterLimiter::process (float* l, float* r, int n)
 {
     const bool on = enabled.load();
-    const float ceiling = juce::Decibels::decibelsToGain (ceilingDb.load());
-    const float relCoef = (float) std::exp (-1.0 / (juce::jmax (5.0f, releaseMs.load()) * 0.001 * sr));
+    const float ceilDb = ceilingDb.load();
+    const float ceiling = juce::Decibels::decibelsToGain (ceilDb);
+    const float kneeStart = juce::Decibels::decibelsToGain (ceilDb - kneeDb);
+    const float fastMs = juce::jmax (5.0f, releaseMs.load());
+    const float avgCoef = (float) std::exp (-1.0 / (0.4 * sr));   // ~400 ms memory of how hard it has been limiting
     float maxReduction = 0.0f;
 
     for (int i = 0; i < n; ++i)
@@ -68,7 +72,15 @@ void MasterLimiter::process (float* l, float* r, int n)
             peak = juce::jmax (peak, std::abs (il), std::abs (ir));
         }
 
-        const float required = peak > ceiling ? ceiling / peak : 1.0f;
+        // Soft knee: above (ceiling − knee) the output level bends smoothly towards the ceiling and
+        // never reaches it; below, gain 1.
+        float required = 1.0f;
+        if (peak > kneeStart)
+        {
+            const float overDb = juce::Decibels::gainToDecibels (peak) - (ceilDb - kneeDb);
+            const float outDb = ceilDb - kneeDb * std::exp (-overDb / kneeDb);
+            required = juce::jmin (1.0f, juce::Decibels::decibelsToGain (outDb) / peak, ceiling / peak);
+        }
 
         // 2. Sliding minimum over the look-ahead window.
         while (! minQ.empty() && minQ.back().second >= required) minQ.pop_back();
@@ -82,7 +94,12 @@ void MasterLimiter::process (float* l, float* r, int n)
         boxPos = (boxPos + 1) % lookahead;
         const float target = (float) (boxSum / lookahead);
 
-        // 4. Instant attack (already smoothed), exponential release.
+        // 4. Instant attack (already smoothed); release time follows how sustained the limiting is.
+        // "Sustained" = share of recent time spent pulling the gain down (not recovering from it).
+        const float pulling = target < gain - 1.0e-4f ? 1.0f : 0.0f;
+        sustained = pulling + (sustained - pulling) * avgCoef;
+        const float relMs = fastMs + (slowReleaseMs - fastMs) * juce::jlimit (0.0f, 1.0f, sustained * 4.0f);
+        const float relCoef = (float) std::exp (-1.0 / (relMs * 0.001 * sr));
         gain = target < gain ? target : target + (gain - target) * relCoef;
         ++sampleIndex;
 

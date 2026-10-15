@@ -497,6 +497,33 @@ static void audioQualityTests (Report& rep)
         rep.check (tpDb <= -0.4, "Limitador: true peak de salida "_u + juce::String (tpDb, 2) + " dBTP con entrada +6 dB (techo -0.5)");
     }
 
+    {
+        // An isolated hard transient (a kick 12 dB over the ceiling) must not duck the music after it.
+        MasterLimiter lim;
+        lim.prepare (sr, block);
+        lim.ceilingDb = -0.5f;
+        const int n = (int) sr;
+        std::vector<float> l ((size_t) n), r ((size_t) n);
+        const int hit = n / 2, hitLen = (int) (0.003 * sr);
+        for (int i = 0; i < n; ++i)
+        {
+            l[(size_t) i] = 0.4f * (float) std::sin (juce::MathConstants<double>::twoPi * 220.0 * i / sr);
+            if (i >= hit && i < hit + hitLen) l[(size_t) i] = (i - hit) % 2 == 0 ? 3.5f : -3.5f;
+            r[(size_t) i] = l[(size_t) i];
+        }
+        for (int i = 0; i < n; i += block) lim.process (l.data() + i, r.data() + i, juce::jmin (block, n - i));
+        auto levelDbAt = [&] (double seconds)
+        {
+            const int from = hit + lim.latencySamples() + (int) (seconds * sr);
+            float pk = 0.0f;
+            for (int i = from; i < from + (int) (sr / 220.0) + 2 && i < n; ++i) pk = juce::jmax (pk, std::abs (l[(size_t) i]));
+            return juce::Decibels::gainToDecibels (pk / 0.4f);
+        };
+        const float after = levelDbAt (0.25);
+        rep.check (after > -0.5f, "Limitador: tras un golpe aislado la música vuelve enseguida (sin bajones)",
+                   juce::String (levelDbAt (0.1), 1) + " dB a 100 ms · " + juce::String (after, 1) + " dB a 250 ms");
+    }
+
     // Loudness: EBU Tech 3341 — stereo 1 kHz sine at −23 dBFS reads −23.0 LUFS.
     {
         const float amp = juce::Decibels::decibelsToGain (-23.0f);

@@ -14,13 +14,19 @@ namespace om
       interpolator, so the D/A output never exceeds the ceiling.
     • Look-ahead: gain reduction is in place *before* the peak arrives (sliding
       minimum + matched box filter ⇒ no overshoot, no clicks).
-    • Stereo-linked, smooth release. Below the ceiling it is a pure delay (gain 1). */
+    • Soft knee in the last 1.5 dB under the ceiling: peaks are rounded into it instead of being
+      flattened against a wall.
+    • Program-dependent release (as in mastering limiters): an isolated transient recovers in tens
+      of milliseconds, so a kick that touches the ceiling does not duck the music after it; while
+      limiting is sustained the release slows down, so the bass does not pump or distort.
+    • Stereo-linked. Below the knee it is a pure delay (gain 1, bit-exact). */
 class MasterLimiter
 {
 public:
     std::atomic<bool>  enabled { true };
     std::atomic<float> ceilingDb { -0.5f };     // dBTP
-    std::atomic<float> releaseMs { 150.0f };
+    std::atomic<float> releaseMs { 40.0f };     // fastest release (isolated peaks)
+    static constexpr float slowReleaseMs = 600.0f, kneeDb = 1.5f;
 
     void prepare (double sampleRate, int maxBlock);
     void process (float* l, float* r, int n);
@@ -52,6 +58,7 @@ private:
     juce::int64 sampleIndex = 0;
 
     float gain = 1.0f;
+    float sustained = 0.0f;                     // share of recent time spent limiting (0…1)
     std::atomic<float> reductionDb { 0.0f };
 };
 
