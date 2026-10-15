@@ -185,9 +185,10 @@ void Actions::build()
          [deck] (int d) { return deck (d).isVinylMode(); });
 
     add ({ "pitch", "Pitch fader", "Jog y pitch", T::absolute },
-         [=] (int d, float v) { auto& k = deck (d); if (! k.isSyncOn()) k.setPitch ((v * 2.0 - 1.0) * k.getPitchRange()); },
+         // Club player convention, same as the on-screen fader: down (low values) = faster (+), up = slower (−).
+         [=] (int d, float v) { auto& k = deck (d); if (! k.isSyncOn()) k.setPitch ((1.0 - v * 2.0) * k.getPitchRange()); },
          {},
-         [=] (int d) { auto& k = deck (d); return (float) juce::jlimit (0.0, 1.0, (k.getPitch() / k.getPitchRange() + 1.0) * 0.5); });
+         [=] (int d) { auto& k = deck (d); return (float) juce::jlimit (0.0, 1.0, (1.0 - k.getPitch() / k.getPitchRange()) * 0.5); });
 
     add ({ "pitch_bend_minus", "Pitch bend −"_u, "Jog y pitch", T::button },
          [=] (int d, float v) { deck (d).jogBend (pressed (v) ? -0.35 : 0.0); });

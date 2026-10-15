@@ -26,7 +26,7 @@ MappingWizard::MappingWizard (const Actions& a, const juce::String& deviceName) 
         { "loop_half",   0, u ("Apretá el botón para achicar el loop (½) del deck izquierdo") },
         { "loop_double", 0, u ("Apretá el botón para agrandar el loop (×2) del deck izquierdo") },
         { "jog",         0, u ("Girá el jog del deck izquierdo por el borde, para un lado y para el otro") },
-        { "pitch",       0, u ("Mové el pitch (tempo) del deck izquierdo de punta a punta") },
+        { "pitch",       0, u ("Mové el pitch (tempo) del deck izquierdo de arriba hasta abajo") },
         { "load",        0, u ("Apretá LOAD del deck izquierdo") },
         { "gain",        0, u ("Girá la ganancia (TRIM) del canal izquierdo") },
         { "eq_high",     0, u ("Girá el EQ de agudos (HI) del canal izquierdo") },
@@ -229,6 +229,10 @@ void MappingWizard::finishPending()
         {
             b.encoding = MidiBinding::Encoding::absolute7;
         }
+        // Pitch moved top → bottom: bottom must read as the low end (faster). Controllers that send
+        // their highest value at the bottom are inverted.
+        if (b.action == "pitch" && p.values.size() >= 2 && p.values.back() > p.values.front())
+            b.invert = true;
     }
     result.push_back (b);
     advance();

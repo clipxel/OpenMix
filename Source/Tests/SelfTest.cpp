@@ -1977,6 +1977,23 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     rep.check (d2.isReverse() && ! d2.isPlaying(), "SHIFT + botón dispara la capa shift"_u);
     midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
 
+    {
+        // Pitch fader: down (low values) = faster, like the screen and club players.
+        MidiBinding pf; pf.device = "Test"; pf.channel = 1; pf.kind = MidiBinding::Kind::cc; pf.number = 0;
+        pf.encoding = MidiBinding::Encoding::absolute7; pf.action = "pitch"; pf.deck = 1;
+        midi.setBindings ({ pf });
+        d2.setSync (false);
+        d2.setPitch (0.0);
+        for (int v : { 64, 48, 32, 16, 0 }) midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 0, v));
+        const double low = d2.getPitch();
+        for (int v = 0; v <= 127; v += 16) midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 0, v));
+        midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 0, 127));
+        rep.check (low > 0.0 && d2.getPitch() < 0.0, "Pitch del controlador: abajo más rápido, arriba más lento"_u,
+                   juce::String (low * 100.0, 1) + " % / " + juce::String (d2.getPitch() * 100.0, 1) + " %");
+        d2.setPitch (0.0);
+        midi.setBindings (b);
+    }
+
     std::cout << "== Luces del controlador" << std::endl;
     {
         struct Sent { int status, number, value; };
