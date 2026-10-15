@@ -56,6 +56,9 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
 
     libraryView.onLoadToDeck = [this] (const TrackPtr& t, int d) { loadToDeck (t, d); };
     libraryView.onAddFolder = [this] { addFolder(); };
+    libraryView.onAddToAutoMix = [this] (const std::vector<TrackPtr>& t) { automix.add (t); automixOpen = true; resized(); };
+    topBar.onToggleAutoMix = [this] { automixOpen = ! automixOpen; resized(); };
+    addChildComponent (automixPanel);
 
     splitter->onDrag = [this] (int dy)
     {
@@ -220,6 +223,9 @@ void MainComponent::frame()
     keyboard.tick();
     if (midi != nullptr) midi->tick();
     if (controllerLib != nullptr) controllerLib->tick();
+    automix.tick();
+    topBar.setAutoMixState (automixOpen, automix.isRunning());
+    if (automixPanel.isVisible()) automixPanel.refresh();
 
     waveforms.refresh();
     deckA.refresh();
@@ -582,7 +588,11 @@ void MainComponent::resized()
                                  juce::roundToInt ((float) r.getHeight() * current.libraryRatio));
         if (! wantsJog)
             libH = juce::jmax (libH, r.getHeight() - 7 - minDeckH - 40);
-        libraryView.setBounds (r.removeFromBottom (libH));
+        auto libArea = r.removeFromBottom (libH);
+        automixPanel.setVisible (automixOpen);
+        if (automixOpen)
+            automixPanel.setBounds (libArea.removeFromRight (juce::jlimit (300, 400, libArea.getWidth() / 4)));
+        libraryView.setBounds (libArea);
         splitter->setBounds (r.removeFromBottom (7));
     }
 

@@ -27,6 +27,10 @@ TopBar::TopBar (AudioEngine& e) : engine (e)
     fx.setTooltip ("Mostrar u ocultar los efectos (pantallas chicas)"_u);
     fx.onClick = [this] { if (onToggleFx) onToggleFx(); };
     addChildComponent (fx);
+    automixBtn.setTextType (Type::label, Weight::bold);
+    automixBtn.setTooltip ("Mezcla automática: abrir / cerrar el panel"_u);
+    automixBtn.onClick = [this] { if (onToggleAutoMix) onToggleAutoMix(); };
+    addAndMakeVisible (automixBtn);
 }
 
 void TopBar::refresh()
@@ -117,6 +121,8 @@ void TopBar::resized()
     r.removeFromRight (Space::sm);
     rec.setBounds (r.removeFromRight (84));
     r.removeFromRight (Space::sm);
+    automixBtn.setBounds (r.removeFromRight (84));
+    r.removeFromRight (Space::sm);
     if (fx.isVisible())
     {
         fx.setBounds (r.removeFromRight (44));
@@ -127,6 +133,12 @@ void TopBar::resized()
     controllers.setBounds (r.removeFromRight (controllers.idealWidth()));
     r.removeFromRight (Space::xs);
     audio.setBounds (r.removeFromRight (juce::jmin (audio.idealWidth(), juce::jmax (120, r.getWidth()))));
+}
+
+void TopBar::setAutoMixState (bool panelOpen, bool running)
+{
+    automixBtn.setToggleState (panelOpen || running, juce::dontSendNotification);
+    automixBtn.setLitColour (running ? colour (Col::play) : colour (Col::textSecondary));
 }
 
 void TopBar::setFxButton (bool visible, bool panelShown)

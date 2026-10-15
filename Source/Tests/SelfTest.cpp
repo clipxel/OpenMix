@@ -5,6 +5,7 @@
 #include "../Control/ControllerLibrary.h"
 #include "../Control/MappingWizard.h"
 #include "../Control/MappingImport.h"
+#include "../Control/AutoMix.h"
 #include "../Common/Updater.h"
 #include <juce_cryptography/juce_cryptography.h>
 #include "../Library/Library.h"
@@ -1615,6 +1616,54 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    && std::abs (copy.audioPositionSeconds() - other.audioPositionSeconds()) < 0.02,
                    "Instant doubles copia tema, posición, tempo y estado"_u,
                    juce::String ((copy.audioPositionSeconds() - other.audioPositionSeconds()) * 1000.0, 1) + " ms");
+    }
+
+    std::cout << "== AUTOMIX" << std::endl;
+    {
+        AudioEngine eng;
+        eng.prepareForTest (sr, block);
+        std::vector<float> l (block), r (block), l3 (block), r3 (block);
+        float* outs[4] = { l.data(), r.data(), l3.data(), r3.data() };
+        auto mkTrack = [] (const LoadedTrackPtr& lt) { auto t = std::make_shared<Track>(); t->file = lt->file; t->bpm = lt->grid().bpm; return t; };
+        const auto tA = mkTrack (ta), tB = mkTrack (tb);
+        AutoMix am (eng, { [&] (const TrackPtr& t, int d) { eng.deck (d).setTrack (t->file == ta->file ? ta : tb); } });
+        am.setMixBeats (8);
+        am.add ({ tA, tB });
+        am.setRunning (true);
+
+        const double step = 0.05;
+        double t = 0.0, mixAt = -1.0, mixPosA = -1.0, longestGap = 0.0, gap = 0.0;
+        bool both = false, started = false;
+        while (t < 75.0)
+        {
+            for (int k = 0; k < (int) (step * sr / block); ++k)
+            {
+                eng.audioDeviceIOCallbackWithContext (nullptr, 0, outs, 2, block, {});
+                float pk = 0.0f;
+                for (int i = 0; i < block; ++i) pk = juce::jmax (pk, std::abs (l[(size_t) i]));
+                if (started) { gap = pk < 0.01f ? gap + (double) block / sr : 0.0; longestGap = juce::jmax (longestGap, gap); }
+                started |= pk > 0.05f;
+            }
+            am.tick();
+            t += step;
+            if (eng.deck (0).isPlaying() && eng.deck (1).isPlaying() && ! both)
+            {
+                both = true; mixAt = t; mixPosA = eng.deck (0).getPosition();
+            }
+            if (both && ! am.isMixing() && am.onAirDeck() == 1 && t > mixAt + 1.0) break;
+        }
+        const double endA = ta->lengthSeconds(), beat = 60.0 / ta->grid().bpm;
+        const double before = (endA - mixPosA) / beat;
+        rep.check (both && am.onAirDeck() == 1 && ! eng.deck (0).isPlaying() && eng.deck (1).isPlaying()
+                   && eng.crossfader.load() > 0.99f,
+                   "AUTOMIX: pasa del tema 1 al 2 sola (cruce con crossfader, el viejo se detiene)",
+                   "mezcla a " + juce::String (before, 1) + " beats del final");
+        rep.check (before > 6.0 && before < 10.5, "AUTOMIX: la mezcla empieza a 8 beats del final (largo elegido)");
+        rep.check (longestGap < 0.1, "AUTOMIX: nunca se corta el sonido durante el pase",
+                   "silencio máximo " + juce::String (longestGap * 1000.0, 0) + " ms");
+        rep.check (eng.channel (0).eqLow.load() == 0.5f && eng.channel (1).eqLow.load() == 0.5f,
+                   "AUTOMIX: los graves vuelven a su lugar después del cambio de bajos");
+        am.setRunning (false);
     }
 
     std::cout << "== Sync" << std::endl;

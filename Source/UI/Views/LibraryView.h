@@ -24,6 +24,8 @@ public:
     void focusSearch()                             { search.grabKeyboardFocus(); }
     void moveSelection (int delta);
     TrackPtr selectedTrack() const;
+    std::vector<TrackPtr> selectedTracks() const;
+    const std::vector<TrackPtr>& visibleTracks() const noexcept { return rows; }
 
     juce::String getColumnState() const            { return table.getHeader().toString(); }
     int  getSidebarWidth() const noexcept          { return sidebarWidth; }
@@ -33,6 +35,7 @@ public:
 
     std::function<void (const TrackPtr&, int deck)> onLoadToDeck;   // deck −1 = auto
     std::function<void()> onAddFolder;
+    std::function<void (const std::vector<TrackPtr>&)> onAddToAutoMix;
 
     void refresh();                                 // cheap; called every frame
     void paint (juce::Graphics&) override;

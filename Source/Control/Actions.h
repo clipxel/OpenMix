@@ -36,6 +36,7 @@ public:
         std::function<void (int deck, int pad, bool down)> padPress;   // PAD 1–8 in the deck's current pad page
         std::function<void (int deck)> padPage;                        // next pad page (HOT CUE, ROLL, …)
         std::function<int (int deck, int pad)> padLed;                 // Led of PAD 1–8 in the current page
+        std::function<void()> toggleAutoMix;
     };
 
     Actions (AudioEngine&, Hooks);

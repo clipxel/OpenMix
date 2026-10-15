@@ -387,6 +387,8 @@ void Actions::build()
          [this] (int) { return engine.recorder().isRecording(); });
 
     add ({ "shift", "Shift", "Global", T::button, false }, [] (int, float) {});
+    add ({ "automix", "AUTOMIX iniciar / detener", "Global", T::button, false },
+         [this] (int, float v) { if (v > 0.5f && hooks.toggleAutoMix) hooks.toggleAutoMix(); });
 
     // Controller lights ------------------------------------------------------
     add ({ "vu_meter", "Medidor del canal (luces)", "Luces", T::absolute }, [] (int, float) {});

@@ -19,6 +19,8 @@ public:
     std::function<void (int section)> onOpenSettings;   // 0 audio, 1 appearance, 2 layout, 3 controllers, 4 diagnostics
     std::function<void()> onToggleRecord;
     std::function<void()> onToggleFx;
+    std::function<void()> onToggleAutoMix;
+    void setAutoMixState (bool panelOpen, bool running);
     /** Small screens: the FX panel is folded away and this button shows / hides it. */
     void setFxButton (bool visible, bool panelShown);
 
@@ -31,6 +33,7 @@ private:
     Button rec { "REC", Icon::record, Button::Style::standard };
     Button settings { {}, Icon::settings, Button::Style::ghost };
     Button fx { "FX" };
+    Button automixBtn { "AUTOMIX" };
     juce::Rectangle<int> brandArea;
     const ControllerLibrary* controllerLib = nullptr;
     juce::String lastControllerText;

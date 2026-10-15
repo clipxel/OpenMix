@@ -15,6 +15,8 @@
 #include "Control/ControllerLibrary.h"
 #include "Common/Updater.h"
 #include "Control/KeyboardControl.h"
+#include "Control/AutoMix.h"
+#include "UI/Views/AutoMixPanel.h"
 #include "Library/VolumeCueStore.h"
 
 /** Main screen: top bar · stacked waveforms · [deck 1 | mixer | deck 2] · library.
@@ -33,6 +35,7 @@ public:
 
     /** Verification helper (--snapshot): load files, then call back. */
     /** Snapshot mode: advance both decks' pad pages (5 = SAMPLES/RMX). */
+    void showAutoMixForSnapshot()                 { automixOpen = true; automix.add (libraryView.visibleTracks()); resized(); frame(); }
     void showPadPageForSnapshot (int pages)       { for (int i = 0; i < pages; ++i) { deckA.nextPadPage(); deckB.nextPadPage(); } }
     /** Snapshot mode: open a settings section (and controllers tab) for the picture. */
     void showSettingsForSnapshot (int section, int tab)
@@ -83,8 +86,16 @@ private:
                                     [this] { toggleRecord(); },
                                     [this] (int d, int pad, bool down) { (d == 0 ? deckA : deckB).externalPad (pad, down); },
                                     [this] (int d) { (d == 0 ? deckA : deckB).nextPadPage(); },
-                                    [this] (int d, int pad) { return (d == 0 ? deckA : deckB).padLed (pad); } } };
+                                    [this] (int d, int pad) { return (d == 0 ? deckA : deckB).padLed (pad); },
+                                    [this] { automix.setRunning (! automix.isRunning()); } } };
     om::KeyboardControl keyboard { actions };
+    om::AutoMix automix { engine, { [this] (const om::TrackPtr& t, int d) { loadToDeck (t, d); } } };
+    om::AutoMixPanel automixPanel { automix, engine,
+        { [this] { return libraryView.selectedTracks(); },
+          [this] { return libraryView.visibleTracks(); },
+          [this] (const juce::String& path) { auto t = library.find (path); return t != nullptr ? t : library.addFile (juce::File (path)); },
+          [this] { automixOpen = false; resized(); } } };
+    bool automixOpen = false;
     std::unique_ptr<om::MidiEngine> midi;     // not created in snapshot mode (no device access)
     std::unique_ptr<om::ControllerLibrary> controllerLib;   // plug and play: finds and installs mappings
     om::Updater updater;

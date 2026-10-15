@@ -882,6 +882,15 @@ juce::var LibraryView::getDragSourceDescription (const juce::SparseSet<int>& sel
     return paths.isEmpty() ? juce::var() : juce::var ("track:" + paths.joinIntoString ("\n"));
 }
 
+std::vector<TrackPtr> LibraryView::selectedTracks() const
+{
+    std::vector<TrackPtr> sel;
+    for (int i = 0; i < table.getNumSelectedRows(); ++i)
+        if (juce::isPositiveAndBelow (table.getSelectedRow (i), (int) rows.size()))
+            sel.push_back (rows[(size_t) table.getSelectedRow (i)]);
+    return sel;
+}
+
 void LibraryView::showRowMenu (int row)
 {
     if (! juce::isPositiveAndBelow (row, (int) rows.size())) return;
@@ -898,6 +907,8 @@ void LibraryView::showRowMenu (int row)
     juce::PopupMenu m;
     m.addItem ("Cargar en Deck 1", [this, t] { if (onLoadToDeck) onLoadToDeck (t, 0); });
     m.addItem ("Cargar en Deck 2", [this, t] { if (onLoadToDeck) onLoadToDeck (t, 1); });
+    if (onAddToAutoMix)
+        m.addItem ("Agregar a AUTOMIX", [this, sel] { onAddToAutoMix (sel); });
     m.addSeparator();
 
     juce::PopupMenu lists;
