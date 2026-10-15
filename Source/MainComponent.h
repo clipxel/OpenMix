@@ -95,6 +95,7 @@ private:
     juce::TooltipWindow tooltips { this, 600 };
 
     om::Workspace current;   // sizes of the single layout
+    bool fxOpenCompact = false;   // small screens: FX panel folded unless the user opens it
 
     std::array<bool, 2> playNoted { false, false };
     std::array<const void*, 2> trackSeen { nullptr, nullptr };

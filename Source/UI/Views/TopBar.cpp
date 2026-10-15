@@ -23,6 +23,10 @@ TopBar::TopBar (AudioEngine& e) : engine (e)
 
     settings.setTooltip ("Configuración"_u);
     settings.onClick = [this] { if (onOpenSettings) onOpenSettings (0); };
+    fx.setTextType (Type::label, Weight::bold);
+    fx.setTooltip ("Mostrar u ocultar los efectos (pantallas chicas)"_u);
+    fx.onClick = [this] { if (onToggleFx) onToggleFx(); };
+    addChildComponent (fx);
 }
 
 void TopBar::refresh()
@@ -112,11 +116,27 @@ void TopBar::resized()
     settings.setBounds (r.removeFromRight (28));
     r.removeFromRight (Space::sm);
     rec.setBounds (r.removeFromRight (84));
-    r.removeFromRight (Space::md);
+    r.removeFromRight (Space::sm);
+    if (fx.isVisible())
+    {
+        fx.setBounds (r.removeFromRight (44));
+        r.removeFromRight (Space::sm);
+    }
+    r.removeFromRight (Space::md - Space::sm);
     cpu.setBounds (r.removeFromRight (cpu.idealWidth() + 4));
     controllers.setBounds (r.removeFromRight (controllers.idealWidth()));
     r.removeFromRight (Space::xs);
     audio.setBounds (r.removeFromRight (juce::jmin (audio.idealWidth(), juce::jmax (120, r.getWidth()))));
+}
+
+void TopBar::setFxButton (bool visible, bool panelShown)
+{
+    fx.setToggleState (panelShown, juce::dontSendNotification);
+    if (fx.isVisible() != visible)
+    {
+        fx.setVisible (visible);
+        resized();
+    }
 }
 
 void TopBar::paint (juce::Graphics& g)

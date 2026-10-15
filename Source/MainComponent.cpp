@@ -49,6 +49,7 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     // Wiring ------------------------------------------------------------------
     topBar.onOpenSettings = [this] (int s) { settingsPanel.setBounds (getLocalBounds()); settingsPanel.show (s); };
     topBar.onToggleRecord = [this] { toggleRecord(); };
+    topBar.onToggleFx = [this] { fxOpenCompact = ! fxOpenCompact; resized(); };
 
     deckA.onLoadRequest = [this] (const juce::File& f) { loadFileToDeck (f, 0); };
     deckB.onLoadRequest = [this] (const juce::File& f) { loadFileToDeck (f, 1); };
@@ -551,22 +552,30 @@ void MainComponent::resized()
     auto r = getLocalBounds();
     settingsPanel.setBounds (r);
 
+    // Small screens (notebooks of 11–13", 1366×768, 1280×800): the FX panel folds away behind the
+    // FX button and the library gives up some rows, so decks and mixer keep every control usable.
+    const bool compact = getHeight() < 780;
+    const bool showFx = ! compact || fxOpenCompact;
+    topBar.setFxButton (compact, showFx);
+    fxPanel.setVisible (showFx);
+
     topBar.setBounds (r.removeFromTop (Size::topBar));
 
     // Waveforms are the visual protagonists, but shrink before decks become unusable.
-    const int fxH = 70;
-    const int minLibH = 150;
+    const int fxH = showFx ? 70 : 0;
+    const int minLibH = compact ? 110 : 150;
     const int mixerW = juce::jlimit (268, 340, juce::roundToInt ((float) r.getWidth() * 0.22f));
     const int deckW = (r.getWidth() - mixerW) / 2;
     const bool wantsJog = deckW >= 440;      // small screens: compact decks, waveforms keep priority
-    const int minDeckH = 330;
+    const int minDeckH = wantsJog ? 400 : 330;    // with jogs: decks keep room for the platter before the library grows
     const int spare = r.getHeight() - minDeckH - minLibH - fxH - 7;
     const int lane = juce::jlimit (34, juce::jmax (34, current.laneHeight), (spare - 1) / 2);
     waveforms.setLaneHeight (lane);
     waveforms.setBounds (r.removeFromTop (waveforms.preferredHeight()));
     waveSplitter->setBounds (r.removeFromTop (5));
 
-    fxPanel.setBounds (r.removeFromTop (fxH));
+    if (showFx)
+        fxPanel.setBounds (r.removeFromTop (fxH));
 
     {
         int libH = juce::jlimit (minLibH, juce::jmax (minLibH, r.getHeight() - minDeckH),

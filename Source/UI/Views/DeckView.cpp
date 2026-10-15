@@ -776,6 +776,7 @@ void DeckView::resized()
                 perf.removeFromTop (Space::xs);
                 b->setVisible (true);
             }
+            vinylBtn.setVisible (true);
         }
         const int d = juce::jmin (r.getWidth() - (r.getWidth() > r.getHeight() + 110 ? 0 : 60), r.getHeight());
         jog.setBounds (juce::Rectangle<int> (d, d).withCentre (r.getCentre()));
@@ -800,8 +801,12 @@ void DeckView::resized()
         right.removeFromLeft (Space::xs);
         slip.setBounds (right);
 
-        // Performance transport row above the main transport.
-        auto perf = r.removeFromBottom (juce::jmin (Size::controlSm, r.getHeight()));
+        // Performance transport row above the main transport (only when it fits whole: on very short
+        // screens these stay on the keyboard and the controller).
+        const bool perfFits = r.getHeight() >= Size::controlSm;
+        for (auto* b : { &reverseBtn, &brakeBtn, &censorBtn, &vinylBtn }) b->setVisible (perfFits);
+        if (! perfFits) return layoutLoopAndPads (loopRow, padRowH);
+        auto perf = r.removeFromBottom (Size::controlSm);
         const int pw = (perf.getWidth() - 3 * Space::xs) / 4;
         reverseBtn.setBounds (perf.removeFromLeft (pw));
         perf.removeFromLeft (Space::xs);
@@ -810,8 +815,14 @@ void DeckView::resized()
         censorBtn.setBounds (perf.removeFromLeft (pw));
         perf.removeFromLeft (Space::xs);
         vinylBtn.setBounds (perf);
-        for (auto* b : { &reverseBtn, &brakeBtn, &censorBtn }) b->setVisible (true);
     }
+
+    layoutLoopAndPads (loopRow, padRowH);
+}
+
+void DeckView::layoutLoopAndPads (juce::Rectangle<int> loopRow, int padRowH)
+{
+    const int gap = Space::sm;
 
     // Loop row
     {

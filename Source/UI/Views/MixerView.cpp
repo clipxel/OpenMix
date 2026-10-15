@@ -200,7 +200,11 @@ void MixerView::resized()
 
         // Knobs get a guaranteed usable size first; the fader takes what remains.
         const int fixedBelow = Size::controlXs + Size::controlSm + Space::xs * 3;
-        const int kh = juce::jlimit (26, 46, juce::roundToInt ((float) (col.getHeight() - fixedBelow) * 0.62f) / knobCount);
+        // Small screens: knobs shrink before the fader drops below a usable throw.
+        const int minFader = 72;
+        const int knobRoom = juce::jmin (juce::roundToInt ((float) (col.getHeight() - fixedBelow) * 0.62f),
+                                         col.getHeight() - fixedBelow - minFader);
+        const int kh = juce::jlimit (20, 46, knobRoom / knobCount);
         const int kw = juce::jmin (col.getWidth(), kh + 44);
         for (auto* k : { &s.trim, &s.hi, &s.mid, &s.low, &s.filter })
         {
@@ -239,14 +243,24 @@ void MixerView::resized()
         grArea = limRow.reduced (0, 5);
         m.removeFromTop (Space::xs);
         clipLabelArea = m.removeFromTop (14);
-        phonesArea = m.removeFromBottom (juce::jmin (120, m.getHeight() / 2));
+        phonesArea = m.removeFromBottom (juce::jmin (120, juce::jmax (14 + 30, m.getHeight() / 2)));
         masterMeter.setBounds (m.withSizeKeepingCentre (14, m.getHeight() - 8));
 
         auto p = phonesArea;
         p.removeFromTop (14);
-        const int kh = juce::jmin (46, p.getHeight() / 2);
-        cueMix.setBounds (p.removeFromTop (kh).withSizeKeepingCentre (kh + 6, kh));
-        phones.setBounds (p.removeFromTop (kh).withSizeKeepingCentre (kh + 6, kh));
+        if (p.getHeight() >= 2 * 34)
+        {
+            const int kh = juce::jmin (46, p.getHeight() / 2);
+            cueMix.setBounds (p.removeFromTop (kh).withSizeKeepingCentre (kh + 6, kh));
+            phones.setBounds (p.removeFromTop (kh).withSizeKeepingCentre (kh + 6, kh));
+        }
+        else                                              // short screens: side by side
+        {
+            const int kh = juce::jmax (20, juce::jmin (p.getHeight(), p.getWidth() / 2));
+            auto row = p.removeFromTop (kh);
+            cueMix.setBounds (row.removeFromLeft (row.getWidth() / 2).withSizeKeepingCentre (kh, kh));
+            phones.setBounds (row.withSizeKeepingCentre (kh, kh));
+        }
     }
 
     // Crossfader block: assign switches on each side, curve under the fader
@@ -295,7 +309,7 @@ void MixerView::paint (juce::Graphics& g)
         g.fillRoundedRectangle (c, 2.0f);
         Text::draw (g, "CLIP", c, font (Type::micro, Weight::bold), juce::Colours::white, juce::Justification::centred, false);
     }
-    Text::caption (g, "AURICULARES", phonesArea.withHeight (14).toFloat(),
+    Text::caption (g, masterArea.getWidth() >= 82 ? "AURICULARES" : "AURIC.", phonesArea.withHeight (14).toFloat(),
                    colour (engine.hasHeadphoneOutput() ? Col::textTertiary : Col::textDisabled));
 
     // Vertical hairlines separating master column

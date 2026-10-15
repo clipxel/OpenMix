@@ -70,6 +70,7 @@ private:
     static constexpr int numPadModes = 6;
 
     void setPadMode (PadMode);
+    void layoutLoopAndPads (juce::Rectangle<int> loopRow, int padRowH);
     void padDown (int index, bool shift);
     void padUp (int index);
     void padRightClick (int index);

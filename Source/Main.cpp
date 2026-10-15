@@ -237,6 +237,28 @@ public:
 
     void systemRequestedQuit() override { quit(); }
 
+    /** Holds the app and scales it as a whole on small screens: below the reference size every
+        button, text, jog and waveform shrinks evenly (instead of squeezing the layout), so a
+        notebook shows the same full interface — jogs included — just smaller. */
+    class ScaledHost : public juce::Component
+    {
+    public:
+        explicit ScaledHost (bool snapshot = false) : content (snapshot) { addAndMakeVisible (content); }
+        MainComponent& main() { return content; }
+
+        void resized() override
+        {
+            constexpr float refW = 1440.0f, refH = 880.0f, minScale = 0.72f;
+            const float w = (float) getWidth(), h = (float) getHeight();
+            const float scale = juce::jlimit (minScale, 1.0f, juce::jmin (w / refW, h / refH));
+            content.setTransform (juce::AffineTransform::scale (scale));
+            content.setBounds (0, 0, juce::roundToInt (w / scale), juce::roundToInt (h / scale));
+        }
+
+    private:
+        MainComponent content;
+    };
+
     class MainWindow : public juce::DocumentWindow
     {
     public:
@@ -244,9 +266,9 @@ public:
             : DocumentWindow (name, om::colour (om::Col::bgApp), DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent(), true);
+            setContentOwned (new ScaledHost(), false);
             setResizable (true, true);
-            setResizeLimits (1024, 640, 10000, 10000);
+            setResizeLimits (960, 560, 10000, 10000);
 
             // Restore the last window bounds; first run fills the screen (reference layout).
             const auto saved = stateFile().loadFileAsString();
@@ -284,8 +306,9 @@ private:
             none.createDirectory();
             om::DeviceMonitor::setVolumesFolderOverride (none);
         }
-        snapshotComponent = std::make_unique<MainComponent> (true);
-        snapshotComponent->setSize (w, h);
+        snapshotHost = std::make_unique<ScaledHost> (true);
+        snapshotHost->setSize (w, h);
+        auto* snapshotComponent = &snapshotHost->main();
         if (auto pg = arg ("--pads"); pg.isNotEmpty())
             snapshotComponent->showPadPageForSnapshot (pg.getIntValue());
         if (auto st = arg ("--settings"); st.isNotEmpty())
@@ -298,19 +321,19 @@ private:
         snapshotComponent->prepareSnapshot (juce::File (arg ("--load-a")), juce::File (arg ("--load-b")),
                                             [this, out, w, h]
         {
-            auto img = snapshotComponent->createComponentSnapshot ({ 0, 0, w, h }, true, 2.0f);
+            auto img = snapshotHost->createComponentSnapshot ({ 0, 0, w, h }, true, 2.0f);
             out.deleteFile();
             juce::FileOutputStream stream (out);
             juce::PNGImageFormat().writeImageToStream (img, stream);
             stream.flush();
-            snapshotComponent = nullptr;
+            snapshotHost = nullptr;
             quit();
         }, arg ("--device-playlist"));
     }
 
     std::unique_ptr<om::LookAndFeel> lookAndFeel;
     std::unique_ptr<MainWindow> mainWindow;
-    std::unique_ptr<MainComponent> snapshotComponent;
+    std::unique_ptr<ScaledHost> snapshotHost;
 };
 
 START_JUCE_APPLICATION (OpenMixApplication)
