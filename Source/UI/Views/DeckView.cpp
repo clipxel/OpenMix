@@ -223,7 +223,7 @@ DeckView::DeckView (AudioEngine& e, int i)
     const auto deckCol = Theme::get().deckColour (i);
 
     for (auto* c : std::initializer_list<juce::Component*> { &overview, &jog, &sync, &cue, &play, &quantize, &keyLock, &slip,
-                                                             &pitch, &pitchRange, &bendDown, &bendUp, &loopHalf, &loopDouble,
+                                                             &pitch, &pitchRange, &pitchZero, &bendDown, &bendUp, &loopHalf, &loopDouble,
                                                              &loopToggle, &loopIn, &loopOut, &jumpBack, &jumpFwd })
         addAndMakeVisible (c);
 
@@ -306,6 +306,11 @@ DeckView::DeckView (AudioEngine& e, int i)
     pitchRange.setTextType (Type::caption, Weight::semibold);
     pitchRange.setTooltip ("Rango de pitch (clic para cambiar)");
     pitchRange.onClick = [this] { cyclePitchRange(); };
+
+    pitchZero.setTextType (Type::caption, Weight::bold);
+    pitchZero.setLitColour (deckCol);
+    pitchZero.setTooltip ("Pitch a 0 %: un toque vuelve de a poco, dos toques vuelve de una"_u);
+    pitchZero.onClick = [this] { deck.pitchResetPressed(); };
 
     bendDown.setTooltip ("Pitch bend −"_u);
     bendUp.setTooltip ("Pitch bend +");
@@ -690,6 +695,9 @@ void DeckView::refresh()
         b->setEnabled (hasGrid);
     for (auto* b : { &cue, &play, &loopIn, &loopOut, &bendDown, &bendUp })
         b->setEnabled (track != nullptr);
+    // 0 button: lit while gliding back, dim when the pitch is already at 0 %.
+    pitchZero.setToggleState (deck.isPitchGliding(), juce::dontSendNotification);
+    pitchZero.setEnabled (std::abs (deck.getPitch()) > 1.0e-6 || deck.isPitchGliding());
 
     const auto loopSize = deck.isLoopActive() ? deck.getLoopBeats() : deck.getAutoLoopSize();
     loopToggle.setButtonText ("LOOP " + loopSizeLabel (loopSize));
@@ -737,6 +745,8 @@ void DeckView::resized()
     bendDown.setBounds (bendRow.removeFromLeft (19));
     bendUp.setBounds (bendRow.removeFromRight (19));
     pitchValueArea = pitchCol.removeFromBottom (16);
+    pitchZero.setBounds (pitchCol.removeFromBottom (18).reduced (4, 0));
+    pitchCol.removeFromBottom (Space::xs);
     pitch.setBounds (pitchCol.reduced (6, 2));
     r.removeFromRight (gap);
 

@@ -97,6 +97,7 @@ private:
     Fader pitch { true, true };
     Button pitchRange { "±8%"_u, Icon::none, Button::Style::ghost };
     Button bendDown { {}, Icon::minus }, bendUp { {}, Icon::plus };
+    Button pitchZero { "0" };
 
     // Loop row
     Button loopHalf { "½"_u }, loopDouble { "2×"_u }, loopToggle { "LOOP", Icon::loop };

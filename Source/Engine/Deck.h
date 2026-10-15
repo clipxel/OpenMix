@@ -44,6 +44,11 @@ public:
 
     void   setPitch (double fraction);            // 0.05 == +5 %
     double getPitch() const noexcept              { return pitch.load(); }
+    /** Pitch reset button: one press glides the tempo back to 0 % (about 4 s, inaudible with key
+        lock); a second press while it glides (or a double press) jumps straight to 0 %. Moving the
+        pitch by hand cancels the glide. Message thread. */
+    void pitchResetPressed();
+    bool isPitchGliding() const noexcept          { return pitchGlide.load() > 0.0; }
     void   setPitchRange (double fraction);
     double getPitchRange() const noexcept         { return pitchRange.load(); }
     double getEffectiveBpm() const noexcept;
@@ -210,6 +215,8 @@ private:
     std::atomic<bool>   playRequested { false };
     std::atomic<double> pendingSeek { -1.0 };
     std::atomic<double> pitch { 0.0 }, pitchRange { 0.08 };
+    std::atomic<double> pitchGlide { 0.0 };       // glide to 0 %: speed in pitch fraction per second
+    juce::uint32 lastPitchResetMs = 0;
     std::atomic<double> bend { 0.0 };
     std::atomic<bool>   syncOn { false }, syncEngaged { false }, justLoaded { false };
     std::atomic<juce::int64> syncStamp { 0 };

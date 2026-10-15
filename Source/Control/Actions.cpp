@@ -194,8 +194,9 @@ void Actions::build()
          [=] (int d, float v) { deck (d).jogBend (pressed (v) ? -0.35 : 0.0); });
     add ({ "pitch_bend_plus", "Pitch bend +", "Jog y pitch", T::button },
          [=] (int d, float v) { deck (d).jogBend (pressed (v) ? 0.35 : 0.0); });
-    add ({ "pitch_reset", "Pitch a 0 %", "Jog y pitch", T::button },
-         [=] (int d, float v) { if (pressed (v)) deck (d).setPitch (0.0); });
+    add ({ "pitch_reset", "Pitch a 0 % (suave; dos veces: de una)", "Jog y pitch", T::button },
+         [=] (int d, float v) { if (pressed (v)) deck (d).pitchResetPressed(); },
+         [=] (int d) { return deck (d).isPitchGliding(); });
     add ({ "pitch_minus", "Pitch −0.1 %"_u, "Jog y pitch", T::button },
          [=] (int d, float v) { if (pressed (v)) deck (d).setPitch (deck (d).getPitch() - 0.001); });
     add ({ "pitch_plus", "Pitch +0.1 %", "Jog y pitch", T::button },

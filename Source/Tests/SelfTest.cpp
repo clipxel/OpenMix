@@ -1618,6 +1618,32 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    juce::String ((copy.audioPositionSeconds() - other.audioPositionSeconds()) * 1000.0, 1) + " ms");
     }
 
+    {
+        // Pitch to 0 % button: one press glides, a second press jumps.
+        Deck pd (0);
+        pd.prepare (sr);
+        pd.setTrack (ta);
+        pd.setPitchRange (0.5);
+        pd.setPitch (0.2);
+        pd.setPlaying (true);
+        pd.pitchResetPressed();
+        run (pd, 1.0);
+        const double after1 = pd.getPitch();
+        run (pd, 3.5);
+        const double after45 = pd.getPitch();
+        pd.setPitch (0.2);
+        pd.pitchResetPressed();
+        pd.pitchResetPressed();
+        const double doubled = pd.getPitch();
+        pd.setPitch (-0.1);
+        pd.pitchResetPressed();
+        pd.setPitch (-0.07);                         // the DJ grabs the fader: glide stops
+        run (pd, 1.0);
+        rep.check (after1 > 0.12 && after1 < 0.18 && std::abs (after45) < 1e-9 && doubled == 0.0 && std::abs (pd.getPitch() + 0.07) < 1e-9,
+                   "Botón 0 del pitch: un toque vuelve de a poco, dos toques de una, la mano manda"_u,
+                   "+20 % → " + juce::String (after1 * 100.0, 1) + " % al segundo, " + juce::String (after45 * 100.0, 1) + " % a los 4,5 s");
+    }
+
     std::cout << "== AUTOMIX" << std::endl;
     {
         AudioEngine eng;

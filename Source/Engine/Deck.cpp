@@ -163,7 +163,22 @@ double Deck::getPosition() const noexcept
 
 void Deck::setPitch (double fraction)
 {
+    pitchGlide = 0.0;                             // a hand on the fader takes over
     pitch = juce::jlimit (-0.99, 1.0, fraction);
+}
+
+void Deck::pitchResetPressed()
+{
+    const auto now = juce::Time::getMillisecondCounter();
+    const bool second = isPitchGliding() || now - lastPitchResetMs < 400;
+    lastPitchResetMs = now;
+    if (isSyncOn()) setSync (false);              // the tempo is the DJ's again
+    if (second || std::abs (pitch.load()) < 1.0e-6)
+    {
+        setPitch (0.0);
+        return;
+    }
+    pitchGlide = juce::jmax (0.005, std::abs (pitch.load()) / 4.0);
 }
 
 void Deck::setPitchRange (double fraction)
@@ -687,6 +702,14 @@ void Deck::render (float* left, float* right, int numSamples)
 
     const double blockSeconds = (double) numSamples / outRate;
     const double srcToOut = t.sampleRate / outRate;
+
+    // Pitch reset glide: a constant, gentle slope back to 0 %.
+    if (const double glide = pitchGlide.load(); glide > 0.0)
+    {
+        const double p = pitch.load(), stepP = glide * blockSeconds;
+        if (syncOn.load() || std::abs (p) <= stepP) { pitch = syncOn.load() ? p : 0.0; pitchGlide = 0.0; }
+        else pitch = p - std::copysign (stepP, p);
+    }
 
     // Brake: tempo ramps to zero over ~1 s, then the deck stops.
     if (brake.load())
