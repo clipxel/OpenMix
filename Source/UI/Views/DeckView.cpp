@@ -307,8 +307,6 @@ DeckView::DeckView (AudioEngine& e, int i)
     pitchRange.setTooltip ("Rango de pitch (clic para cambiar)");
     pitchRange.onClick = [this] { cyclePitchRange(); };
 
-    pitchZero.setTextType (Type::caption, Weight::bold);
-    pitchZero.setLitColour (deckCol);
     pitchZero.setTooltip ("Pitch a 0 %: un toque vuelve de a poco, dos toques vuelve de una"_u);
     pitchZero.onClick = [this] { deck.pitchResetPressed(); };
 
@@ -695,9 +693,9 @@ void DeckView::refresh()
         b->setEnabled (hasGrid);
     for (auto* b : { &cue, &play, &loopIn, &loopOut, &bendDown, &bendUp })
         b->setEnabled (track != nullptr);
-    // 0 button: lit while gliding back, dim when the pitch is already at 0 %.
-    pitchZero.setToggleState (deck.isPitchGliding(), juce::dontSendNotification);
-    pitchZero.setEnabled (std::abs (deck.getPitch()) > 1.0e-6 || deck.isPitchGliding());
+    // 0 % dot: blinks while gliding back, dim when the pitch is already at 0 %.
+    pitchZero.setState (deck.isPitchGliding() && (juce::Time::getMillisecondCounter() / 250) % 2 == 0,
+                        std::abs (deck.getPitch()) < 1.0e-6, Theme::get().deckColour (index));
 
     const auto loopSize = deck.isLoopActive() ? deck.getLoopBeats() : deck.getAutoLoopSize();
     loopToggle.setButtonText ("LOOP " + loopSizeLabel (loopSize));
@@ -739,15 +737,15 @@ void DeckView::resized()
     bodyArea = r;
 
     // Pitch column (right)
-    auto pitchCol = r.removeFromRight (40);
+    auto pitchCol = r.removeFromRight (48);
     pitchRange.setBounds (pitchCol.removeFromTop (18));
     auto bendRow = pitchCol.removeFromBottom (20);
     bendDown.setBounds (bendRow.removeFromLeft (19));
     bendUp.setBounds (bendRow.removeFromRight (19));
     pitchValueArea = pitchCol.removeFromBottom (16);
-    pitchZero.setBounds (pitchCol.removeFromBottom (18).reduced (4, 0));
-    pitchCol.removeFromBottom (Space::xs);
-    pitch.setBounds (pitchCol.reduced (6, 2));
+    pitch.setBounds (pitchCol.withTrimmedLeft (12).reduced (3, 2));
+    // The 0 % dot: left of the fader, at its centre (the 0 % position).
+    pitchZero.setBounds (juce::Rectangle<int> (14, 14).withCentre ({ pitchCol.getX() + 7, pitch.getBounds().getCentreY() }));
     r.removeFromRight (gap);
 
     if (showJog)

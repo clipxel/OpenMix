@@ -178,7 +178,8 @@ void Deck::pitchResetPressed()
         setPitch (0.0);
         return;
     }
-    pitchGlide = juce::jmax (0.005, std::abs (pitch.load()) / 4.0);
+    // 1 % per second (the usual default for a smooth reset), but never longer than 6 s.
+    pitchGlide = juce::jmax (0.01, std::abs (pitch.load()) / 6.0);
 }
 
 void Deck::setPitchRange (double fraction)

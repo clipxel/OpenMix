@@ -44,8 +44,8 @@ public:
 
     void   setPitch (double fraction);            // 0.05 == +5 %
     double getPitch() const noexcept              { return pitch.load(); }
-    /** Pitch reset button: one press glides the tempo back to 0 % (about 4 s, inaudible with key
-        lock); a second press while it glides (or a double press) jumps straight to 0 %. Moving the
+    /** Pitch reset button: one press glides the tempo back to 0 % (1 % per second, at most 6 s;
+        inaudible with key lock); a second press while it glides (or a double press) jumps straight to 0 %. Moving the
         pitch by hand cancels the glide. Message thread. */
     void pitchResetPressed();
     bool isPitchGliding() const noexcept          { return pitchGlide.load() > 0.0; }

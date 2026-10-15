@@ -27,6 +27,32 @@ private:
 };
 
 //==============================================================================
+/** Small dot beside the pitch fader, at its 0 % mark: click = glide back to 0 %, double = jump. */
+class PitchZeroDot : public juce::Component, public juce::SettableTooltipClient
+{
+public:
+    std::function<void()> onClick;
+    void setState (bool gliding, bool atZero, juce::Colour c)
+    {
+        if (gliding == lit && atZero == zero && c == col) return;
+        lit = gliding; zero = atZero; col = c; repaint();
+    }
+    void paint (juce::Graphics& g) override
+    {
+        const auto r = getLocalBounds().toFloat().withSizeKeepingCentre (7.0f, 7.0f);
+        if (lit || over) { g.setColour (col.withAlpha (lit ? 0.35f : 0.18f)); g.fillEllipse (r.expanded (3.0f)); }
+        g.setColour (lit ? col : zero ? col.withAlpha (0.35f) : col.withAlpha (0.8f));
+        g.fillEllipse (r);
+    }
+    void mouseDown (const juce::MouseEvent&) override  { if (onClick) onClick(); }
+    void mouseEnter (const juce::MouseEvent&) override { over = true; repaint(); }
+    void mouseExit (const juce::MouseEvent&) override  { over = false; repaint(); }
+
+private:
+    bool lit = false, zero = true, over = false;
+    juce::Colour col;
+};
+
 class DeckView : public juce::Component,
                  public juce::FileDragAndDropTarget,
                  public juce::DragAndDropTarget
@@ -97,7 +123,7 @@ private:
     Fader pitch { true, true };
     Button pitchRange { "±8%"_u, Icon::none, Button::Style::ghost };
     Button bendDown { {}, Icon::minus }, bendUp { {}, Icon::plus };
-    Button pitchZero { "0" };
+    PitchZeroDot pitchZero;
 
     // Loop row
     Button loopHalf { "½"_u }, loopDouble { "2×"_u }, loopToggle { "LOOP", Icon::loop };
