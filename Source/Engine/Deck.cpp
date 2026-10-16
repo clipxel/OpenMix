@@ -108,6 +108,7 @@ void Deck::setPlaying (bool shouldPlay)
 
     previewing = false;
     gateSlot = -1;
+    if (shouldPlay) restAt = -1.0;
     playRequested = shouldPlay;
 }
 
@@ -132,6 +133,8 @@ void Deck::cueDown()
         return;
     }
 
+    if (restAt.exchange (-1.0) >= 0.0)
+        requestSeek (cuePoint);     // tapped again while the last tap still fades: start on the cue
     previewing = true;
     playRequested = true;
 }
@@ -144,6 +147,7 @@ void Deck::cueUp()
     previewing = false;
     playRequested = false;
     requestSeek (cuePoint);
+    restAt = cuePoint;              // the short fade-out must not leave the deck past the cue
 }
 
 void Deck::seek (double seconds)
@@ -698,6 +702,15 @@ void Deck::render (float* left, float* right, int numSamples)
 
     audioResolveMoves();
 
+    // CUE released and the fade-out is over: the deck rests exactly on the cue point.
+    if (const double r = restAt.load(); r >= 0.0 && ! playRequested.load() && gain <= 0.0f)
+    {
+        pos = juce::jlimit (0.0, (double) n - 1.0, r * t.sampleRate);
+        stretchActive = false;
+        stretchLead = 0.0;
+        restAt = -1.0;
+    }
+
     // Musical clock for effects / RMX scheduled on this deck (heard position, start of block).
     {
         const auto g = t.grid();
@@ -814,8 +827,12 @@ void Deck::render (float* left, float* right, int numSamples)
                              && numSamples * 2 + 4 < stretch->maxIn;
     if (! wantStretch && stretchActive)
     {
-        pos = juce::jlimit (0.0, (double) n - 1.0, pos - stretchLead * srcToOut);   // realign to what was heard
+        // Realign to what was heard — unless a jump just put the playhead exactly where it must be
+        // (CUE released: the deck stops right on the cue point).
+        if (! needPrime)
+            pos = juce::jlimit (0.0, (double) n - 1.0, pos - stretchLead * srcToOut);
         stretchActive = false;
+        stretchLead = 0.0;
     }
 
     if (wantStretch)

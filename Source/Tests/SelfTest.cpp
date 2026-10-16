@@ -1691,6 +1691,45 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    juce::String (fixed.bpm, 2) + " BPM, fase a " + juce::String (d * 1000.0, 1) + " ms");
     }
 
+    {
+        // CUE tapped quickly on a paused deck: after every release the deck is back exactly on the cue.
+        juce::String bad;
+        for (int variant = 0; variant < 4; ++variant)
+        {
+            AudioEngine eng;
+            eng.prepareForTest (sr, block);
+            std::vector<float> l (block), r (block), l3 (block), r3 (block);
+            float* outs[4] = { l.data(), r.data(), l3.data(), r3.data() };
+            auto runE = [&] (double sec) { for (int k = 0; k < (int) (sec * sr / block) + 1; ++k) eng.audioDeviceIOCallbackWithContext (nullptr, 0, outs, 2, block, {}); };
+            auto& a = eng.deck (0);
+            auto& b = eng.deck (1);
+            a.setTrack (ta);
+            b.setTrack (tb);
+            b.setKeyLock (variant & 1);
+            if (variant & 2) { a.setPlaying (true); b.setSync (true); }
+            runE (0.2);
+            b.seek (20.0);
+            runE (0.05);
+            b.cueDown(); b.cueUp();                       // sets the cue point here
+            runE (0.05);
+            const double cue = b.getCuePoint();
+            double worst = 0.0;
+            for (int tap = 0; tap < 12; ++tap)
+            {
+                b.cueDown();
+                runE (0.02 + 0.03 * (tap % 4));           // 20…110 ms taps
+                b.cueUp();
+                runE (0.03);
+                worst = juce::jmax (worst, std::abs (b.audioPositionSeconds() - cue));
+                if (std::abs (b.getCuePoint() - cue) > 1e-6) std::cout << "    cue movido a " << b.getCuePoint() << " (era " << cue << ") en toque " << tap << std::endl;
+            }
+            if (worst > 0.002)
+                bad << (variant & 1 ? "key lock" : "sin key lock") << (variant & 2 ? " + sync" : "") << ": queda a "
+                    << juce::String (worst * 1000.0, 1) << " ms · ";
+        }
+        rep.check (bad.isEmpty(), "CUE tocado rápido: al soltar vuelve exacto al punto de cue"_u, bad.isEmpty() ? juce::String ("0 ms") : bad);
+    }
+
     std::cout << "== AUTOMIX" << std::endl;
     {
         AudioEngine eng;

@@ -206,7 +206,8 @@ private:
     std::atomic<double> jumpValue { 0.0 };
     void requestJump (Jump mode, double value) noexcept { jumpValue.store (value); jumpMode.store ((int) mode); }
     void applyJump (const LoadedTrack&);
-    std::atomic<bool> previewing { false };      // CUE held while paused (audio thread reads it)
+    std::atomic<bool> previewing { false };
+    std::atomic<double> restAt { -1.0 };          // CUE released: once silent, park exactly here (seconds)      // CUE held while paused (audio thread reads it)
     double autoLoopBeats = 4.0;
     double rollBeats = 0.0;
     int gateSlot = -1;

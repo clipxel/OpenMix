@@ -377,7 +377,7 @@ void AudioEngine::applySync()
                 // heard, moving its playhead because the other track jumped would cut it.
                 const bool leaderJumped = moved[(size_t) (1 - i)];
                 const bool engaged = d.consumeSyncEngaged() || moved[(size_t) i] || (leaderJumped && ! dPlays);
-                if (! oPlays || ! (dPlays || starting))
+                if (! oPlays || ! d.isPlaying() || ! (dPlays || starting))   // a stopped deck is never moved
                 {
                     d.audioSetPhaseCorrection (0.0);
                     return;
