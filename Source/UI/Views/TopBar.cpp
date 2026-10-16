@@ -31,6 +31,10 @@ TopBar::TopBar (AudioEngine& e) : engine (e)
     automixBtn.setTooltip ("Mezcla automática: abrir / cerrar el panel"_u);
     automixBtn.onClick = [this] { if (onToggleAutoMix) onToggleAutoMix(); };
     addAndMakeVisible (automixBtn);
+    helpBtn.setTextType (Type::label, Weight::bold);
+    helpBtn.setTooltip ("Ayuda, contacto y reportes: escribinos y te respondemos"_u);
+    helpBtn.onClick = [this] { showHelpMenu(); };
+    addAndMakeVisible (helpBtn);
 }
 
 void TopBar::refresh()
@@ -123,6 +127,8 @@ void TopBar::resized()
     r.removeFromRight (Space::sm);
     automixBtn.setBounds (r.removeFromRight (84));
     r.removeFromRight (Space::sm);
+    helpBtn.setBounds (r.removeFromRight (64));
+    r.removeFromRight (Space::sm);
     if (fx.isVisible())
     {
         fx.setBounds (r.removeFromRight (44));
@@ -133,6 +139,35 @@ void TopBar::resized()
     controllers.setBounds (r.removeFromRight (controllers.idealWidth()));
     r.removeFromRight (Space::xs);
     audio.setBounds (r.removeFromRight (juce::jmin (audio.idealWidth(), juce::jmax (120, r.getWidth()))));
+}
+
+void TopBar::showHelpMenu()
+{
+    static constexpr const char* community = "https://chat.whatsapp.com/EfyHSpbE1KGJ3zcCKjhx4R";
+    static constexpr const char* instagram = "https://www.instagram.com/nanobrunetti/";
+    static constexpr const char* instagramChat = "https://ig.me/m/nanobrunetti";
+    static constexpr const char* site = "https://clipxel.github.io/OpenMix/";
+
+    const auto about = "OpenMix " + juce::JUCEApplication::getInstance()->getApplicationVersion() + " · " + juce::SystemStats::getOperatingSystemName();
+
+    juce::PopupMenu m;
+    m.addSectionHeader ("Ayuda y contacto");
+    m.addItem ("Unite a la comunidad de OpenMix (WhatsApp)", [] { juce::URL (community).launchInDefaultBrowser(); });
+    m.addItem ("Escribime por Instagram: @nanobrunetti", [] { juce::URL (instagramChat).launchInDefaultBrowser(); });
+    m.addItem ("WhatsApp: buscame como @nanobrunetti", false, false, nullptr);
+    m.addSeparator();
+    m.addItem ("Enviar un reporte o sugerencia", [about]
+    {
+        // The message is ready in the clipboard: the chat opens and the user pastes and sends it.
+        juce::SystemClipboard::copyTextToClipboard ("Reporte de OpenMix\n" + about + "\n\nQué pasó / qué te gustaría:\n");
+        juce::URL (instagramChat).launchInDefaultBrowser();
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Enviar un reporte",
+            juce::String::fromUTF8 ("Copiamos un mensaje con tu versión de OpenMix. Pegalo en el chat que se abrió (Cmd/Ctrl+V), "
+                                    "contanos qué pasó y envialo. ¡Te respondemos!"));
+    });
+    m.addItem ("Instagram de OpenMix", [] { juce::URL (instagram).launchInDefaultBrowser(); });
+    m.addItem ("Página de OpenMix", [] { juce::URL (site).launchInDefaultBrowser(); });
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&helpBtn));
 }
 
 void TopBar::setAutoMixState (bool panelOpen, bool running)

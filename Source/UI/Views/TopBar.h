@@ -34,6 +34,8 @@ private:
     Button settings { {}, Icon::settings, Button::Style::ghost };
     Button fx { "FX" };
     Button automixBtn { "AUTOMIX" };
+    Button helpBtn { "AYUDA" };
+    void showHelpMenu();
     juce::Rectangle<int> brandArea;
     const ControllerLibrary* controllerLib = nullptr;
     juce::String lastControllerText;

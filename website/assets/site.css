@@ -422,3 +422,9 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--paper-3); 
 .x:hover { background: var(--paper-3); color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+
+/* ── Contacto ── */
+.contact { padding: 72px 0; background: var(--paper-2); }
+.contact h2 { font-size: 30px; margin-bottom: 10px; }
+.contact .contact-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 24px 0 14px; }
+.contact .small { font-size: 13px; }
