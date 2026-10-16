@@ -404,12 +404,23 @@ void AudioEngine::applySync()
                 };
                 const bool performing = offGrid (d) || offGrid (o) || o.isScratching();
 
+                // CUE held on a paused deck: the stab starts exactly on the cue point, never shifted.
+                // If PLAY follows while it sounds, sync keeps the phase the DJ played it in.
+                if (d.isCuePreviewing())
+                {
+                    wasNudging[(size_t) i] = true;
+                    d.audioSetPhaseCorrection (0.0);
+                    return;
+                }
+
                 if (userNudging || (performing && ! (starting || engaged)))
                 {
                     wasNudging[(size_t) i] = true;
                     d.audioSetPhaseCorrection (0.0);
                     return;
                 }
+                if (starting || engaged)
+                    wasNudging[(size_t) i] = false;               // PLAY / SYNC / a jump: align for real
                 if (wasNudging[(size_t) i] || (leaderJumped && dPlays && ! engaged))
                 {
                     wasNudging[(size_t) i] = false;

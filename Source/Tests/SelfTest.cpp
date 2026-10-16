@@ -1918,7 +1918,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
             double worstFirst = 0.0, worstAny = 0.0;
             for (auto L : { Launch { "PLAY", 0, true, 0.0 }, Launch { "PLAY sin key lock", 0, false, 0.0 },
                             Launch { "PLAY con el otro a +3 %", 0, true, 0.03 }, Launch { "HOT CUE", 1, true, 0.0 },
-                            Launch { "SYNC con el tema andando", 2, true, 0.0 }, Launch { "CUE", 3, true, 0.0 } })
+                            Launch { "SYNC con el tema andando", 2, true, 0.0 } })   // CUE en pausa no sincroniza (golpes sueltos desde el cue): test aparte
             {
                 AudioEngine e6;
                 e6.prepareForTest (sr, block);
@@ -1975,7 +1975,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                 worstFirst = juce::jmax (worstFirst, std::abs (first));
                 worstAny = juce::jmax (worstAny, worst);
             }
-            rep.check (bad.isEmpty(), "SYNC: el tema sale ya en fase desde el primer beat que se oye (PLAY, HOT CUE, CUE, SYNC)"_u,
+            rep.check (bad.isEmpty(), "SYNC: el tema sale ya en fase desde el primer beat que se oye (PLAY, HOT CUE, SYNC)"_u,
                        bad.isEmpty() ? juce::String (worstFirst, 2) + " ms el 1.er beat · peor "_u + juce::String (worstAny, 2) + " ms" : bad);
         }
 
@@ -2081,6 +2081,43 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         runEngine (0.5);
         rep.check (std::abs (a.getEffectiveBpm() - b.getEffectiveBpm()) < 0.01 && std::abs (b.getPitch() - 0.02) < 1e-9,
                    "Deck maestro: el otro deck lo sigue", juce::String (a.getEffectiveBpm(), 3) + " / " + juce::String (b.getEffectiveBpm(), 3));
+
+        // CUE on a paused synced deck: the stab starts exactly on the cue point (no alignment);
+        // PLAY afterwards aligns as usual.
+        {
+            eng.masterDeck = -1;
+            a.setSync (false);
+            a.setPlaying (true);
+            b.setSync (true);
+            b.setPlaying (false);
+            runEngine (0.3);
+            const double cueAt = tb->grid().timeOfBeat (16) + 0.137;     // deliberately off the leader's phase
+            b.seek (cueAt);
+            runEngine (0.1);
+            b.cueDown();                                                  // sets the cue point here
+            runEngine (0.05);
+            b.cueDown();                                                  // held: sounds from the cue
+            runEngine (0.2);
+            const double heard = b.audioPositionSeconds();
+            const double expected = b.getCuePoint() + 0.2 * (1.0 + b.getPitch());   // the cue as set (quantized)
+            b.cueUp();
+            runEngine (0.1);
+            const bool stab = std::abs (heard - expected) < 0.03;
+
+            b.setPlaying (true);
+            runEngine (0.3);
+            const auto ag = ta->grid(), bg = tb->grid();
+            const double pa = ag.beatAt (a.audioPositionSeconds()), pb = bg.beatAt (b.audioPositionSeconds());
+            double ph = (pa - std::floor (pa)) - (pb - std::floor (pb));
+            if (ph > 0.5) ph -= 1.0;
+            if (ph < -0.5) ph += 1.0;
+            rep.check (stab && std::abs (ph) < 0.02,
+                       "CUE en pausa suena desde el cue sin sincronizar; PLAY sí alinea"_u,
+                       "desvío del golpe " + juce::String ((heard - expected) * 1000.0, 1) + " ms · fase al dar PLAY "
+                       + juce::String (ph * 100.0, 1) + " % de beat");
+            b.setPlaying (false);
+            a.setPlaying (false);
+        }
     }
 
     std::cout << "== MIDI" << std::endl;

@@ -48,6 +48,9 @@ public:
         inaudible with key lock); a second press while it glides (or a double press) jumps straight to 0 %. Moving the
         pitch by hand cancels the glide. Message thread. */
     void pitchResetPressed();
+    /** CUE held on a paused deck: the track sounds from the cue point for as long as it is held.
+        Sync matches the tempo but never moves it (stabs land exactly on the cue). */
+    bool isCuePreviewing() const noexcept         { return previewing.load(); }
     bool isPitchGliding() const noexcept          { return pitchGlide.load() > 0.0; }
     void   setPitchRange (double fraction);
     double getPitchRange() const noexcept         { return pitchRange.load(); }
@@ -203,7 +206,7 @@ private:
     std::atomic<double> jumpValue { 0.0 };
     void requestJump (Jump mode, double value) noexcept { jumpValue.store (value); jumpMode.store ((int) mode); }
     void applyJump (const LoadedTrack&);
-    bool previewing = false;
+    std::atomic<bool> previewing { false };      // CUE held while paused (audio thread reads it)
     double autoLoopBeats = 4.0;
     double rollBeats = 0.0;
     int gateSlot = -1;
