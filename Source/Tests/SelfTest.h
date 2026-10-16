@@ -17,6 +17,7 @@ namespace om
 
     /** Compares OpenMix's analyser against the analysis stored on a real exported USB (read-only). */
     int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File& reportFile);
+    int gridDebug (const juce::File& usbRoot, const juce::String& nameContains);
 
     /** Simulates every control of these controller mappings (see SelfTest.cpp). */
     int simulateControllers (const std::vector<MappingImport::Source>&, const juce::String& only);

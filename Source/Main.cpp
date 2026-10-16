@@ -16,7 +16,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -84,6 +84,14 @@ public:
             return;
         }
 
+        if (commandLine.contains ("--grid-debug"))
+        {
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            auto arg = [&args] (const juce::String& key) { auto i = args.indexOf (key); return i >= 0 ? args[i + 1].unquoted() : juce::String(); };
+            setApplicationReturnValue (om::gridDebug (juce::File (arg ("--usb")), arg ("--grid-debug")));
+            quit();
+            return;
+        }
         if (commandLine.contains ("--analyzer-benchmark"))
         {
             auto args = juce::StringArray::fromTokens (commandLine, true);

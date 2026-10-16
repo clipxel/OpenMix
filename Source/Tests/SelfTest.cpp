@@ -760,6 +760,32 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
     return 0;
 }
 
+int gridDebug (const juce::File& usbRoot, const juce::String& name)
+{
+    juce::String err;
+    auto ex = UsbExport::load (usbRoot, err);
+    if (ex == nullptr) { std::cout << err << std::endl; return 1; }
+    juce::AudioFormatManager fm;
+    fm.registerBasicFormats();
+    for (auto& t : ex->tracks)
+    {
+        const auto file = ex->fileFor (t);
+        if (! file.getFileName().containsIgnoreCase (name)) continue;
+        const auto an = UsbExport::readAnalysis (*ex, t);
+        std::unique_ptr<juce::AudioFormatReader> rd (fm.createReaderFor (file));
+        if (rd == nullptr || ! an.grid.isValid()) continue;
+        const int lead = Analysis::mp3TrimmedLeadSamples (file);
+        juce::AudioBuffer<float> buf ((int) std::min (2u, rd->numChannels), (int) rd->lengthInSamples + lead);
+        buf.clear();
+        rd->read (&buf, lead, (int) rd->lengthInSamples, 0, true, buf.getNumChannels() > 1);
+        std::cout << file.getFileName() << "  |  rekordbox " << an.grid.bpm << " BPM @ " << an.grid.firstBeatSeconds << " s" << std::endl
+                  << Analysis::debugGrid (buf, rd->sampleRate, an.grid) << std::endl;
+        return 0;
+    }
+    std::cout << "no encontrado" << std::endl;
+    return 1;
+}
+
 int inspectUsbExport (const juce::File& root)
 {
     auto print = [] (const juce::String& s) { std::cout << s.toRawUTF8() << std::endl; };

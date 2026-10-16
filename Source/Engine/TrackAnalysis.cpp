@@ -290,6 +290,76 @@ namespace
     }
 }
 
+// Attack envelopes at ~1 ms: kick band (30–150 Hz) and full band, as the rise above the recent level.
+struct Envelopes { std::vector<float> kick, full; double fps = 0.0; };
+
+static Envelopes kickEnvelopes (const Features& f)
+{
+    Envelopes env;
+    juce::IIRFilter lp1, lp2, hp;
+    lp1.setCoefficients (juce::IIRCoefficients::makeLowPass (f.rate, 150.0));
+    lp2.setCoefficients (juce::IIRCoefficients::makeLowPass (f.rate, 150.0));
+    hp.setCoefficients (juce::IIRCoefficients::makeHighPass (f.rate, 30.0));
+    const int hop = juce::jmax (1, (int) std::round (f.rate * 0.001));
+    const int frames = (int) f.mono.size() / hop;
+    env.kick.assign ((size_t) frames, 0.0f);
+    env.full.assign ((size_t) frames, 0.0f);
+    env.fps = f.rate / hop;
+    float slow = 0.0f, slowFull = 0.0f;
+    for (int i = 0; i < frames; ++i)
+    {
+        double e = 0.0, ef = 0.0;
+        for (int k = 0; k < hop; ++k)
+        {
+            const float x = f.mono[(size_t) (i * hop + k)];
+            const float y = hp.processSingleSampleRaw (lp2.processSingleSampleRaw (lp1.processSingleSampleRaw (x)));
+            e += (double) y * y;
+            ef += (double) x * x;
+        }
+        const float le = std::log1p (1.0e4f * (float) e), lf = std::log1p (1.0e4f * (float) ef);
+        env.kick[(size_t) i] = juce::jmax (0.0f, le - slow);
+        env.full[(size_t) i] = juce::jmax (0.0f, lf - slowFull);
+        slow = 0.85f * slow + 0.15f * le;
+        slowFull = 0.85f * slowFull + 0.15f * lf;
+    }
+    return env;
+}
+
+juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid reference)
+{
+    Features f;
+    if (! reference.isValid() || ! computeFeatures (audio, sr, nullptr, f)) return "sin datos";
+    const auto env = kickEnvelopes (f);
+    const auto mine = detectBeatGrid (audio, sr);
+    // Where do the attacks fall, folded onto one beat of the reference grid (16 bins)?
+    auto fold = [&] (const std::vector<float>& e)
+    {
+        std::array<double, 16> h {};
+        double total = 0;
+        const double beatF = env.fps * 60.0 / reference.bpm, startF = reference.firstBeatSeconds * env.fps;
+        for (size_t i = 0; i < e.size(); ++i)
+        {
+            // Local peaks only (one per attack), weighted by strength².
+            if (e[i] <= 0.5f || i == 0 || i + 1 >= e.size() || e[i] < e[i - 1] || e[i] < e[i + 1]) continue;
+            double ph = std::fmod ((double) i - startF, beatF) / beatF;
+            if (ph < 0) ph += 1.0;
+            const double w = (double) e[i] * e[i];
+            h[(size_t) juce::jlimit (0, 15, (int) (ph * 16))] += w;
+            total += w;
+        }
+        juce::String s;
+        for (auto v : h) s << juce::String (juce::roundToInt (100.0 * v / juce::jmax (1e-9, total))).paddedLeft (' ', 3);
+        return s;
+    };
+    const double beat = 60.0 / reference.bpm;
+    double d = std::fmod (mine.firstBeatSeconds - reference.firstBeatSeconds, beat);
+    if (d > beat / 2) d -= beat;
+    if (d < -beat / 2) d += beat;
+    return "OpenMix " + juce::String (mine.bpm, 2) + " BPM, fase " + juce::String (d / beat, 2) + " beat respecto de la referencia\n"
+         + "graves (16avos de beat desde la referencia):" + fold (env.kick) + "\n"
+         + "banda completa:                           " + fold (env.full);
+}
+
 // Fine tempo (±0.6 %) and phase (≈1 ms) from the kick attacks of the whole track.
 static void refineTempoAndPhase (const Features& f, double& bpm, double& phase)
 {
@@ -299,32 +369,11 @@ static void refineTempoAndPhase (const Features& f, double& bpm, double& phase)
     //    resolution, median offset over all beats, two passes. Kicks sit on the beat;
     //    hi-hats and claps (often off-beat) are excluded by the band limit.
     {
-        juce::IIRFilter lp1, lp2, hp;
-        lp1.setCoefficients (juce::IIRCoefficients::makeLowPass (f.rate, 150.0));
-        lp2.setCoefficients (juce::IIRCoefficients::makeLowPass (f.rate, 150.0));
-        hp.setCoefficients (juce::IIRCoefficients::makeHighPass (f.rate, 30.0));
-        const int hop = juce::jmax (1, (int) std::round (f.rate * 0.001));
-        const int frames = (int) f.mono.size() / hop;
-        std::vector<float> rise ((size_t) frames, 0.0f), full ((size_t) frames, 0.0f);
-        float slow = 0.0f, slowFull = 0.0f;
-        for (int i = 0; i < frames; ++i)
-        {
-            double e = 0.0, ef = 0.0;
-            for (int k = 0; k < hop; ++k)
-            {
-                const float x = f.mono[(size_t) (i * hop + k)];
-                const float y = hp.processSingleSampleRaw (lp2.processSingleSampleRaw (lp1.processSingleSampleRaw (x)));
-                e += (double) y * y;
-                ef += (double) x * x;
-            }
-            const float le = std::log1p (1.0e4f * (float) e), lf = std::log1p (1.0e4f * (float) ef);
-            rise[(size_t) i] = juce::jmax (0.0f, le - slow);         // rise above the recent level
-            full[(size_t) i] = juce::jmax (0.0f, lf - slowFull);
-            slow = 0.85f * slow + 0.15f * le;
-            slowFull = 0.85f * slowFull + 0.15f * lf;
-        }
-
-        const double envFps = f.rate / hop;
+        const auto env = kickEnvelopes (f);
+        const auto& rise = env.kick;
+        const auto& full = env.full;
+        const int frames = (int) rise.size();
+        const double envFps = env.fps;
 
         // Fine BPM: fold the kick-attack envelope onto one beat for candidate tempi
         // (±0.6 % in 0.01 BPM steps); the true tempo gives the sharpest peak. Robust to
@@ -385,26 +434,28 @@ static void refineTempoAndPhase (const Features& f, double& bpm, double& phase)
             }
         }
 
-        // On the kick or on the off-beat? Hi-hats and claps can make the tracker lock half a beat
-        // away; the kick band tells which family the downbeats belong to.
+        // Anchor on the kicks: fold the strong kick attacks of the whole track onto one beat
+        // (64 slots, peaks only, weighted by strength²). If most of them sit away from the tracked
+        // phase — half a beat when hi-hats or claps led the tracker, a quarter on syncopated
+        // patterns — move the grid there.
         {
-            auto bandSum = [&] (double start)
+            constexpr int slots = 64;
+            std::array<double, slots> h {};
+            const double beatF = envFps * beatSec, startF = phase * envFps;
+            for (int i = 1; i + 1 < frames; ++i)
             {
-                double sum = 0.0;
-                const int win = (int) (0.015 * envFps);
-                for (double t = start; t < (double) f.mono.size() / f.rate; t += beatSec)
-                {
-                    const int c = (int) std::round (t * envFps);
-                    if (c - win < 0 || c + win >= frames) continue;
-                    float m = 0.0f;
-                    for (int k = -win; k <= win; ++k) m = juce::jmax (m, rise[(size_t) (c + k)]);
-                    sum += m;
-                }
-                return sum;
-            };
-            const double on = bandSum (phase), off = bandSum (phase + beatSec * 0.5);
-            if (off > on * 1.3 && off > 0.0)
-                phase += beatSec * 0.5;
+                const float v = rise[(size_t) i];
+                if (v <= 0.5f || v < rise[(size_t) i - 1] || v < rise[(size_t) i + 1]) continue;
+                double ph = std::fmod ((double) i - startF, beatF) / beatF;
+                if (ph < 0.0) ph += 1.0;
+                h[(size_t) ((int) (ph * slots) % slots)] += (double) v * v;
+            }
+            auto around = [&h] (int c) { double sum = 0; for (int k = -2; k <= 2; ++k) sum += h[(size_t) ((c + k + slots) % slots)]; return sum; };
+            int best = 0;
+            for (int c = 1; c < slots; ++c) if (around (c) > around (best)) best = c;
+            const int dist = juce::jmin (best, slots - best);
+            if (dist > 3 && around (best) > around (0) * 1.15)
+                phase += (best <= slots / 2 ? best : best - slots) * beatSec / slots;
         }
 
         for (int pass = 0; pass < 2; ++pass)

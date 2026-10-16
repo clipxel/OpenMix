@@ -49,7 +49,10 @@ namespace Analysis
         `approx`. Invalid input → returned unchanged. */
     BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid approx);
 
-        /** Estimates the musical key (chromagram + Krumhansl–Kessler profiles).
+        /** Diagnostics: OpenMix's grid vs a reference grid, and where the attacks fall on the beat. */
+    juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid reference);
+
+    /** Estimates the musical key (chromagram + Krumhansl–Kessler profiles).
         Returns Camelot notation ("8A", "11B"…) or empty when the signal is too weak. */
     juce::String detectKey (const juce::AudioBuffer<float>& audio, double sampleRate,
                             const std::atomic<bool>* shouldAbort = nullptr);
