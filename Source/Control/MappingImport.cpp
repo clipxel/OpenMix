@@ -223,7 +223,7 @@ Result fromCsv (const juce::String& text)
             for (int d = 0; d < 2; ++d)
             {
                 const int code = outCode (d);
-                if (code < 0 || ((code >> 8) & 0xF0) != 0x90 && ((code >> 8) & 0xF0) != 0xB0)
+                if (code < 0 || (((code >> 8) & 0xF0) != 0x90 && ((code >> 8) & 0xF0) != 0xB0))
                     continue;
                 MidiBinding b;
                 setLight (b, code);

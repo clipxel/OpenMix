@@ -290,32 +290,10 @@ namespace
     }
 }
 
-BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const std::atomic<bool>* abortFlag)
+// Fine tempo (±0.6 %) and phase (≈1 ms) from the kick attacks of the whole track.
+static void refineTempoAndPhase (const Features& f, double& bpm, double& phase)
 {
-    BeatGrid grid;
-    Features f;
-    if (sr <= 0.0 || ! computeFeatures (audio, sr, abortFlag, f))
-        return grid;
-
-    // 2–4. Tempo → tracked beats → exact period/phase.
-    const double bpm0 = estimateTempo (f);
-    const auto beats = trackBeats (f.odf, f.fps * 60.0 / bpm0);
-    double a = 0.0, period = f.fps * 60.0 / bpm0;
-    if (! fitGrid (beats, period, a, period))
-    {
-        a = beats.empty() ? 0.0 : beats.front();
-        period = f.fps * 60.0 / bpm0;
-    }
-    if (aborted (abortFlag)) return grid;
-
-    double bpm = 60.0 * f.fps / period;
-    if (std::abs (bpm - std::round (bpm)) < 0.025) bpm = std::round (bpm);
-    else bpm = std::round (bpm * 100.0) / 100.0;
     double beatSec = 60.0 / bpm;
-
-    // STFT frame f is centred at (f·hop + size/2) samples.
-    const double frameOffsetSec = 512.0 / f.rate;
-    double phase = a / f.fps + frameOffsetSec;
 
     // 5. Refine the phase on the kick attacks: low band (30–150 Hz) energy rise at ~1 ms
     //    resolution, median offset over all beats, two passes. Kicks sit on the beat;
@@ -407,6 +385,28 @@ BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const
             }
         }
 
+        // On the kick or on the off-beat? Hi-hats and claps can make the tracker lock half a beat
+        // away; the kick band tells which family the downbeats belong to.
+        {
+            auto bandSum = [&] (double start)
+            {
+                double sum = 0.0;
+                const int win = (int) (0.015 * envFps);
+                for (double t = start; t < (double) f.mono.size() / f.rate; t += beatSec)
+                {
+                    const int c = (int) std::round (t * envFps);
+                    if (c - win < 0 || c + win >= frames) continue;
+                    float m = 0.0f;
+                    for (int k = -win; k <= win; ++k) m = juce::jmax (m, rise[(size_t) (c + k)]);
+                    sum += m;
+                }
+                return sum;
+            };
+            const double on = bandSum (phase), off = bandSum (phase + beatSec * 0.5);
+            if (off > on * 1.3 && off > 0.0)
+                phase += beatSec * 0.5;
+        }
+
         for (int pass = 0; pass < 2; ++pass)
         {
             std::vector<double> offs;
@@ -435,6 +435,52 @@ BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const
             }
         }
     }
+}
+
+BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid approx)
+{
+    Features f;
+    if (! approx.isValid() || sr <= 0.0 || ! computeFeatures (audio, sr, nullptr, f))
+        return approx;
+    double bpm = approx.bpm, phase = approx.firstBeatSeconds;
+    refineTempoAndPhase (f, bpm, phase);
+    // Keep the DJ's bar: the refined beat nearest to the old beat 1, as the new beat 1.
+    const double beat = 60.0 / bpm;
+    const double k = std::round ((approx.firstBeatSeconds - phase) / beat);
+    double first = phase + k * beat;
+    while (first < 0.0) first += 4.0 * beat;
+    return { bpm, std::fmod (first, 4.0 * beat) };
+}
+
+BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const std::atomic<bool>* abortFlag)
+{
+    BeatGrid grid;
+    Features f;
+    if (sr <= 0.0 || ! computeFeatures (audio, sr, abortFlag, f))
+        return grid;
+
+    // 2–4. Tempo → tracked beats → exact period/phase.
+    const double bpm0 = estimateTempo (f);
+    const auto beats = trackBeats (f.odf, f.fps * 60.0 / bpm0);
+    double a = 0.0, period = f.fps * 60.0 / bpm0;
+    if (! fitGrid (beats, period, a, period))
+    {
+        a = beats.empty() ? 0.0 : beats.front();
+        period = f.fps * 60.0 / bpm0;
+    }
+    if (aborted (abortFlag)) return grid;
+
+    double bpm = 60.0 * f.fps / period;
+    if (std::abs (bpm - std::round (bpm)) < 0.025) bpm = std::round (bpm);
+    else bpm = std::round (bpm * 100.0) / 100.0;
+    double beatSec = 60.0 / bpm;
+
+    // STFT frame f is centred at (f·hop + size/2) samples.
+    const double frameOffsetSec = 512.0 / f.rate;
+    double phase = a / f.fps + frameOffsetSec;
+
+    refineTempoAndPhase (f, bpm, phase);
+    beatSec = 60.0 / bpm;
 
     // 6. Downbeat: harmonic change and low-band onsets favour the "1" of the bar.
     {

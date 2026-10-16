@@ -1644,6 +1644,20 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    "+20 % → " + juce::String (after1 * 100.0, 1) + " % al segundo, " + juce::String (after45 * 100.0, 1) + " % a los 6,5 s");
     }
 
+    {
+        // Grid corrector: from a BPM 0.3 off and a phase 30 ms off, back onto the kicks.
+        const auto truth = Analysis::detectBeatGrid (tb->audio, tb->sampleRate);
+        const BeatGrid rough { truth.bpm + 0.3, truth.firstBeatSeconds + 0.030 };
+        const auto fixed = Analysis::refineGrid (tb->audio, tb->sampleRate, rough);
+        const double beat = 60.0 / fixed.bpm;
+        double d = std::fmod (fixed.firstBeatSeconds - truth.firstBeatSeconds, beat);
+        if (d > beat / 2) d -= beat;
+        if (d < -beat / 2) d += beat;
+        rep.check (std::abs (fixed.bpm - truth.bpm) < 0.02 && std::abs (d) < 0.003,
+                   "Ajuste automático de grilla: BPM y fase vuelven a los bombos"_u,
+                   juce::String (fixed.bpm, 2) + " BPM, fase a " + juce::String (d * 1000.0, 1) + " ms");
+    }
+
     std::cout << "== AUTOMIX" << std::endl;
     {
         AudioEngine eng;

@@ -44,7 +44,12 @@ namespace Analysis
     BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sampleRate,
                              const std::atomic<bool>* shouldAbort = nullptr);
 
-    /** Estimates the musical key (chromagram + Krumhansl–Kessler profiles).
+    /** Grid corrector: starting from a tempo the DJ confirmed (e.g. after ÷2), finds the exact BPM
+        (±0.6 %) and phase on the kicks of the whole track, keeping the bar position closest to
+        `approx`. Invalid input → returned unchanged. */
+    BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid approx);
+
+        /** Estimates the musical key (chromagram + Krumhansl–Kessler profiles).
         Returns Camelot notation ("8A", "11B"…) or empty when the signal is too weak. */
     juce::String detectKey (const juce::AudioBuffer<float>& audio, double sampleRate,
                             const std::atomic<bool>* shouldAbort = nullptr);

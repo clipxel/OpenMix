@@ -1,5 +1,6 @@
 #include "DeckView.h"
 #include "../../Library/Library.h"
+#include <thread>
 
 namespace om
 {
@@ -34,21 +35,38 @@ public:
             b->onClick = std::move (fn);
             addAndMakeVisible (*b);
             buttons.push_back (std::move (b));
+            return buttons.back().get();
         };
+
+        bpmField.setFont (font (Type::title, Weight::semibold));
+        bpmField.setJustification (juce::Justification::centred);
+        bpmField.setInputRestrictions (7, "0123456789.,");
+        bpmField.setTooltip ("Escribí el BPM correcto y apretá Enter"_u);
+        bpmField.onReturnKey = [this] { applyTyped(); };
+        addAndMakeVisible (bpmField);
+        applyBtn = add ("APLICAR", "Usar el BPM escrito", [this] { applyTyped(); });
+        add ("TAP", "Tocá al ritmo (4 o más toques) para fijar el BPM"_u, [this] { deck.tapTempo(); });
+
+        // The usual analysis mistakes, with the result shown on the button.
+        for (auto [f, label] : { std::pair<double, const char*> { 0.5, "÷2" }, { 2.0, "×2" }, { 1.5, "×1,5" }, { 2.0 / 3.0, "×⅔" } })
+            factorBtns.push_back ({ add ({}, "Corregir el BPM: "_u + juce::String::fromUTF8 (label), [this, f = f] { bpmTimes (f); }), f, juce::String::fromUTF8 (label) });
+
+        add ("-0.1",  "BPM -0.1",  [this] { bpmBy (-0.1); });
+        add ("-0.01", "BPM -0.01", [this] { bpmBy (-0.01); });
+        add ("+0.01", "BPM +0.01", [this] { bpmBy (0.01); });
+        add ("+0.1",  "BPM +0.1",  [this] { bpmBy (0.1); });
         add ("<< 10 ms", "Mover la grilla 10 ms antes", [this] { deck.shiftGrid (-0.010); });
         add ("< 1 ms",   "Mover la grilla 1 ms antes",  [this] { deck.shiftGrid (-0.001); });
         add ("1 ms >",   "Mover la grilla 1 ms después", [this] { deck.shiftGrid (0.001); });
         add ("10 ms >>", "Mover la grilla 10 ms después", [this] { deck.shiftGrid (0.010); });
-        add ("BPM -0.1",  "", [this] { bpmBy (-0.1); });
-        add ("-0.01",     "", [this] { bpmBy (-0.01); });
-        add ("+0.01",     "", [this] { bpmBy (0.01); });
-        add ("BPM +0.1",  "", [this] { bpmBy (0.1); });
-        add (juce::String::fromUTF8 ("÷2"), "Mitad de BPM", [this] { bpmTimes (0.5); });
-        add (juce::String::fromUTF8 ("×2"), "Doble de BPM", [this] { bpmTimes (2.0); });
-        add ("1 AQUI", juce::String::fromUTF8 ("Marcar el beat 1 del compás en la posición actual"), [this] { deck.setDownbeatHere(); });
-        add ("TAP", juce::String::fromUTF8 ("Tocá al ritmo (4 o más toques) para fijar el BPM"), [this] { deck.tapTempo(); });
-        add ("RESTAURAR", juce::String::fromUTF8 ("Volver a la grilla del análisis"), [this] { deck.resetGrid(); });
-        setSize (380, 168);
+        autoBtn = add ("AJUSTE AUTOMÁTICO"_u, "Con el BPM de arriba, encuentra la grilla exacta sobre los bombos de todo el tema"_u,
+                       [this] { autoFit(); });
+        autoBtn->setLitColour (colour (Col::play));
+        add ("1 AQUÍ"_u, "Marcar el beat 1 del compás en la posición actual"_u, [this] { deck.setDownbeatHere(); });
+        add ("RESTAURAR", "Volver a la grilla del análisis"_u, [this] { deck.resetGrid(); });
+
+        setSize (440, 226);
+        refreshField();
         startTimerHz (10);
     }
 
@@ -56,9 +74,10 @@ public:
     {
         const auto grid = deck.getGrid();
         auto r = getLocalBounds().toFloat().reduced (12.0f, 8.0f).removeFromTop (22.0f);
-        Text::caption (g, "BEATGRID", r.removeFromLeft (80.0f), colour (Col::textTertiary), juce::Justification::centredLeft);
-        Text::drawTabular (g, grid.isValid() ? juce::String (grid.bpm, 2) + " BPM  ·  beat 1 en " + juce::String (grid.firstBeatSeconds * 1000.0, 1) + " ms"
-                                             : juce::String ("Sin grilla"),
+        Text::caption (g, "EDITOR DE BPM Y GRILLA", r.removeFromLeft (190.0f), colour (Col::textTertiary), juce::Justification::centredLeft);
+        Text::drawTabular (g, busy ? "Ajustando…"_u
+                                   : grid.isValid() ? juce::String (grid.bpm, 2) + " BPM  ·  beat 1 en " + juce::String (grid.firstBeatSeconds * 1000.0, 1) + " ms"
+                                                    : juce::String ("Sin grilla"),
                            r, font (Type::body, Weight::semibold), colour (Col::textPrimary), juce::Justification::centredRight);
     }
 
@@ -66,27 +85,92 @@ public:
     {
         auto r = getLocalBounds().reduced (12, 8);
         r.removeFromTop (28);
-        auto row = [&r] (int count) { auto line = r.removeFromTop (Size::controlMd); r.removeFromTop (Space::sm); return std::make_pair (line, count); };
-        size_t i = 0;
-        for (int cnt : { 4, 4, 5 })
+        auto line = [&r] (int h) { auto l = r.removeFromTop (h); r.removeFromTop (Space::sm); return l; };
+        auto spread = [] (juce::Rectangle<int> l, std::vector<juce::Component*> cs)
         {
-            auto [line, c] = row (cnt);
-            const int w = (line.getWidth() - (c - 1) * Space::xs) / c;
-            for (int k = 0; k < c && i < buttons.size(); ++k, ++i)
-            {
-                buttons[i]->setBounds (line.removeFromLeft (w));
-                line.removeFromLeft (Space::xs);
-            }
-        }
+            const int w = (l.getWidth() - ((int) cs.size() - 1) * Space::xs) / (int) cs.size();
+            for (auto* c : cs) { c->setBounds (l.removeFromLeft (w)); l.removeFromLeft (Space::xs); }
+        };
+        size_t i = 0;
+        auto next = [this, &i] { return (juce::Component*) buttons[i++].get(); };
+
+        auto top = line (Size::controlLg);
+        bpmField.setBounds (top.removeFromLeft (140));
+        top.removeFromLeft (Space::sm);
+        spread (top, { next(), next() });                              // APLICAR, TAP
+        spread (line (Size::controlMd), { next(), next(), next(), next() });   // ÷2 ×2 ×1,5 ×⅔
+        spread (line (Size::controlMd), { next(), next(), next(), next() });   // fine BPM
+        spread (line (Size::controlMd), { next(), next(), next(), next() });   // grid shift
+        auto last = line (Size::controlMd);
+        auto* autoB = next();
+        autoB->setBounds (last.removeFromLeft (last.getWidth() / 2));
+        last.removeFromLeft (Space::xs);
+        spread (last, { next(), next() });                             // 1 AQUÍ, RESTAURAR
     }
 
 private:
-    void timerCallback() override { repaint(); }
+    void timerCallback() override
+    {
+        const auto g = deck.getGrid();
+        if (std::abs (g.bpm - shownBpm) > 1.0e-6) refreshField();
+        repaint();
+    }
+
+    void refreshField()
+    {
+        const auto g = deck.getGrid();
+        shownBpm = g.bpm;
+        if (! bpmField.hasKeyboardFocus (true))
+            bpmField.setText (g.isValid() ? juce::String (g.bpm, 2) : juce::String(), false);
+        for (auto& fb : factorBtns)
+            fb.button->setButtonText (g.isValid() ? fb.label + "  " + juce::String (g.bpm * fb.factor, 2) : fb.label);
+    }
+
+    void applyTyped()
+    {
+        const double v = bpmField.getText().replaceCharacter (',', '.').getDoubleValue();
+        if (v >= 40.0 && v <= 300.0)
+        {
+            if (deck.getGrid().isValid()) deck.setBpmKeepingPlayhead (std::round (v * 100.0) / 100.0);
+            else deck.setGrid ({ std::round (v * 100.0) / 100.0, deck.getPosition() });
+        }
+        bpmField.giveAwayKeyboardFocus();
+        refreshField();
+    }
+
+    void autoFit()
+    {
+        auto t = deck.getTrack();
+        const auto g = deck.getGrid();
+        if (t == nullptr || ! g.isValid() || busy) return;
+        busy = true;
+        autoBtn->setToggleState (true, juce::dontSendNotification);
+        juce::Component::SafePointer<GridEditor> self (this);
+        Deck* d = &deck;
+        std::thread ([t, g, d, self]
+        {
+            const auto refined = Analysis::refineGrid (t->audio, t->sampleRate, g);
+            juce::MessageManager::callAsync ([t, refined, d, self]
+            {
+                if (d->getTrack() == t) d->setGrid (refined);     // still the same track
+                if (self != nullptr) { self->busy = false; self->autoBtn->setToggleState (false, juce::dontSendNotification); self->refreshField(); }
+            });
+        }).detach();
+    }
+
     void bpmBy (double d)    { const auto g = deck.getGrid(); if (g.isValid()) deck.setBpmKeepingPlayhead (std::round ((g.bpm + d) * 100.0) / 100.0); }
-    void bpmTimes (double f) { const auto g = deck.getGrid(); if (g.isValid()) deck.setBpmKeepingPlayhead (g.bpm * f); }
+    void bpmTimes (double f) { const auto g = deck.getGrid(); if (g.isValid()) deck.setBpmKeepingPlayhead (std::round (g.bpm * f * 100.0) / 100.0); }
+
+    struct Factor { Button* button; double factor; juce::String label; };
 
     Deck& deck;
+    juce::TextEditor bpmField;
     std::vector<std::unique_ptr<Button>> buttons;
+    std::vector<Factor> factorBtns;
+    Button* applyBtn = nullptr;
+    Button* autoBtn = nullptr;
+    double shownBpm = -1.0;
+    bool busy = false;
 };
 
 static constexpr double padLoopSizes[8] = { 0.25, 0.5, 1, 2, 4, 8, 16, 32 };
@@ -622,6 +706,8 @@ void DeckView::cyclePitchRange()
         if (cur < ranges[i] - 1e-6) { next = ranges[i]; break; }
     deck.setPitchRange (next);
 }
+
+std::unique_ptr<juce::Component> DeckView::makeGridEditor() { return std::make_unique<GridEditor> (deck); }
 
 void DeckView::openGridEditor()
 {

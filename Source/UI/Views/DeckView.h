@@ -73,6 +73,7 @@ public:
 
     /** Keyboard / MIDI: PAD 1–8 of the current pad page, and the next page. */
     void externalPad (int pad, bool down)          { if (down) padDown (pad, false); else padUp (pad); }
+    std::unique_ptr<juce::Component> makeGridEditor();   // the GRID callout's content (also for snapshots)
     void nextPadPage()                             { setPadMode ((PadMode) (((int) padMode + 1) % numPadModes)); }
     /** Controller light of PAD 1–8 in the current page (Actions::Led: 0 off, 1 dim, 2 on, 3 blink). */
     int padLed (int pad) const                     { return juce::isPositiveAndBelow (pad, 8) ? padLeds[(size_t) pad] : 0; }

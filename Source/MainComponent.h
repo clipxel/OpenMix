@@ -35,6 +35,7 @@ public:
 
     /** Verification helper (--snapshot): load files, then call back. */
     /** Snapshot mode: advance both decks' pad pages (5 = SAMPLES/RMX). */
+    std::unique_ptr<juce::Component> gridEditorForSnapshot() { return deckA.makeGridEditor(); }
     void showAutoMixForSnapshot()                 { automixOpen = true; automix.add (libraryView.visibleTracks()); resized(); frame(); }
     void showPadPageForSnapshot (int pages)       { for (int i = 0; i < pages; ++i) { deckA.nextPadPage(); deckB.nextPadPage(); } }
     /** Snapshot mode: open a settings section (and controllers tab) for the picture. */

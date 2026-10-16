@@ -441,7 +441,7 @@ void MidiEngine::tick()
 
     for (const auto& b : map)
     {
-        if (! b.ledOut || b.action == "shift" || b.kind == MidiBinding::Kind::pitchWheel && b.outNumber < 0)
+        if (! b.ledOut || b.action == "shift" || (b.kind == MidiBinding::Kind::pitchWheel && b.outNumber < 0))
             continue;
 
         int value;

@@ -319,13 +319,16 @@ private:
                 snapshotComponent->openMappingWizardForSnapshot();
         }
         snapshotComponent->prepareSnapshot (juce::File (arg ("--load-a")), juce::File (arg ("--load-b")),
-                                            [this, out, w, h, automixShot = args.contains ("--automix")]
+                                            [this, out, w, h, automixShot = args.contains ("--automix"), gridShot = args.contains ("--grid-editor")]
         {
             if (automixShot)
             {
                 snapshotHost->main().showAutoMixForSnapshot();
             }
-            auto img = snapshotHost->createComponentSnapshot ({ 0, 0, w, h }, true, 2.0f);
+            std::unique_ptr<juce::Component> gridEd;
+            if (gridShot) { gridEd = snapshotHost->main().gridEditorForSnapshot(); }
+            auto img = gridEd != nullptr ? gridEd->createComponentSnapshot (gridEd->getLocalBounds(), true, 2.0f)
+                                         : snapshotHost->createComponentSnapshot ({ 0, 0, w, h }, true, 2.0f);
             out.deleteFile();
             juce::FileOutputStream stream (out);
             juce::PNGImageFormat().writeImageToStream (img, stream);
