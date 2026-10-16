@@ -663,7 +663,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
     for (size_t i = 0; i < ex->tracks.size() && (int) picks.size() < count; i += stride)
         picks.push_back (i);
 
-    struct Row { juce::String name, genre; double rbBpm, omBpm, rbFirst, omFirst, rbBar; bool variable; double secs; juce::String fmt; };
+    struct Row { juce::String name, genre; double rbBpm, omBpm, rbFirst, omFirst, rbBar; bool variable; double secs; juce::String fmt; juce::String path; int lead = 0; };
     std::vector<Row> rows (picks.size());
     std::atomic<int> done { 0 };
     juce::AudioFormatManager fm;
@@ -674,7 +674,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
             pool.addJob ([&, k]
             {
                 const auto& t = ex->tracks[picks[k]];
-                Row r { t.artist + " - " + t.title, t.genre, 0, 0, 0, 0, 0, false, 0, {} };
+                Row r { t.artist + " - " + t.title, t.genre, 0, 0, 0, 0, 0, false, 0, {}, ex->fileFor (t).getFullPathName() };
                 {
                     // Format + gapless header (read-only peek at the first 8 KB).
                     const auto file = ex->fileFor (t);
@@ -700,6 +700,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                 if (rd != nullptr && r.rbBpm > 0)
                 {
                     const int lead = Analysis::mp3TrimmedLeadSamples (ex->fileFor (t));
+                    r.lead = lead;
                     juce::AudioBuffer<float> buf ((int) std::min (2u, rd->numChannels), (int) rd->lengthInSamples + lead);
                     buf.clear();
                     rd->read (&buf, lead, (int) rd->lengthInSamples, 0, true, buf.getNumChannels() > 1);
@@ -746,7 +747,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                  || std::abs (r.omBpm * 1.5 - r.rbBpm) <= 0.2 || std::abs (r.omBpm / 1.5 - r.rbBpm) <= 0.2) ++octave;
         else ++wrong;
         report << juce::String (r.rbBpm, 2) << "\t" << juce::String (r.omBpm, 2) << "\t" << juce::String (phaseMs, 1) << "\t"
-               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\n";
+               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\n";
     }
     reportFile.replaceWithText (report);
 
