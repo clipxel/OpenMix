@@ -20,7 +20,24 @@ AutoMixPanel::AutoMixPanel (AutoMix& a, AudioEngine& e, Hooks h) : automix (a), 
     mixNowBtn.onClick = [this] { automix.mixNow(); };
     addAndMakeVisible (mixNowBtn);
 
-    for (int i = 0; i < 4; ++i)
+    const char* modeTips[] = {
+        "Mezcla en los últimos beats de cada tema",
+        "Cada tema suena hasta la mitad y entra el siguiente, en una frase",
+        "Mezcla larga y realista: entra sin graves, cambio de graves a la mitad y el que sale se filtra",
+        "El tema que sale se llena de reverb, se corta en el compás y entra el nuevo",
+        "El tema que sale se va con un eco al tempo, se corta en el compás y entra el nuevo",
+        "Elige solo: mezcla larga si los tempos son parecidos; eco o reverb si son muy distintos" };
+    for (int i = 0; i < (int) AutoMix::Mode::numModes; ++i)
+    {
+        auto& b = modeBtns[(size_t) i];
+        b.setButtonText (AutoMix::modeName ((AutoMix::Mode) i));
+        b.setStyle (Button::Style::segment);
+        b.setTextType (Type::micro, Weight::bold);
+        b.setTooltip (juce::String::fromUTF8 (modeTips[i]));
+        b.onClick = [this, i] { automix.setMode ((AutoMix::Mode) i); };
+        addAndMakeVisible (b);
+    }
+    for (int i = 0; i < 5; ++i)
     {
         auto& b = lengthBtns[(size_t) i];
         b.setStyle (Button::Style::segment);
@@ -74,8 +91,10 @@ void AutoMixPanel::updateButtons()
     runBtn.setIcon (on ? Icon::stop : Icon::play);
     runBtn.setToggleState (on, juce::dontSendNotification);
     mixNowBtn.setEnabled (on && ! automix.isMixing() && ! automix.queue().empty());
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
         lengthBtns[(size_t) i].setToggleState (automix.mixBeats() == lengths[i], juce::dontSendNotification);
+    for (int i = 0; i < (int) AutoMix::Mode::numModes; ++i)
+        modeBtns[(size_t) i].setToggleState ((int) automix.mode() == i, juce::dontSendNotification);
 }
 
 void AutoMixPanel::refresh()
@@ -95,7 +114,7 @@ void AutoMixPanel::refresh()
     else if (automix.isMixing())
         s = "Mezclando…"_u;
     else if (const double t = automix.secondsToMix(); t >= 0.0)
-        s = "Próxima mezcla en "_u + juce::String ((int) t / 60) + ":" + juce::String ((int) t % 60).paddedLeft ('0', 2);
+        s = AutoMix::modeName (automix.mode()) + juce::String::fromUTF8 (" · próxima mezcla en ") + juce::String ((int) t / 60) + ":" + juce::String ((int) t % 60).paddedLeft ('0', 2);
     if (s != lastStatus)
     {
         lastStatus = s;
@@ -218,9 +237,22 @@ void AutoMixPanel::resized()
     mixNowBtn.setBounds (row);
     r.removeFromTop (Space::sm);
 
+    {
+        modeLabelArea = r.removeFromTop (14);
+        const int n = (int) AutoMix::Mode::numModes, perRow = 3;
+        for (int rw = 0; rw < 2; ++rw)
+        {
+            auto line = r.removeFromTop (Size::controlSm);
+            r.removeFromTop (Space::xxs);
+            const int mw = line.getWidth() / perRow;
+            for (int k = 0; k < perRow && rw * perRow + k < n; ++k)
+                modeBtns[(size_t) (rw * perRow + k)].setBounds (line.removeFromLeft (mw));
+        }
+        r.removeFromTop (Space::xs);
+    }
     auto len = r.removeFromTop (Size::controlSm);
     lengthLabelArea = len.removeFromLeft (64);
-    const int lw = len.getWidth() / 4;
+    const int lw = len.getWidth() / 5;
     for (auto& b : lengthBtns) b.setBounds (len.removeFromLeft (lw));
     r.removeFromTop (Space::xs);
     statusArea = r.removeFromTop (20);
@@ -245,7 +277,8 @@ void AutoMixPanel::paint (juce::Graphics& g)
 
     auto h = headerArea.toFloat();
     Text::draw (g, "AUTOMIX", h, font (Type::title, Weight::bold), colour (Col::textPrimary));
-    Text::caption (g, "MEZCLA", lengthLabelArea.toFloat(), colour (Col::textTertiary), juce::Justification::centredLeft);
+    Text::caption (g, "MODO", modeLabelArea.toFloat(), colour (Col::textTertiary), juce::Justification::centredLeft);
+    Text::caption (g, "BEATS", lengthLabelArea.toFloat(), colour (Col::textTertiary), juce::Justification::centredLeft);
     Text::draw (g, lastStatus, statusArea.toFloat(), font (Type::label),
                 automix.isRunning() ? colour (Col::textSecondary) : colour (Col::textTertiary));
     if (automix.queue().empty())

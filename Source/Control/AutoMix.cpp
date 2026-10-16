@@ -92,10 +92,65 @@ void AutoMix::setStatus (const juce::String& s)
 }
 
 //==============================================================================
+juce::String AutoMix::modeName (Mode m)
+{
+    switch (m)
+    {
+        case Mode::end:        return "FINAL";
+        case Mode::half:       return "MITAD";
+        case Mode::electronic: return juce::String::fromUTF8 ("ELECTRÓNICA");
+        case Mode::reverb:     return "REVERB";
+        case Mode::echo:       return "ECO";
+        case Mode::smart:      return "INTELIGENTE";
+        default: break;
+    }
+    return {};
+}
+
+double AutoMix::beatSec (int deck) const
+{
+    const auto g = engine.deck (deck).getGrid();
+    return g.isValid() ? g.beatLengthSeconds() : 0.5;          // track seconds
+}
+
 double AutoMix::mixSeconds (int deck) const
 {
-    const double bpm = engine.deck (deck).getEffectiveBpm();
-    return bpm > 1.0 ? beats * 60.0 / bpm : juce::jlimit (4.0, 20.0, beats * 0.5);
+    return activeBeats * beatSec (deck);                        // track seconds of the outgoing deck
+}
+
+AutoMix::Mode AutoMix::plannedMode (int& b) const
+{
+    b = beats;
+    if (userMode == Mode::reverb || userMode == Mode::echo) b = juce::jlimit (8, 16, beats);
+    if (userMode != Mode::smart) return userMode;
+
+    // Smart: close tempos get a long, realistic blend; distant ones are hidden behind an echo / reverb.
+    double bo = onAir >= 0 ? engine.deck (onAir).getEffectiveBpm() : 0.0, bi = items.empty() ? 0.0 : items.front()->bpm;
+    while (bi > 1.0 && bo > 1.0 && bi / bo > 1.4) bi *= 0.5;
+    while (bi > 1.0 && bo > 1.0 && bi / bo < 0.7) bi *= 2.0;
+    const double diff = bo > 1.0 && bi > 1.0 ? std::abs (bo / bi - 1.0) : 1.0;
+    if (diff <= 0.06) { b = juce::jlimit (32, 64, beats); return Mode::electronic; }
+    b = 8;
+    return diff <= 0.15 ? Mode::echo : Mode::reverb;
+}
+
+double AutoMix::triggerPointOf (int deck) const
+{
+    auto& k = engine.deck (deck);
+    const auto g = k.getGrid();
+    const double end = endPointOf (deck), len = mixSeconds (deck);
+    if (! g.isValid()) return active == Mode::half ? k.getLength() * 0.5 : end - len;
+
+    // Transitions start on a phrase (16 beats from a downbeat; 4 for short mixes), like a DJ would.
+    const double phrase = (activeBeats >= 16 ? 16 : 4) * g.beatLengthSeconds();
+    auto phraseAtOrBefore = [&] (double t) { return g.firstBeatSeconds + std::floor ((t - g.firstBeatSeconds) / phrase) * phrase; };
+    if (active == Mode::half)
+    {
+        const double mid = k.getLength() * 0.5;
+        const double a = phraseAtOrBefore (mid), b = a + phrase;
+        return juce::jmin (std::abs (mid - a) <= std::abs (b - mid) ? a : b, phraseAtOrBefore (end - len));
+    }
+    return phraseAtOrBefore (end - len);
 }
 
 double AutoMix::startPointOf (int deck) const
@@ -149,8 +204,7 @@ double AutoMix::secondsToMix() const
 {
     if (phase != Phase::playing || onAir < 0) return -1.0;
     auto& k = engine.deck (onAir);
-    const double left = (endPointOf (onAir) - k.getPosition()) / juce::jmax (0.01, k.getTempoRatio());
-    return juce::jmax (0.0, left - mixSeconds (onAir));
+    return juce::jmax (0.0, (triggerPointOf (onAir) - k.getPosition()) / juce::jmax (0.01, k.getTempoRatio()));
 }
 
 //==============================================================================
@@ -224,6 +278,7 @@ void AutoMix::tick()
                 return;
             }
             setStatus ({});
+            active = plannedMode (activeBeats);
             const double s = secondsToMix();
             if (s <= 0.0 && isLoaded (next, items.front()))
                 startTransition();
@@ -232,18 +287,12 @@ void AutoMix::tick()
 
         case Phase::mixing:
         {
-            // Progress measured on the incoming track's own clock (exact, whatever the frame rate).
-            const int next = 1 - onAir;
-            auto& in = engine.deck (next);
-            const double elapsed = (in.getPosition() - mixInStart) / juce::jmax (0.01, in.getTempoRatio());
-            if (! bassSwapped && elapsed >= mixLengthSec * 0.5)
-            {
-                // Halfway: the new track's bass comes in as the old one's goes out.
-                engine.channel (next).eqLow = savedLow[(size_t) next];
-                engine.channel (onAir).eqLow = 0.0f;
-                bassSwapped = true;
-            }
-            if (engine.autoXfPerSecond.load() <= 0.0f && elapsed >= mixLengthSec)
+            // Progress measured on the outgoing track's own clock (exact, whatever the frame rate).
+            auto& out = engine.deck (onAir);
+            const double elapsed = (out.getPosition() - mixOutStart) / juce::jmax (0.01, out.getTempoRatio());
+            const double p = juce::jlimit (0.0, 1.0, elapsed / juce::jmax (0.1, mixLengthSec / juce::jmax (0.01, out.getTempoRatio())));
+            applyMix (p);
+            if (p >= 1.0 || ! out.isPlaying())
                 finishTransition();
             break;
         }
@@ -257,23 +306,34 @@ void AutoMix::startTransition()
     if (! isLoaded (next, items.front())) return;
 
     auto& out = engine.deck (onAir);
-    auto& in = engine.deck (next);
+    active = plannedMode (activeBeats);
     mixLengthSec = mixSeconds (onAir);
+    mixOutStart = out.getPosition();
 
-    // Sync only between close tempos (±8 %): a 90 → 128 BPM jump is better as a plain blend.
-    const double bo = out.getEffectiveBpm(), bi = in.getGrid().bpm;
-    const bool close = bo > 1.0 && bi > 1.0 && std::abs (bo / bi - 1.0) <= 0.08;
-    in.seek (startPointOf (next));
-    in.setSync (close);
-    in.setPlaying (true);
+    for (int d = 0; d < 2; ++d)
+    {
+        auto& c = engine.channel (d);
+        saved[(size_t) d] = { c.eqLow.load(), c.eqMid.load(), c.eqHigh.load(), c.filter.load(), c.fader.load(), c.xfAssign.load() };
+    }
+    auto& fx = engine.fx (onAir, 0);
+    savedFx = { fx.enabled.load(), fx.type.load(), fx.wet.load(), fx.param.load() };
+    engine.autoXfPerSecond = 0.0f;
 
-    engine.channel (next).fader = engine.channel (onAir).fader.load();
-    savedLow = { engine.channel (0).eqLow.load(), engine.channel (1).eqLow.load() };
-    engine.channel (next).eqLow = 0.0f;                      // bass of the new track waits for the swap
-    bassSwapped = false;
-    engine.startAutoCrossfade (next == 0 ? -1.0f : 1.0f, mixLengthSec);
-    mixInStart = startPointOf (next);         // the seek lands on the audio thread; its target is exact
+    if (active == Mode::reverb || active == Mode::echo)
+    {
+        // Channel faders do this one (FX ring out after the fader; the crossfader would cut the tail).
+        for (int d = 0; d < 2; ++d) engine.channel (d).xfAssign = (int) ChannelStrip::XfAssign::thru;
+        fx.enabled = false;
+        fx.type = (int) (active == Mode::reverb ? BeatFx::Type::reverb : BeatFx::Type::echo);
+        fx.param = BeatFx::defaultParam ((BeatFx::Type) fx.type.load());
+        fx.wet = 0.0f;
+        fx.enabled = true;
+        incomingStarted = false;          // the new track drops in on the bar, halfway
+    }
+    else
+        startIncoming();
 
+    cutDone = false;
     items.erase (items.begin());
     preloaded = nullptr;
     preloadDeck = -1;
@@ -281,13 +341,89 @@ void AutoMix::startTransition()
     sendChangeMessage();
 }
 
+void AutoMix::startIncoming()
+{
+    const int next = 1 - onAir;
+    auto& out = engine.deck (onAir);
+    auto& in = engine.deck (next);
+    // Sync only between close tempos (±8 %): a 90 → 128 BPM jump is better without it.
+    const double bo = out.getEffectiveBpm(), bi = in.getGrid().bpm;
+    const bool close = bo > 1.0 && bi > 1.0 && std::abs (bo / bi - 1.0) <= 0.08;
+    in.seek (startPointOf (next));
+    in.setSync (close);
+    in.setPlaying (true);
+    engine.channel (next).fader = saved[(size_t) onAir].fader;
+    incomingStarted = true;
+}
+
+void AutoMix::applyMix (double p)
+{
+    const int o = onAir, n = 1 - onAir;
+    auto& co = engine.channel (o);
+    auto& cn = engine.channel (n);
+    const float so = o == 0 ? -1.0f : 1.0f;                     // crossfader side of the outgoing deck
+    auto ramp = [p] (double a, double b) { return (float) juce::jlimit (0.0, 1.0, (p - a) / (b - a)); };
+
+    switch (active)
+    {
+        case Mode::end:
+        case Mode::half:
+            engine.crossfader = so * (1.0f - 2.0f * (float) p);
+            cn.eqLow = p < 0.5 ? 0.0f : saved[(size_t) n].low;   // bass swap halfway
+            co.eqLow = p < 0.5 ? saved[(size_t) o].low : 0.0f;
+            break;
+
+        case Mode::electronic:
+        {
+            // In over the first quarter, both together, out over the last quarter.
+            engine.crossfader = p < 0.25 ? so * (1.0f - ramp (0.0, 0.25)) : p < 0.75 ? 0.0f : -so * ramp (0.75, 1.0);
+            // The new track comes in thin (no bass, soft highs); bass swap halfway; the old one is filtered out.
+            cn.eqLow  = p < 0.5 ? 0.0f : saved[(size_t) n].low;
+            cn.eqHigh = juce::jmap (ramp (0.0, 0.5), 0.25f, saved[(size_t) n].high);
+            co.eqLow  = p < 0.5 ? saved[(size_t) o].low : 0.0f;
+            co.eqHigh = juce::jmap (ramp (0.5, 1.0), saved[(size_t) o].high, 0.2f);
+            co.filter = saved[(size_t) o].filter + 0.55f * ramp (0.7, 1.0);
+            break;
+        }
+
+        case Mode::reverb:
+        case Mode::echo:
+        {
+            auto& fx = engine.fx (o, 0);
+            fx.wet = 0.9f * ramp (0.0, 0.5);
+            co.filter = saved[(size_t) o].filter + 0.35f * ramp (0.0, 0.5);
+            if (p >= 0.5 && ! cutDone)
+            {
+                co.fader = 0.0f;                                      // cut on the bar: the FX tail keeps ringing
+                cutDone = true;
+                if (! incomingStarted) startIncoming();
+            }
+            break;
+        }
+
+        case Mode::smart:
+        case Mode::numModes:
+        default: break;
+    }
+}
+
 void AutoMix::finishTransition()
 {
     const int old = onAir, next = 1 - onAir;
     if (old < 0) return;
+    if (! incomingStarted) startIncoming();
     engine.deck (old).setPlaying (false);
-    engine.channel (old).eqLow = savedLow[(size_t) old];
-    engine.channel (next).eqLow = savedLow[(size_t) next];
+    for (int d = 0; d < 2; ++d)
+    {
+        auto& c = engine.channel (d);
+        const auto& sv = saved[(size_t) d];
+        c.eqLow = sv.low; c.eqMid = sv.mid; c.eqHigh = sv.high; c.filter = sv.filter;
+        c.fader = d == next ? juce::jmax (sv.fader, saved[(size_t) old].fader) : sv.fader;
+    }
+    auto& fx = engine.fx (old, 0);
+    fx.enabled = savedFx.enabled; fx.type = savedFx.type; fx.wet = savedFx.wet; fx.param = savedFx.param;
+    engine.channel (0).xfAssign = (int) ChannelStrip::XfAssign::a;
+    engine.channel (1).xfAssign = (int) ChannelStrip::XfAssign::b;
     engine.deck (next).setSync (false);                      // its tempo glides home while it plays
     engine.crossfader = next == 0 ? -1.0f : 1.0f;
     engine.autoXfPerSecond = 0.0f;

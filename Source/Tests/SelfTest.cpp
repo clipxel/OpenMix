@@ -1770,12 +1770,59 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    && eng.crossfader.load() > 0.99f,
                    "AUTOMIX: pasa del tema 1 al 2 sola (cruce con crossfader, el viejo se detiene)",
                    "mezcla a " + juce::String (before, 1) + " beats del final");
-        rep.check (before > 6.0 && before < 10.5, "AUTOMIX: la mezcla empieza a 8 beats del final (largo elegido)");
+        rep.check (before > 7.5 && before < 12.5, "AUTOMIX: la mezcla empieza en un compás, con 8 beats o más antes del final");
         rep.check (longestGap < 0.1, "AUTOMIX: nunca se corta el sonido durante el pase",
                    "silencio máximo " + juce::String (longestGap * 1000.0, 0) + " ms");
         rep.check (eng.channel (0).eqLow.load() == 0.5f && eng.channel (1).eqLow.load() == 0.5f,
                    "AUTOMIX: los graves vuelven a su lugar después del cambio de bajos");
         am.setRunning (false);
+    }
+
+    {
+        // Every AUTOMIX mode: reaches the next track, never goes silent, leaves the mixer as it was.
+        juce::String bad;
+        for (int m = 0; m < (int) AutoMix::Mode::numModes; ++m)
+        {
+            AudioEngine eng;
+            eng.prepareForTest (sr, block);
+            std::vector<float> l (block), r (block), l3 (block), r3 (block);
+            float* outs[4] = { l.data(), r.data(), l3.data(), r3.data() };
+            auto mkTrack = [] (const LoadedTrackPtr& lt) { auto t = std::make_shared<Track>(); t->file = lt->file; t->bpm = lt->grid().bpm; return t; };
+            AutoMix am (eng, { [&] (const TrackPtr& t, int d) { eng.deck (d).setTrack (t->file == ta->file ? ta : tb); } });
+            am.setMode ((AutoMix::Mode) m);
+            am.setMixBeats (16);
+            am.add ({ mkTrack (ta), mkTrack (tb) });
+            am.setRunning (true);
+            double t = 0.0, gap = 0.0, longestGap = 0.0;
+            bool started = false, mixed = false;
+            while (t < 75.0)
+            {
+                for (int k = 0; k < (int) (0.05 * sr / block); ++k)
+                {
+                    eng.audioDeviceIOCallbackWithContext (nullptr, 0, outs, 2, block, {});
+                    float pk = 0.0f;
+                    for (int i = 0; i < block; ++i) pk = juce::jmax (pk, std::abs (l[(size_t) i]));
+                    if (started) { gap = pk < 0.01f ? gap + (double) block / sr : 0.0; longestGap = juce::jmax (longestGap, gap); }
+                    started |= pk > 0.05f;
+                }
+                am.tick();
+                t += 0.05;
+                mixed |= am.isMixing();
+                if (mixed && ! am.isMixing() && am.onAirDeck() == 1) break;
+            }
+            const bool restored = eng.channel (0).eqLow.load() == 0.5f && eng.channel (1).eqLow.load() == 0.5f
+                               && eng.channel (0).eqHigh.load() == 0.5f && std::abs (eng.channel (0).filter.load()) < 1e-6f
+                               && eng.channel (1).fader.load() > 0.99f && ! eng.fx (0, 0).enabled.load()
+                               && eng.channel (0).xfAssign.load() == (int) ChannelStrip::XfAssign::a;
+            const bool ok = mixed && am.onAirDeck() == 1 && eng.deck (1).isPlaying() && ! eng.deck (0).isPlaying()
+                         && longestGap < 0.1 && restored;
+            if (! ok)
+                bad << AutoMix::modeName ((AutoMix::Mode) m) << (mixed ? "" : " no mezcló") << (longestGap >= 0.1 ? " silencio " + juce::String (longestGap, 2) + " s" : juce::String())
+                    << (restored ? "" : " mixer sin restaurar") << " · ";
+            am.setRunning (false);
+        }
+        rep.check (bad.isEmpty(), "AUTOMIX: los 6 modos (final, mitad, electrónica, reverb, eco, inteligente) pasan al tema siguiente sin cortes"_u,
+                   bad.isEmpty() ? juce::String ("ok") : bad);
     }
 
     std::cout << "== Sync" << std::endl;

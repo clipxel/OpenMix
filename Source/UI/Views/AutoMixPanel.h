@@ -55,12 +55,13 @@ private:
     Button closeBtn { {}, Icon::close, Button::Style::ghost };
     Button runBtn { "INICIAR", Icon::play };
     Button mixNowBtn { "MEZCLAR AHORA" };
-    std::array<Button, 4> lengthBtns { Button { "4" }, Button { "8" }, Button { "16" }, Button { "32" } };
-    static constexpr int lengths[4] = { 4, 8, 16, 32 };
+    std::array<Button, 5> lengthBtns { Button { "4" }, Button { "8" }, Button { "16" }, Button { "32" }, Button { "64" } };
+    static constexpr int lengths[5] = { 4, 8, 16, 32, 64 };
+    std::array<Button, (size_t) AutoMix::Mode::numModes> modeBtns;
     Button addSelBtn { "+ Selección"_u }, addAllBtn { "+ Lista visible" }, shuffleBtn { "Aleatorio" }, clearBtn { "Vaciar" };
     juce::ListBox list { "automix", this };
 
-    juce::Rectangle<int> headerArea, lengthLabelArea, statusArea;
+    juce::Rectangle<int> headerArea, lengthLabelArea, modeLabelArea, statusArea;
     juce::String lastStatus;
     int dropIndex = -1;
     int shownRows = -1;

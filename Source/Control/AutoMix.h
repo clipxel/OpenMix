@@ -40,6 +40,21 @@ public:
     int  mixBeats() const noexcept                          { return beats; }
     void setMixBeats (int b)                                { beats = juce::jlimit (1, 64, b); sendChangeMessage(); }
 
+    /** How each transition is made. */
+    enum class Mode
+    {
+        end = 0,       // blend over the last N beats of the track
+        half,          // each track plays about half, then the next comes in (on a phrase)
+        electronic,    // long realistic blend: new track without bass, bass swap halfway, old one filtered out
+        reverb,        // the old track washes out in reverb, is cut on the bar, the new one drops in
+        echo,          // same with a tempo echo
+        smart,         // picks per pair: electronic blend for close tempos, echo / reverb out otherwise
+        numModes
+    };
+    static juce::String modeName (Mode);
+    Mode mode() const noexcept                              { return userMode; }
+    void setMode (Mode m)                                   { userMode = m; sendChangeMessage(); }
+
     /** Called every UI frame. */
     void tick();
 
@@ -53,6 +68,11 @@ private:
     enum class Phase { idle, starting, playing, mixing };
 
     double mixSeconds (int deck) const;
+    double beatSec (int deck) const;
+    double triggerPointOf (int deck) const;      // track seconds where the next transition starts
+    Mode   plannedMode (int& beatsOut) const;     // effective mode and length for the next transition
+    void   applyMix (double p);                   // per frame during a transition (0…1)
+    void   startIncoming();
     double startPointOf (int deck) const;
     double endPointOf (int deck) const;
     bool   isLoaded (int deck, const TrackPtr&) const;
@@ -70,9 +90,13 @@ private:
     int onAir = -1;                 // deck on air
     TrackPtr preloaded;             // what the free deck was asked to load
     int preloadDeck = -1;
-    double mixInStart = 0.0, mixLengthSec = 0.0;
-    bool bassSwapped = false;
-    std::array<float, 2> savedLow { 0.5f, 0.5f };
+    Mode userMode = Mode::end, active = Mode::end;
+    int activeBeats = 16;
+    double mixOutStart = 0.0, mixLengthSec = 0.0;
+    bool incomingStarted = false, cutDone = false;
+    struct Strip { float low, mid, high, filter, fader; int assign; };
+    std::array<Strip, 2> saved {};
+    struct Fx { bool enabled; int type; float wet, param; } savedFx {};
     juce::String statusText;
     mutable std::array<std::pair<const void*, double>, 2> endCache {};   // per deck: track → end of the music
 };
