@@ -696,7 +696,7 @@ static bool fitGridToDrawnHits (const juce::AudioBuffer<float>& audio, double sr
     const double fps = WaveformData::framesPerSecond;
     auto height = [&w] (int f) { return juce::jmax (0.98f * w.low[(size_t) f], 0.80f * w.mid[(size_t) f], 0.55f * w.high[(size_t) f]); };
     const double beat = 60.0 / bpm;
-    const int w0 = (int) (0.045 * fps), w1 = (int) (0.045 * fps);
+    const int w0 = (int) (0.018 * fps), w1 = (int) (0.018 * fps);    // only a fine correction around the line
     std::vector<std::pair<double, double>> pts;             // (beat index, hit start in seconds)
     const double first = std::fmod (phase, beat);
     for (int n = 0; ; ++n)
@@ -731,9 +731,11 @@ static bool fitGridToDrawnHits (const juce::AudioBuffer<float>& audio, double sr
             const double d = (y - (first + beat * x)) * 1000.0;
             hist[(size_t) juce::jlimit (0, 45, (int) std::floor ((d + 45.0) / 2.0))] += 1.0;
         }
-        int bi = 0; double bv = -1.0;
-        for (int i = 1; i + 1 < 46; ++i)
+        int bi = 0; double bv = -1.0, total = 0.0;
+        for (auto v : hist) total += v;
+        for (int i = 14; i + 1 < 32; ++i)                      // the mode within ±16 ms of the line
             if (const double v = hist[(size_t) i - 1] * 0.5 + hist[(size_t) i] + hist[(size_t) i + 1] * 0.5; v > bv) { bv = v; bi = i; }
+        if (bv < 0.25 * total) return false;                   // no clear, repeated hit there: leave the grid
         a = first + (bi * 2.0 - 45.0 + 1.0) / 1000.0;
         if (dbg)
         {
@@ -774,6 +776,36 @@ static bool fitGridToDrawnHits (const juce::AudioBuffer<float>& audio, double sr
     bpm = newBpm;
     phase = a + res[res.size() / 2];
     return true;
+}
+
+// On the kick or on the off-beat? Compares, over the whole track, the low band of the drawn waveform
+// (where the kick is) on the lines and halfway between them. Hi-hats and claps can pull a grid onto
+// the off-beats; the kick decides. Returns true if the grid must move half a beat.
+[[maybe_unused]] static bool kickIsOffBeat (const juce::AudioBuffer<float>& audio, double sr, double bpm, double phase)
+{
+    const auto w = computeWaveform (audio, sr);
+    const int nf = w.numFrames();
+    if (nf < 100 || bpm <= 0.0) return false;
+    const double fps = WaveformData::framesPerSecond, beat = 60.0 / bpm;
+    const int win = (int) (0.025 * fps);
+    // A kick is a sharp hit: how much the low band JUMPS within ~5 ms (a sustained bass note on the
+    // off-beat rises slowly and does not count much).
+    const int jump = juce::jmax (1, (int) std::round (0.005 * fps));
+    auto lowAt = [&] (double t)
+    {
+        const int c = (int) std::round (t * fps);
+        int m = 0;
+        for (int f = juce::jmax (jump, c - win); f <= juce::jmin (nf - 1, c + win); ++f)
+            m = juce::jmax (m, (int) w.low[(size_t) f] - (int) w.low[(size_t) (f - jump)]);
+        return (double) m;
+    };
+    double on = 0, off = 0;
+    for (double t = std::fmod (std::fmod (phase, beat) + beat, beat); t < nf / fps - beat; t += beat)
+    {
+        on += lowAt (t);
+        off += lowAt (t + beat * 0.5);
+    }
+    return off > on * 1.5;                                  // only when the kick is clearly there
 }
 
 // Fine tempo (±0.6 %) and phase (≈1 ms) from the kick attacks of the whole track.
@@ -920,7 +952,7 @@ BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid 
     }
     phase += attackCalibrationSec;
     if (! fitGridToDrawnHits (audio, sr, bpm, phase))          // exact tempo and phase from every hit
-        if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.040)
+        if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.016)
             phase += d;                                        // too few clear hits: just the median start
     // Keep the DJ's bar: the refined beat nearest to the old beat 1, as the new beat 1.
     const double beat = 60.0 / bpm;
@@ -968,7 +1000,7 @@ BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const
     }
     phase += attackCalibrationSec;
     if (! fitGridToDrawnHits (audio, sr, bpm, phase))          // exact tempo and phase from every hit
-        if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.040)
+        if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.016)
             phase += d;                                        // too few clear hits: just the median start
 
     // BPM range 70–160 (the DJ's choice): a double- or half-time reading is folded into it.

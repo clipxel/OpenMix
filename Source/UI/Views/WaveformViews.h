@@ -23,6 +23,7 @@ public:
     explicit ScrollingWaveform (Deck&);
 
     void setSecondsVisible (double s)             { secondsVisible = s; repaint(); }
+    double trackSecondsVisible() const;           // track time on screen: the same beats in both lanes
     void refresh();                                // once per frame
     void paint (juce::Graphics&) override;
 

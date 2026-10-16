@@ -62,6 +62,8 @@ public:
         autoBtn = add ("AJUSTE AUTOMÁTICO"_u, "Con el BPM de arriba, encuentra la grilla exacta sobre los bombos de todo el tema"_u,
                        [this] { autoFit(); });
         autoBtn->setLitColour (colour (Col::play));
+        add ("½ BEAT"_u, "Correr toda la grilla medio beat (si quedó en el contratiempo, sobre el hi-hat)"_u,
+             [this] { const auto g = deck.getGrid(); if (g.isValid()) deck.shiftGrid (g.beatLengthSeconds() * 0.5); });
         add ("1 AQUÍ"_u, "Marcar el beat 1 del compás en la posición actual"_u, [this] { deck.setDownbeatHere(); });
         add ("RESTAURAR", "Volver a la grilla del análisis"_u, [this] { deck.resetGrid(); });
 
@@ -105,7 +107,7 @@ public:
         auto* autoB = next();
         autoB->setBounds (last.removeFromLeft (last.getWidth() / 2));
         last.removeFromLeft (Space::xs);
-        spread (last, { next(), next() });                             // 1 AQUÍ, RESTAURAR
+        spread (last, { next(), next(), next() });                     // ½ BEAT, 1 AQUÍ, RESTAURAR
     }
 
 private:

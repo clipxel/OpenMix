@@ -98,9 +98,10 @@ void ScrollingWaveform::paint (juce::Graphics& g)
     }
 
     const double pos = deck.getPosition();
-    const double spp = secondsVisible / juce::jmax (1.0f, r.getWidth());
+    const double visible = trackSecondsVisible();
+    const double spp = visible / juce::jmax (1.0f, r.getWidth());
     const double start = pos - (double) (r.getWidth() * 0.5f) * spp;
-    const double end = start + secondsVisible;
+    const double end = start + visible;
     auto xOf = [&] (double t) { return r.getX() + (float) ((t - start) / spp); };
 
     // Loop region (behind the waveform)
@@ -208,6 +209,14 @@ void ScrollingWaveform::paint (juce::Graphics& g)
     Text::draw (g, deck.getIndex() == 0 ? "1" : "2", tag, font (Type::caption, Weight::bold), deckCol, juce::Justification::centred, false);
 }
 
+double ScrollingWaveform::trackSecondsVisible() const
+{
+    // The lanes show the same number of BEATS (not seconds): two synced tracks scroll together, beat
+    // under beat, whatever their tempos. The zoom (secondsVisible) is expressed at 120 BPM.
+    const auto g = deck.getGrid();
+    return g.isValid() ? secondsVisible * 2.0 * g.beatLengthSeconds() : secondsVisible;
+}
+
 void ScrollingWaveform::mouseDown (const juce::MouseEvent& e)
 {
     lastDragX = e.x;
@@ -218,7 +227,7 @@ void ScrollingWaveform::mouseDrag (const juce::MouseEvent& e)
 {
     const int dx = e.x - lastDragX;
     lastDragX = e.x;
-    const double spp = secondsVisible / juce::jmax (1, getWidth());
+    const double spp = trackSecondsVisible() / juce::jmax (1, getWidth());
 
     if (wasPlaying)
         deck.jogBend (juce::jlimit (-1.0, 1.0, -dx * 0.15));

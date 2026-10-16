@@ -229,6 +229,31 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::frame()
 {
+    // Development aid: with "devcapture" in the data folder, a "capture.request" file makes OpenMix
+    // save an image of its own window (capture.png) — only this window, no screen permission needed.
+    {
+        static juce::uint32 lastCheck = 0;
+        const auto now = juce::Time::getMillisecondCounter();
+        if (now - lastCheck > 400)
+        {
+            lastCheck = now;
+            const auto dir = Library::dataFolder();
+            const auto req = dir.getChildFile ("capture.request");
+            if (req.existsAsFile() && dir.getChildFile ("devcapture").existsAsFile())
+            {
+                req.deleteFile();
+                if (auto* top = getTopLevelComponent())
+                {
+                    const auto img = top->createComponentSnapshot (top->getLocalBounds(), true, 1.0f);
+                    const auto out = dir.getChildFile ("capture.png");
+                    out.deleteFile();
+                    juce::FileOutputStream os (out);
+                    if (os.openedOk()) juce::PNGImageFormat().writeImageToStream (img, os);
+                }
+            }
+        }
+    }
+
     actions.tick();
     keyboard.tick();
     if (midi != nullptr) midi->tick();
