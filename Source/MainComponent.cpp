@@ -496,6 +496,7 @@ void MainComponent::loadSettings()
     engine.splitMono = settings->getBoolValue ("splitMono", false);
     engine.limiter().ceilingDb = (float) settings->getDoubleValue ("limiterCeiling", -0.5);
     engine.autoGain = settings->getBoolValue ("autoGain", true);
+    for (int d = 0; d < 2; ++d) engine.deck (d).setAutoCue (settings->getBoolValue ("autoCue", true));
 }
 
 void MainComponent::saveSettings()
@@ -535,6 +536,7 @@ void MainComponent::saveSettings()
     settings->setValue ("splitMono", engine.splitMono.load());
     settings->setValue ("limiterCeiling", engine.limiter().ceilingDb.load());
     settings->setValue ("autoGain", engine.autoGain.load());
+    settings->setValue ("autoCue", engine.deck (0).isAutoCue());
     if (auto xml = engine.getDeviceManager().createStateXml())
         settings->setValue ("audioDevice", xml.get());
     settings->saveIfNeeded();

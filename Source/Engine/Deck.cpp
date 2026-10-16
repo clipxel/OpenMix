@@ -83,6 +83,13 @@ void Deck::setTrack (LoadedTrackPtr t)
                 cuePoint = (double) f / WaveformData::framesPerSecond;
                 break;
             }
+        // On the first hit: the grid beat at (or just before) that first sound.
+        const auto g = track->grid();
+        if (g.isValid() && cuePoint > 0.0)
+        {
+            const double b = g.timeOfBeat (std::round (g.beatAt (cuePoint)));
+            if (b >= 0.0 && std::abs (b - cuePoint) < g.beatLengthSeconds() * 0.5) cuePoint = b;
+        }
     }
 
     publishedPos = cuePoint;

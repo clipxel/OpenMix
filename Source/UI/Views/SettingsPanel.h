@@ -72,6 +72,7 @@ private:
     Button resetSizes { juce::String::fromUTF8 ("Restablecer tamaños originales") };
     Segmented xfCurve { { "SUAVE", "CORTE", "POTENCIA" } };
     Segmented limCeiling { { "-0.1 dBTP", "-0.5 dBTP", "-1.0 dBTP" } };
+    juce::ToggleButton autoCueToggle { "Auto cue: al cargar un tema sin cue, ponerlo en el primer golpe" };
     juce::ToggleButton autoGainToggle { "Auto-gain: igualar sonoridad al cargar (objetivo -14 LUFS)" };
 
     // Controllers

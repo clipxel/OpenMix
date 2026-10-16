@@ -127,6 +127,8 @@ SettingsPanel::SettingsPanel (AudioEngine& e, Library& l) : engine (e), library 
     addChildComponent (limCeiling);
     autoGainToggle.onClick = [this] { engine.autoGain = autoGainToggle.getToggleState(); };
     addChildComponent (autoGainToggle);
+    autoCueToggle.onClick = [this] { for (int d = 0; d < 2; ++d) engine.deck (d).setAutoCue (autoCueToggle.getToggleState()); };
+    addChildComponent (autoCueToggle);
 
     resetSizes.onClick = [this]
     {
@@ -418,7 +420,7 @@ void SettingsPanel::setSection (int s)
     if (s == audio) audioView.refresh();
     for (auto& b : swatches) b->setVisible (s == appearance);
     hexField.setVisible (s == appearance);
-    for (auto* c : std::initializer_list<juce::Component*> { &laneSlider, &resetSizes, &xfCurve, &limCeiling, &autoGainToggle })
+    for (auto* c : std::initializer_list<juce::Component*> { &laneSlider, &resetSizes, &xfCurve, &limCeiling, &autoGainToggle, &autoCueToggle })
         c->setVisible (s == layout);
     for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &bindingBox })
         c->setVisible (s == controllers);
@@ -447,6 +449,7 @@ void SettingsPanel::syncLayoutControls()
         limCeiling.setSelected (ceil > -0.3f ? 0 : ceil > -0.75f ? 1 : 2);
     }
     autoGainToggle.setToggleState (engine.autoGain.load(), juce::dontSendNotification);
+    autoCueToggle.setToggleState (engine.deck (0).isAutoCue(), juce::dontSendNotification);
     hexField.setText ("#" + accent().toDisplayString (false), false);
 }
 
@@ -531,6 +534,7 @@ void SettingsPanel::resized()
         limCeiling.setBounds (c.removeFromTop (24).withWidth (300));
         c.removeFromTop (Space::md);
         autoGainToggle.setBounds (c.removeFromTop (24).withWidth (460));
+        autoCueToggle.setBounds (c.removeFromTop (24).withWidth (460));
         c.removeFromTop (Space::xl + 4);
         resetSizes.setBounds (c.removeFromTop (Size::controlMd + 2).withWidth (240));
     }
