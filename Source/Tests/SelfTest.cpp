@@ -749,7 +749,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                  || std::abs (r.omBpm * 1.5 - r.rbBpm) <= 0.2 || std::abs (r.omBpm / 1.5 - r.rbBpm) <= 0.2) ++octave;
         else ++wrong;
         report << juce::String (r.rbBpm, 2) << "\t" << juce::String (r.omBpm, 2) << "\t" << juce::String (phaseMs, 1) << "\t"
-               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\t" << juce::String (r.q.offsetMs, 1) << "\t" << juce::String (r.q.spreadMs, 1) << "\t" << juce::String (r.q.driftMs, 1) << "\t" << r.q.hits << "\n";
+               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\t" << juce::String (r.q.offsetMs, 1) << "\t" << juce::String (r.q.spreadMs, 1) << "\t" << juce::String (r.q.driftMs, 1) << "\t" << r.q.hits << "\t" << juce::String (r.q.startMs, 1) << "\n";
     }
     reportFile.replaceWithText (report);
 

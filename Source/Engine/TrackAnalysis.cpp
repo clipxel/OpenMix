@@ -429,6 +429,7 @@ GridQuality evaluateGrid (const juce::AudioBuffer<float>& audio, double sr, Beat
     for (auto v : all) dev.push_back (std::abs (v - q.offsetMs));
     q.spreadMs = median (dev);
     if (first.size() >= 8 && last.size() >= 8) q.driftMs = median (last) - median (first);
+    if (first.size() >= 8) q.startMs = median (first);
     return q;
 }
 
@@ -603,7 +604,7 @@ static constexpr double attackCalibrationSec = 0.0;     // the line sits on the 
 // Sharp phase from the hits' attacks: full-band transient strength (pre-emphasised energy rise at
 // 0.25 ms) folded onto the beat lines of the WHOLE track; the grid moves to where the attacks pile up.
 // One fit for all beats together is far steadier than measuring hits one by one.
-static double attackPhaseShift (const juce::AudioBuffer<float>& audio, double sr, double bpm, double phase)
+static double attackPhaseShift (const juce::AudioBuffer<float>& audio, double sr, double bpm, double phase, int maxBeats = 1 << 30)
 {
     const int n = audio.getNumSamples();
     if (n < 1000 || bpm <= 0.0 || sr <= 0.0) return 0.0;
@@ -628,11 +629,16 @@ static double attackPhaseShift (const juce::AudioBuffer<float>& audio, double sr
     const int span = (int) std::round (0.030 * fps);
     std::vector<double> h ((size_t) (2 * span + 1), 0.0);
     const double beat = 60.0 / bpm;
-    for (double t = std::fmod (phase, beat); ; t += beat)
+    int used = 0;
+    for (double t = std::fmod (phase, beat); used < maxBeats; t += beat)
     {
         const int c = (int) std::round (t * fps);
         if (c + span + 1 >= frames) break;
         if (c - span - lag < 0) continue;
+        // Beats without any attack (silent intro) do not count towards the limit.
+        float strongest = 0.0f;
+        for (int k = -span; k <= span; ++k) strongest = juce::jmax (strongest, le[(size_t) (c + k)] - le[(size_t) (c + k - lag)]);
+        if (strongest > 0.5f) ++used;
         for (int k = -span; k <= span; ++k)
         {
             const float r = le[(size_t) (c + k)] - le[(size_t) (c + k - lag)];
@@ -767,11 +773,13 @@ static bool fitGridToDrawnHits (const juce::AudioBuffer<float>& audio, double sr
     // Produced music sits on round tempos: keep the round value when the fit is that close to it.
     if (std::abs (newBpm - std::round (newBpm)) < 0.015) newBpm = std::round (newBpm);
     else newBpm = std::round (newBpm * 100.0) / 100.0;
-    // Re-anchor the line on the hits with the final tempo (median residual).
+    // Re-anchor the line on the hits with the final tempo — on the FIRST bars with clear hits: if the
+    // tempo moves a little later on (live drums, old recordings), the start, where the DJ mixes in,
+    // stays exact.
     const double nb = 60.0 / newBpm;
     std::vector<double> res;
-    for (size_t i = 0; i < pts.size(); ++i) if (keep[i]) res.push_back (pts[i].second - (a + nb * pts[i].first));
-    if (res.size() < 32) return false;
+    for (size_t i = 0; i < pts.size() && res.size() < 48; ++i) if (keep[i]) res.push_back (pts[i].second - (a + nb * pts[i].first));
+    if (res.size() < 16) return false;
     std::nth_element (res.begin(), res.begin() + (long) res.size() / 2, res.end());
     bpm = newBpm;
     phase = a + res[res.size() / 2];

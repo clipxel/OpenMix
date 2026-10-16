@@ -56,7 +56,7 @@ namespace Analysis
     /** How well a grid sits on the hits, measured on the drawn waveform (what the DJ sees):
         median offset of the hit starts from the lines, their spread, and the drift between the first
         and the last third of the track (a wrong BPM or a tempo that moves shows up as drift). */
-    struct GridQuality { double offsetMs = 0, spreadMs = 0, driftMs = 0; int hits = 0; };
+    struct GridQuality { double offsetMs = 0, spreadMs = 0, driftMs = 0, startMs = 0; int hits = 0; };
     GridQuality evaluateGrid (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid grid);
 
     /** Diagnostics: median start of the kicks relative to a grid's beats (ms, − = before the line). */
