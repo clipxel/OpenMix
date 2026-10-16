@@ -127,7 +127,7 @@ void Deck::cueDown()
     const auto here = getPosition();
     if (std::abs (here - cuePoint) > 0.02)
     {
-        cuePoint = snap (here);
+        cuePoint = here;            // exactly where the DJ left it (never pulled onto the grid)
         requestSeek (cuePoint);
         notifyCues();
         return;
