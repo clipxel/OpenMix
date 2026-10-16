@@ -717,14 +717,14 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
 
     int n = 0, exact = 0, octave = 0, wrong = 0, none = 0, phaseOk = 0, barOk = 0, varN = 0;
     double totalSecs = 0;
-    juce::String report = "rb_bpm\tom_bpm\tphase_ms\tbar_ok\tvariable\tfmt\tgenre\ttrack\n";
+    juce::String report = "rb_bpm\tom_bpm\tphase_ms\tbar_ok\tvariable\tfmt\tgenre\ttrack\tbar_off\n";
     for (auto& r : rows)
     {
         if (r.rbBpm <= 0) continue;
         ++n; totalSecs += r.secs;
         if (r.variable) ++varN;
         juce::String cls;
-        double phaseMs = -1;
+        double phaseMs = -1, barOff = -1;
         bool bar = false;
         if (r.omBpm <= 0) { ++none; cls = "none"; }
         else if (std::abs (r.omBpm - r.rbBpm) <= 0.1)
@@ -740,12 +740,13 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
             bd = juce::jmin (bd, 4 * beat - bd);
             bar = bd <= 0.02;
             if (bar) ++barOk;
+            barOff = std::fmod (std::round ((r.omFirst - r.rbBar) / beat) + 400.0, 4.0);
         }
         else if (std::abs (r.omBpm * 2 - r.rbBpm) <= 0.2 || std::abs (r.omBpm / 2 - r.rbBpm) <= 0.1
                  || std::abs (r.omBpm * 1.5 - r.rbBpm) <= 0.2 || std::abs (r.omBpm / 1.5 - r.rbBpm) <= 0.2) ++octave;
         else ++wrong;
         report << juce::String (r.rbBpm, 2) << "\t" << juce::String (r.omBpm, 2) << "\t" << juce::String (phaseMs, 1) << "\t"
-               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\n";
+               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\n";
     }
     reportFile.replaceWithText (report);
 

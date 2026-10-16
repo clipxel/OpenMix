@@ -561,6 +561,26 @@ BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const
         int down = 0;
         for (int k = 1; k < 4; ++k) if (score[(size_t) k] > score[(size_t) down]) down = k;
         phase = firstBeat + down * beatSec;
+
+        // DJ-friendly tracks (extended mixes, edits, intros) start right on a "1": when the music
+        // starts with a strong hit on the grid, that hit is the downbeat.
+        if (! f.odf.empty())
+        {
+            std::vector<float> sorted (f.odf);
+            const auto p95 = sorted.begin() + (long) (sorted.size() * 95 / 100);
+            std::nth_element (sorted.begin(), p95, sorted.end());
+            const float strong = *p95 * 0.35f;
+            int startFrame = -1;
+            for (int fr = 0; fr < (int) f.odf.size() && fr < (int) (30.0 * f.fps); ++fr)
+                if (f.odf[(size_t) fr] >= strong) { startFrame = fr; break; }
+            if (startFrame >= 0)
+            {
+                const double t0 = startFrame / f.fps;
+                const double k = std::round ((t0 - firstBeat) / beatSec);
+                if (k >= 0 && std::abs (t0 - (firstBeat + k * beatSec)) < beatSec * 0.2)
+                    phase = firstBeat + k * beatSec;
+            }
+        }
     }
 
     grid.bpm = bpm;
