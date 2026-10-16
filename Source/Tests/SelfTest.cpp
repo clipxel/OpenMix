@@ -663,7 +663,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
     for (size_t i = 0; i < ex->tracks.size() && (int) picks.size() < count; i += stride)
         picks.push_back (i);
 
-    struct Row { juce::String name, genre; double rbBpm, omBpm, rbFirst, omFirst, rbBar; bool variable; double secs; juce::String fmt; juce::String path; int lead = 0; };
+    struct Row { juce::String name, genre; double rbBpm, omBpm, rbFirst, omFirst, rbBar; bool variable; double secs; juce::String fmt; juce::String path; int lead = 0; double rbAlign = 0.0; };
     std::vector<Row> rows (picks.size());
     std::atomic<int> done { 0 };
     juce::AudioFormatManager fm;
@@ -699,13 +699,15 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                 std::unique_ptr<juce::AudioFormatReader> rd (fm.createReaderFor (ex->fileFor (t)));
                 if (rd != nullptr && r.rbBpm > 0)
                 {
-                    const int lead = Analysis::mp3TrimmedLeadSamples (ex->fileFor (t));
-                    r.lead = lead;
-                    juce::AudioBuffer<float> buf ((int) std::min (2u, rd->numChannels), (int) rd->lengthInSamples + lead);
+                    const int lead = std::getenv ("OPENMIX_RAW_TIMELINE") != nullptr ? 0 : Analysis::mp3TrimmedLeadSamples (ex->fileFor (t));
+                    r.lead = Analysis::mp3TrimmedLeadSamples (ex->fileFor (t));
+                    const int pad = juce::jmax (0, lead), skip = juce::jmax (0, -lead), len = (int) rd->lengthInSamples;
+                    juce::AudioBuffer<float> buf ((int) std::min (2u, rd->numChannels), len - skip + pad);
                     buf.clear();
-                    rd->read (&buf, lead, (int) rd->lengthInSamples, 0, true, buf.getNumChannels() > 1);
+                    rd->read (&buf, pad, len - skip, skip, true, buf.getNumChannels() > 1);
                     const auto t0 = juce::Time::getMillisecondCounterHiRes();
                     const auto g = Analysis::detectBeatGrid (buf, rd->sampleRate);
+                    r.rbAlign = Analysis::attackOffsetMs (buf, rd->sampleRate, an.grid);
                     r.secs = (juce::Time::getMillisecondCounterHiRes() - t0) / 1000.0;
                     r.omBpm = g.bpm;
                     r.omFirst = g.firstBeatSeconds;
@@ -747,7 +749,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                  || std::abs (r.omBpm * 1.5 - r.rbBpm) <= 0.2 || std::abs (r.omBpm / 1.5 - r.rbBpm) <= 0.2) ++octave;
         else ++wrong;
         report << juce::String (r.rbBpm, 2) << "\t" << juce::String (r.omBpm, 2) << "\t" << juce::String (phaseMs, 1) << "\t"
-               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\n";
+               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\t" << juce::String (r.rbAlign, 1) << "\n";
     }
     reportFile.replaceWithText (report);
 
@@ -777,11 +779,14 @@ int gridDebug (const juce::File& usbRoot, const juce::String& name)
         std::unique_ptr<juce::AudioFormatReader> rd (fm.createReaderFor (file));
         if (rd == nullptr || ! an.grid.isValid()) continue;
         const int lead = Analysis::mp3TrimmedLeadSamples (file);
-        juce::AudioBuffer<float> buf ((int) std::min (2u, rd->numChannels), (int) rd->lengthInSamples + lead);
+        const int pad = juce::jmax (0, lead), skip = juce::jmax (0, -lead), len = (int) rd->lengthInSamples;
+        juce::AudioBuffer<float> buf ((int) std::min (2u, rd->numChannels), len - skip + pad);
         buf.clear();
-        rd->read (&buf, lead, (int) rd->lengthInSamples, 0, true, buf.getNumChannels() > 1);
+        rd->read (&buf, pad, len - skip, skip, true, buf.getNumChannels() > 1);
         std::cout << file.getFileName() << "  |  rekordbox " << an.grid.bpm << " BPM @ " << an.grid.firstBeatSeconds << " s" << std::endl
-                  << Analysis::debugGrid (buf, rd->sampleRate, an.grid) << std::endl;
+                  << Analysis::debugGrid (buf, rd->sampleRate, an.grid) << std::endl
+                  << "-- reacomodada al cargar en OpenMix:" << std::endl
+                  << Analysis::debugGrid (buf, rd->sampleRate, Analysis::alignGridToKicks (buf, rd->sampleRate, an.grid)) << std::endl;
         return 0;
     }
     std::cout << "no encontrado" << std::endl;
@@ -2659,14 +2664,14 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         }
         rep.check (before == fingerprint(), "Ningún archivo del pendrive cambió"_u);
 
-        // Cues created in OpenMix travel with the drive in <drive>/.OpenMix only.
+        // Cues created in OpenMix travel with the drive in <drive>/OpenMix only.
         VolumeCueStore::setExtraVolumeRoot (usbRoot);
-        usbRoot.getChildFile (".OpenMix").deleteRecursively();
+        usbRoot.getChildFile ("OpenMix").deleteRecursively();
         const auto exportBefore = [&usbRoot]
         {
             juce::StringArray fp;
             for (const auto& e : juce::RangedDirectoryIterator (usbRoot, true, "*", juce::File::findFilesAndDirectories))
-                if (! e.getFile().getRelativePathFrom (usbRoot).startsWith (".OpenMix"))
+                if (! e.getFile().getRelativePathFrom (usbRoot).startsWith ("OpenMix"))
                     fp.add (e.getFile().getRelativePathFrom (usbRoot) + "|" + juce::String (e.getFileSize()) + "|"
                             + juce::String (e.getModificationTime().toMilliseconds()));
             fp.sort (false);
@@ -2675,19 +2680,19 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         const auto fpBefore = exportBefore();
         VolumeCueStore store;
         const auto trackFile = usbRoot.getChildFile ("Contents/Test Artist - Test Groove 124.wav");
-        rep.check (! store.get (trackFile).has_value() && ! usbRoot.getChildFile (".OpenMix").exists(),
+        rep.check (! store.get (trackFile).has_value() && ! usbRoot.getChildFile ("OpenMix").exists(),
                    "Leer no crea nada en el pendrive");
         VolumeCueStore::Cues c;
         c.hotCues[0] = 12.5; c.hotCues[4] = 60.0; c.cuePoint = 2.0; c.savedLoops[1] = { 10.0, 12.0 };
         const auto putErr = store.put (trackFile, c);
-        rep.check (putErr.isEmpty() && VolumeCueStore::storeFile (usbRoot).existsAsFile(), "Cues guardadas en .OpenMix/cues.json", putErr);
+        rep.check (putErr.isEmpty() && VolumeCueStore::storeFile (usbRoot).existsAsFile(), "Cues guardadas en OpenMix/biblioteca.json", putErr);
         VolumeCueStore fresh;
         const auto back = fresh.get (trackFile);
         rep.check (back.has_value() && std::abs (back->hotCues[0] - 12.5) < 1e-9 && std::abs (back->hotCues[4] - 60.0) < 1e-9
                    && std::abs (back->cuePoint - 2.0) < 1e-9 && std::abs (back->savedLoops[1].second - 12.0) < 1e-9,
                    "Cues se recuperan desde el pendrive");
-        rep.check (fpBefore == exportBefore(), "Fuera de .OpenMix no cambió nada"_u);
-        usbRoot.getChildFile (".OpenMix").deleteRecursively();
+        rep.check (fpBefore == exportBefore(), "Fuera de la carpeta OpenMix no cambió nada"_u);
+        usbRoot.getChildFile ("OpenMix").deleteRecursively();
         VolumeCueStore::setExtraVolumeRoot ({});
     }
 

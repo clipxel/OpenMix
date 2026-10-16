@@ -19,7 +19,7 @@ juce::File VolumeCueStore::externalVolumeFor (const juce::File& f)
 VolumeCueStore::Volume& VolumeCueStore::volume (const juce::File& root)
 {
     auto& v = volumes[root.getFullPathName()];
-    const auto file = storeFile (root);
+    const auto file = storeFile (root).existsAsFile() ? storeFile (root) : legacyFile (root);
     const auto mtime = file.getLastModificationTime();
     if (v.data.isVoid() || mtime != v.loadedMtime)
     {
@@ -39,7 +39,7 @@ VolumeCueStore::Volume& VolumeCueStore::volume (const juce::File& root)
 std::optional<VolumeCueStore::Cues> VolumeCueStore::get (const juce::File& track)
 {
     const auto root = externalVolumeFor (track);
-    if (root == juce::File() || ! storeFile (root).existsAsFile())
+    if (root == juce::File() || ! (storeFile (root).existsAsFile() || legacyFile (root).existsAsFile()))
         return std::nullopt;   // never creates anything on read
 
     const auto entry = volume (root).data["tracks"][juce::Identifier (track.getRelativePathFrom (root))];
@@ -56,6 +56,9 @@ std::optional<VolumeCueStore::Cues> VolumeCueStore::get (const juce::File& track
             c.savedLoops[(size_t) (i / 2)] = { (double) (*sl)[i], (double) (*sl)[i + 1] };
     c.bpm = (double) entry.getProperty ("bpm", 0.0);
     c.firstBeat = (double) entry.getProperty ("firstBeat", 0.0);
+    c.analysedBpm = (double) entry.getProperty ("analysedBpm", 0.0);
+    c.analysedFirst = (double) entry.getProperty ("analysedFirst", 0.0);
+    c.key = entry.getProperty ("key", {}).toString();
     return c;
 }
 
@@ -78,20 +81,38 @@ juce::String VolumeCueStore::put (const juce::File& track, const Cues& c)
     o->setProperty ("hotCues", hc);
     o->setProperty ("savedLoops", sl);
     if (c.bpm > 0.0) { o->setProperty ("bpm", c.bpm); o->setProperty ("firstBeat", c.firstBeat); }
+    if (c.analysedBpm > 0.0) { o->setProperty ("analysedBpm", c.analysedBpm); o->setProperty ("analysedFirst", c.analysedFirst); }
+    if (c.key.isNotEmpty()) o->setProperty ("key", c.key);
     o->setProperty ("updated", juce::Time::getCurrentTime().toISO8601 (true));
     tracks->setProperty (juce::Identifier (track.getRelativePathFrom (root)), juce::var (o.release()));
+    return write (root, v);
+}
 
-    // Writes are confined to <volume>/.OpenMix — atomic via temp file + rename inside it.
-    const auto dir = root.getChildFile (".OpenMix");
+juce::String VolumeCueStore::noteAnalysis (const juce::File& track, double bpm, double firstBeat, const juce::String& key)
+{
+    if (bpm <= 0.0) return {};
+    auto c = get (track).value_or (Cues {});
+    if (std::abs (c.analysedBpm - bpm) < 1.0e-6 && std::abs (c.analysedFirst - firstBeat) < 1.0e-6 && (key.isEmpty() || c.key == key))
+        return {};
+    c.analysedBpm = bpm;
+    c.analysedFirst = firstBeat;
+    if (key.isNotEmpty()) c.key = key;
+    return put (track, c);
+}
+
+juce::String VolumeCueStore::write (const juce::File& root, Volume& v)
+{
+    // Writes are confined to <drive>/OpenMix — atomic via temp file + rename inside it.
+    const auto dir = storeFolder (root);
     if (! dir.isDirectory() && ! dir.createDirectory())
-        return "No se pudo crear .OpenMix en " + root.getFileName() + " (¿disco de solo lectura?)"_u;
+        return "No se pudo crear la carpeta OpenMix en " + root.getFileName() + " (¿disco de solo lectura?)"_u;
 
     const auto file = storeFile (root);
-    const auto tmp = dir.getChildFile ("cues.json.tmp");
+    const auto tmp = dir.getChildFile ("biblioteca.json.tmp");
     if (! tmp.replaceWithText (juce::JSON::toString (v.data, juce::JSON::FormatOptions{}.withSpacing (juce::JSON::Spacing::none))))
         return "No se pudo escribir en " + root.getFileName();
     if (! tmp.moveFileTo (file))
-        return "No se pudo guardar cues.json en " + root.getFileName();
+        return "No se pudo guardar biblioteca.json en " + root.getFileName();
 
     v.loadedMtime = file.getLastModificationTime();
     return {};

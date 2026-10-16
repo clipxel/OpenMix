@@ -103,16 +103,18 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
             result->file = file;
             result->meta = meta;
             result->sampleRate = reader->sampleRate;
-            result->audio.setSize (2, len + lead);
+            const int pad = juce::jmax (0, lead), skip = juce::jmin (len, juce::jmax (0, -lead));
+            result->audio.setSize (2, len - skip + pad);
             result->audio.clear();
-            reader->read (&result->audio, lead, len, 0, true, reader->numChannels > 1);
+            reader->read (&result->audio, pad, len - skip, skip, true, reader->numChannels > 1);
             if (reader->numChannels == 1)
-                result->audio.copyFrom (1, 0, result->audio, 0, 0, len + lead);
+                result->audio.copyFrom (1, 0, result->audio, 0, 0, len - skip + pad);
 
             result->wave = Analysis::computeWaveform (result->audio, result->sampleRate);
             result->loudnessLufs = Analysis::integratedLoudness (result->audio, result->sampleRate);
-            result->analysedGrid = meta.knownGrid.isValid() ? meta.knownGrid
-                                                            : Analysis::detectBeatGrid (result->audio, result->sampleRate);
+            result->analysedGrid = ! meta.knownGrid.isValid() ? Analysis::detectBeatGrid (result->audio, result->sampleRate)
+                                 : meta.alignGridToKicks ? Analysis::alignGridToKicks (result->audio, result->sampleRate, meta.knownGrid)
+                                                         : meta.knownGrid;
             result->setGrid (result->analysedGrid);
         }
 

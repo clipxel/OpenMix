@@ -325,6 +325,33 @@ static Envelopes kickEnvelopes (const Features& f)
     return env;
 }
 
+BeatGrid alignGridToKicks (const juce::AudioBuffer<float>& audio, double sr, BeatGrid grid)
+{
+    const double off = attackOffsetMs (audio, sr, grid);
+    if (off == 0.0 || std::abs (off) > 50.0) return grid;
+    return { grid.bpm, grid.firstBeatSeconds + off / 1000.0 };
+}
+
+double attackOffsetMs (const juce::AudioBuffer<float>& audio, double sr, BeatGrid grid)
+{
+    Features f;
+    if (! grid.isValid() || ! computeFeatures (audio, sr, nullptr, f)) return 0.0;
+    const auto env = kickEnvelopes (f);
+    std::vector<double> offs;
+    for (double t = grid.firstBeatSeconds; ; t += 60.0 / grid.bpm)
+    {
+        const int c = (int) std::round (t * env.fps);
+        if (c + 40 >= (int) env.kick.size()) break;
+        if (c < 40) continue;
+        int bestK = 0; float bestV = 0.0f;
+        for (int k = -40; k < 40; ++k) if (env.kick[(size_t) (c + k)] > bestV) { bestV = env.kick[(size_t) (c + k)]; bestK = k; }
+        if (bestV > 0.8f) offs.push_back (bestK * 1000.0 / env.fps);
+    }
+    if (offs.size() < 16) return 0.0;
+    std::nth_element (offs.begin(), offs.begin() + (long) offs.size() / 2, offs.end());
+    return offs[offs.size() / 2];
+}
+
 juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid reference)
 {
     Features f;
@@ -355,7 +382,38 @@ juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGr
     double d = std::fmod (mine.firstBeatSeconds - reference.firstBeatSeconds, beat);
     if (d > beat / 2) d -= beat;
     if (d < -beat / 2) d += beat;
-    return "OpenMix " + juce::String (mine.bpm, 2) + " BPM, fase " + juce::String (d / beat, 2) + " beat respecto de la referencia\n"
+    // Fine view around each reference beat (−40…+40 ms, 4 ms slots): kick attack peaks, and the
+    // first sample of each kick that reaches half of its peak in the 30–150 Hz band (what a
+    // waveform shows as the start of the hit).
+    juce::String fine;
+    {
+        std::array<int, 20> hk {}, hs {};
+        juce::IIRFilter lp1, lp2;
+        lp1.setCoefficients (juce::IIRCoefficients::makeLowPass (f.rate, 150.0));
+        lp2.setCoefficients (juce::IIRCoefficients::makeLowPass (f.rate, 150.0));
+        std::vector<float> low (f.mono.size());
+        for (size_t i = 0; i < low.size(); ++i) low[i] = std::abs (lp2.processSingleSampleRaw (lp1.processSingleSampleRaw (f.mono[i])));
+        for (double b = 0; ; b += 1.0)
+        {
+            const double tb = reference.firstBeatSeconds + (b - 64.0) * (60.0 / reference.bpm);
+            if (tb < 0.05) continue;
+            const int c = (int) std::round (tb * env.fps);
+            if (c + 60 >= (int) env.kick.size()) break;
+            int bestK = 0; float bestV = 0.0f;
+            for (int k = -40; k < 40; ++k) if (env.kick[(size_t) (c + k)] > bestV) { bestV = env.kick[(size_t) (c + k)]; bestK = k; }
+            if (bestV > 0.5f) ++hk[(size_t) juce::jlimit (0, 19, (bestK + 40) / 4)];
+            // amplitude: peak in [−40, +80] ms, then first sample ≥ 50 % of it
+            const int s0 = (int) ((tb - 0.040) * f.rate), s1 = (int) ((tb + 0.080) * f.rate);
+            if (s0 < 0 || s1 >= (int) low.size()) continue;
+            float pk = 0; for (int i = s0; i < s1; ++i) pk = juce::jmax (pk, low[(size_t) i]);
+            if (pk < 0.05f) continue;
+            for (int i = s0; i < s1; ++i) if (low[(size_t) i] >= 0.5f * pk) { const double ms = (i / f.rate - tb) * 1000.0; if (ms < 40.0) ++hs[(size_t) juce::jlimit (0, 19, (int) ((ms + 40.0) / 4.0))]; break; }
+        }
+        fine << "\nms desde la línea:   "; for (int k = 0; k < 20; ++k) fine << juce::String (-40 + k * 4).paddedLeft (' ', 4);
+        fine << "\nataque (subida):     "; for (auto v : hk) fine << juce::String (v).paddedLeft (' ', 4);
+        fine << "\ngolpe al 50 %:       "; for (auto v : hs) fine << juce::String (v).paddedLeft (' ', 4);
+    }
+    return fine + "\n" + "OpenMix " + juce::String (mine.bpm, 2) + " BPM, fase " + juce::String (d / beat, 2) + " beat respecto de la referencia\n"
          + "graves (16avos de beat desde la referencia):" + fold (env.kick) + "\n"
          + "banda completa:                           " + fold (env.full);
 }
@@ -717,13 +775,20 @@ int mp3TrimmedLeadSamples (const juce::File& file)
     if (xing == 0)
         return 0;
 
+    // Club players count the decoder delay (529) at the start, plus the encoder delay LAME declares;
+    // this decoder trims both (gapless). FFmpeg-made files ("Lavc"/"Lavf") and Xing/Info frames without
+    // encoder data only differ by the decoder delay. Measured on 200 tracks against exported USB grids.
     for (size_t i = xing; i + 24 < n && i < xing + 400; ++i)
-        if (std::memcmp (p + i, "LAME", 4) == 0 || std::memcmp (p + i, "Lavc", 4) == 0 || std::memcmp (p + i, "Lavf", 4) == 0)
+    {
+        if (std::memcmp (p + i, "LAME", 4) == 0)
         {
             const int delay = (p[i + 21] << 4) | (p[i + 22] >> 4);
-            return delay > 0 && delay < 4096 ? delay + 529 : 0;
+            return delay > 0 && delay < 4096 ? delay + 529 : 529;
         }
-    return 0;
+        if (std::memcmp (p + i, "Lavc", 4) == 0 || std::memcmp (p + i, "Lavf", 4) == 0)
+            return 529;
+    }
+    return 529;
 }
 
 double integratedLoudness (const juce::AudioBuffer<float>& audio, double fs)

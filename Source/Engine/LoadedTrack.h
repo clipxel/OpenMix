@@ -12,6 +12,7 @@ struct TrackMeta
 {
     juce::String title, artist, key;
     BeatGrid knownGrid;                 // reuse a previous analysis when available
+    bool alignGridToKicks = false;      // knownGrid comes from another program: put its beats on this audio's kicks
     double cuePoint = 0.0;
     std::array<double, 8> hotCues { -1, -1, -1, -1, -1, -1, -1, -1 };
     std::array<std::pair<double, double>, 8> savedLoops {};

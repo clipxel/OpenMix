@@ -244,7 +244,9 @@ void Library::requestAnalysis (const TrackPtr& t, bool force)
                 // ~4× less work and memory than analysing the full-rate stereo audio.
                 const int factor = juce::jmax (1, (int) std::floor (reader->sampleRate / 11025.0));
                 const double outRate = reader->sampleRate / factor;
-                const int lead = Analysis::mp3TrimmedLeadSamples (file) / factor;   // club player timeline
+                const int leadFull = Analysis::mp3TrimmedLeadSamples (file);          // club player timeline
+                const int lead = juce::jmax (0, leadFull) / factor;
+                const juce::int64 skip = juce::jmax (0, -leadFull);
                 juce::AudioBuffer<float> mono (1, (int) (len / factor) + 1 + lead);
                 mono.clear();
                 juce::AudioBuffer<float> chunk ((int) juce::jmax (1u, reader->numChannels), 65536);
@@ -252,7 +254,7 @@ void Library::requestAnalysis (const TrackPtr& t, bool force)
                 float acc = 0.0f;
                 int accN = 0;
 
-                for (juce::int64 startPos = 0; startPos < len && aliveFlag->load(); startPos += chunk.getNumSamples())
+                for (juce::int64 startPos = skip; startPos < len && aliveFlag->load(); startPos += chunk.getNumSamples())
                 {
                     const int n = (int) juce::jmin ((juce::int64) chunk.getNumSamples(), len - startPos);
                     reader->read (&chunk, 0, n, startPos, true, chunk.getNumChannels() > 1);

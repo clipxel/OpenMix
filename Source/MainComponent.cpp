@@ -107,7 +107,7 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
                 library.trackEdited (lt);
             }
 
-            // Tracks on external drives: cues also travel with the drive (<drive>/.OpenMix/cues.json).
+            // Tracks on external drives: cues also travel with the drive (<drive>/OpenMix/biblioteca.json).
             if (VolumeCueStore::externalVolumeFor (t->file) != juce::File())
             {
                 VolumeCueStore::Cues c = cueStore.get (t->file).value_or (VolumeCueStore::Cues {});
@@ -374,7 +374,7 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
     {
         // Exported USB: use its beat grid and cues as exported (read-only).
         const auto rb = DeviceMonitor::analysisFor (*t);
-        if (rb.grid.isValid()) meta.knownGrid = rb.grid;
+        if (rb.grid.isValid()) { meta.knownGrid = rb.grid; meta.alignGridToKicks = true; }
         if (rb.cuePoint >= 0.0) meta.cuePoint = rb.cuePoint;
         meta.hotCues = rb.hotCues;
         meta.savedLoops = rb.hotLoops;
@@ -387,13 +387,22 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
         if (c->cuePoint >= 0.0) meta.cuePoint = c->cuePoint;
         meta.hotCues = c->hotCues;
         meta.savedLoops = c->savedLoops;
-        if (c->bpm > 0.0) meta.knownGrid = BeatGrid { c->bpm, c->firstBeat };
+        if (c->bpm > 0.0) { meta.knownGrid = BeatGrid { c->bpm, c->firstBeat }; meta.alignGridToKicks = false; }   // the DJ's own grid
+        else if (c->analysedBpm > 0.0) { meta.knownGrid = BeatGrid { c->analysedBpm, c->analysedFirst }; meta.alignGridToKicks = false; }
     }
 
     auto& view = deck == 1 ? deckB : deckA;
-    engine.loadTrack (deck, t->file, meta, [&view] (bool ok, const juce::String& err)
+    engine.loadTrack (deck, t->file, meta, [this, &view, deck, file = t->file, key = t->displayKey()] (bool ok, const juce::String& err)
     {
-        if (! ok) view.showMessage (err, true);
+        if (! ok) { view.showMessage (err, true); return; }
+        // Drive database: the analysis of every track played from an external drive stays on it.
+        if (VolumeCueStore::externalVolumeFor (file) != juce::File())
+        {
+            const auto g = engine.deck (deck).getGrid();
+            if (g.isValid())
+                if (const auto e = cueStore.noteAnalysis (file, g.bpm, g.firstBeatSeconds, key); e.isNotEmpty())
+                    view.showMessage (e, true);
+        }
     });
 }
 

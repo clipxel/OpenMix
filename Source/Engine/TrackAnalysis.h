@@ -49,7 +49,14 @@ namespace Analysis
         `approx`. Invalid input → returned unchanged. */
     BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid approx);
 
-        /** Diagnostics: OpenMix's grid vs a reference grid, and where the attacks fall on the beat. */
+        /** A grid from another program (exported USB): same BPM and bar, beats moved onto the kicks of
+        the whole track as decoded here (≤ 50 ms). Unchanged when the track has no clear kicks. */
+    BeatGrid alignGridToKicks (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid grid);
+
+    /** Diagnostics: median position of the kick attacks relative to a grid's beats (ms, + = late). */
+    double attackOffsetMs (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid grid);
+
+    /** Diagnostics: OpenMix's grid vs a reference grid, and where the attacks fall on the beat. */
     juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid reference);
 
     /** Estimates the musical key (chromagram + Krumhansl–Kessler profiles).
@@ -58,9 +65,9 @@ namespace Analysis
                             const std::atomic<bool>* shouldAbort = nullptr);
 
     /** Camelot ↔ musical notation helpers. */
-    /** Samples macOS trims from the start of a gapless (LAME-tagged) MP3: encoder delay +
-        529 decoder delay. Club players keep them, so OpenMix prepends them to share
-        the same timeline (grids and cues line up with exported USB drives). Read-only peek. */
+    /** Timeline correction for MP3s so grids and cues line up with club players and exported USB
+        drives: > 0 = silence to prepend (samples the decoder trimmed), < 0 = samples to drop from
+        the start (decoder delay this decoder keeps). Read-only peek at the header. */
     int mp3TrimmedLeadSamples (const juce::File&);
 
     /** Integrated loudness in LUFS (ITU-R BS.1770-4 / EBU R128: K-weighting,
