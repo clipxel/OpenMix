@@ -1,3 +1,4 @@
+#include <iostream>
 #include "TrackAnalysis.h"
 #include <juce_dsp/juce_dsp.h>
 
@@ -386,6 +387,51 @@ static juce::String drawnHistogram (const juce::AudioBuffer<float>& audio, doubl
     return out;
 }
 
+GridQuality evaluateGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid g)
+{
+    GridQuality q;
+    if (! g.isValid()) return q;
+    const auto w = computeWaveform (audio, sr);
+    const int nf = w.numFrames();
+    const double fps = WaveformData::framesPerSecond;
+    auto height = [&w] (int f) { return juce::jmax (0.98f * w.low[(size_t) f], 0.80f * w.mid[(size_t) f], 0.55f * w.high[(size_t) f]); };
+    std::vector<std::pair<double, double>> hits;            // (time, offset ms)
+    const int w0 = (int) (0.040 * fps), w1 = (int) (0.040 * fps);
+    for (double t = g.firstBeatSeconds; ; t += 60.0 / g.bpm)
+    {
+        const int c = (int) std::round (t * fps);
+        if (c + w1 >= nf) break;
+        if (c - w0 < 1) continue;
+        int pk = c - w0;
+        for (int f = c - w0; f < c + w1; ++f) if (height (f) > height (pk)) pk = f;
+        int lo = pk;
+        for (int f = pk; f >= c - w0; --f) if (height (f) < height (lo)) lo = f;
+        const float P = height (pk), V = height (lo);
+        if (P < 8.0f || P < 1.25f * V) continue;
+        const float level = V + 0.25f * (P - V);
+        int st = lo;
+        while (st < pk && height (st) < level) ++st;
+        hits.push_back ({ t, (st - c) * 1000.0 / fps });
+    }
+    q.hits = (int) hits.size();
+    if (hits.size() < 32) return q;
+    auto median = [] (std::vector<double> v) { std::nth_element (v.begin(), v.begin() + (long) v.size() / 2, v.end()); return v[v.size() / 2]; };
+    std::vector<double> all, first, last;
+    const double len = (double) audio.getNumSamples() / sr;
+    for (auto [t, ms] : hits)
+    {
+        all.push_back (ms);
+        if (t < len / 3) first.push_back (ms);
+        else if (t > 2 * len / 3) last.push_back (ms);
+    }
+    q.offsetMs = median (all);
+    std::vector<double> dev;
+    for (auto v : all) dev.push_back (std::abs (v - q.offsetMs));
+    q.spreadMs = median (dev);
+    if (first.size() >= 8 && last.size() >= 8) q.driftMs = median (last) - median (first);
+    return q;
+}
+
 juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid reference)
 {
     Features f;
@@ -639,6 +685,97 @@ static double drawnHitStart (const juce::AudioBuffer<float>& audio, double sr, d
     return all[all.size() / 2];
 }
 
+// The grid fitted straight onto the hits: the start of every hit in the drawn waveform (as the DJ sees
+// it), then a robust straight line through them (time = first + n · beat). Gives the exact phase AND
+// the exact tempo — a grid that slowly slides off the hits along the track had a slightly wrong BPM.
+static bool fitGridToDrawnHits (const juce::AudioBuffer<float>& audio, double sr, double& bpm, double& phase)
+{
+    const auto w = computeWaveform (audio, sr);
+    const int nf = w.numFrames();
+    if (nf < 100 || bpm <= 0.0) return false;
+    const double fps = WaveformData::framesPerSecond;
+    auto height = [&w] (int f) { return juce::jmax (0.98f * w.low[(size_t) f], 0.80f * w.mid[(size_t) f], 0.55f * w.high[(size_t) f]); };
+    const double beat = 60.0 / bpm;
+    const int w0 = (int) (0.045 * fps), w1 = (int) (0.045 * fps);
+    std::vector<std::pair<double, double>> pts;             // (beat index, hit start in seconds)
+    const double first = std::fmod (phase, beat);
+    for (int n = 0; ; ++n)
+    {
+        const double t = first + n * beat;
+        const int c = (int) std::round (t * fps);
+        if (c + w1 >= nf) break;
+        if (c - w0 < 1) continue;
+        int pk = c - w0;
+        for (int f = c - w0; f < c + w1; ++f) if (height (f) > height (pk)) pk = f;
+        int lo = pk;
+        for (int f = pk; f >= c - w0; --f) if (height (f) < height (lo)) lo = f;
+        const float P = height (pk), V = height (lo);
+        if (P < 8.0f || P < 1.25f * V) continue;
+        const float level = V + 0.25f * (P - V);
+        int st = lo;
+        while (st < pk && height (st) < level) ++st;
+        pts.push_back ({ (double) n, st / fps });
+    }
+    static const bool dbg = std::getenv ("OPENMIX_GRID_DEBUG") != nullptr;
+    if (dbg) std::cerr << "[fit] golpes " << pts.size() << std::endl;
+    if (pts.size() < 48) return false;
+
+    // Robust line fit. Start from the most repeated hit position (some tracks have two hits per beat,
+    // e.g. a strong kick 13 ms after a softer click 28 ms before): only that one is fitted.
+    double a = first, b = beat;
+    std::vector<bool> keep (pts.size(), true);
+    {
+        std::array<double, 46> hist {};                        // 2 ms slots, −45 … +45 ms
+        for (auto [x, y] : pts)
+        {
+            const double d = (y - (first + beat * x)) * 1000.0;
+            hist[(size_t) juce::jlimit (0, 45, (int) std::floor ((d + 45.0) / 2.0))] += 1.0;
+        }
+        int bi = 0; double bv = -1.0;
+        for (int i = 1; i + 1 < 46; ++i)
+            if (const double v = hist[(size_t) i - 1] * 0.5 + hist[(size_t) i] + hist[(size_t) i + 1] * 0.5; v > bv) { bv = v; bi = i; }
+        a = first + (bi * 2.0 - 45.0 + 1.0) / 1000.0;
+        if (dbg)
+        {
+            std::cerr << "[fit] histograma:";
+            for (int i = 0; i < 46; ++i) std::cerr << " " << (int) hist[(size_t) i];
+            std::cerr << "  moda " << (bi * 2.0 - 45.0 + 1.0) << " ms" << std::endl;
+        }
+    }
+    for (int it = 0; it < 5; ++it)
+    {
+        if (it == 0)
+        {
+            for (size_t i = 0; i < pts.size(); ++i) keep[i] = std::abs (pts[i].second - (a + b * pts[i].first)) < 0.010;
+            continue;
+        }
+        double sn = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+        for (size_t i = 0; i < pts.size(); ++i)
+            if (keep[i]) { const auto [x, y] = pts[i]; sn += 1; sx += x; sy += y; sxx += x * x; sxy += x * y; }
+        const double den = sn * sxx - sx * sx;
+        if (sn < 32 || std::abs (den) < 1e-9) return false;
+        b = (sn * sxy - sx * sy) / den;
+        a = (sy - b * sx) / sn;
+        const double tol = 0.012;
+        for (size_t i = 0; i < pts.size(); ++i) keep[i] = std::abs (pts[i].second - (a + b * pts[i].first)) < tol;
+    }
+    if (dbg) std::cerr << "[fit] bpm " << 60.0 / beat << " -> " << 60.0 / b << " a " << a << " fase vieja " << first << std::endl;
+    if (b <= 0.0 || std::abs (b / beat - 1.0) > 0.003) return false;         // only a fine correction
+    double newBpm = 60.0 / b;
+    // Produced music sits on round tempos: keep the round value when the fit is that close to it.
+    if (std::abs (newBpm - std::round (newBpm)) < 0.015) newBpm = std::round (newBpm);
+    else newBpm = std::round (newBpm * 100.0) / 100.0;
+    // Re-anchor the line on the hits with the final tempo (median residual).
+    const double nb = 60.0 / newBpm;
+    std::vector<double> res;
+    for (size_t i = 0; i < pts.size(); ++i) if (keep[i]) res.push_back (pts[i].second - (a + nb * pts[i].first));
+    if (res.size() < 32) return false;
+    std::nth_element (res.begin(), res.begin() + (long) res.size() / 2, res.end());
+    bpm = newBpm;
+    phase = a + res[res.size() / 2];
+    return true;
+}
+
 // Fine tempo (±0.6 %) and phase (≈1 ms) from the kick attacks of the whole track.
 static void refineTempoAndPhase (const Features& f, double& bpm, double& phase)
 {
@@ -782,8 +919,9 @@ BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid 
         if (std::abs (d) < 0.029) phase += d;
     }
     phase += attackCalibrationSec;
-    if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.020)
-        phase += d;                                            // the hit starts here in the drawn waveform
+    if (! fitGridToDrawnHits (audio, sr, bpm, phase))          // exact tempo and phase from every hit
+        if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.040)
+            phase += d;                                        // too few clear hits: just the median start
     // Keep the DJ's bar: the refined beat nearest to the old beat 1, as the new beat 1.
     const double beat = 60.0 / bpm;
     const double k = std::round ((approx.firstBeatSeconds - phase) / beat);
@@ -829,12 +967,32 @@ BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const
         if (std::abs (d) < 0.029) phase += d;
     }
     phase += attackCalibrationSec;
-    if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.020)
-        phase += d;                                            // the hit starts here in the drawn waveform
+    if (! fitGridToDrawnHits (audio, sr, bpm, phase))          // exact tempo and phase from every hit
+        if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.040)
+            phase += d;                                        // too few clear hits: just the median start
+
+    // BPM range 70–160 (the DJ's choice): a double- or half-time reading is folded into it.
+    while (bpm > 160.0)
+    {
+        // Half the tempo keeps every other line: the set that carries the kicks.
+        auto kickAt = [&] (double ph)
+        {
+            double sum = 0;
+            for (double t = ph; t * f.fps < (double) f.lowOdf.size() - 1; t += 2.0 * beatSec)
+                sum += f.lowOdf[(size_t) juce::jlimit (0, (int) f.lowOdf.size() - 1, (int) std::round (t * f.fps))];
+            return sum;
+        };
+        if (kickAt (phase + beatSec) > kickAt (phase)) phase += beatSec;
+        bpm *= 0.5;
+        beatSec = 60.0 / bpm;
+    }
+    while (bpm > 1.0 && bpm < 70.0) { bpm *= 2.0; beatSec = 60.0 / bpm; }
+    beatSec = 60.0 / bpm;
 
     // 6. Downbeat: harmonic change and low-band onsets favour the "1" of the bar.
     {
-        const double firstBeat = std::fmod (juce::jmax (0.0, phase), beatSec);
+        // Phase may be negative (the first line before the file starts): wrap it, never clamp it.
+        const double firstBeat = std::fmod (std::fmod (phase, beatSec) + beatSec, beatSec);
         const int nBeats = (int) (((double) f.odf.size() / f.fps - firstBeat) / beatSec) - 1;
         std::vector<std::array<float, 12>> beatChroma ((size_t) juce::jmax (0, nBeats));
         std::vector<float> beatLow ((size_t) juce::jmax (0, nBeats), 0.0f);
@@ -883,7 +1041,7 @@ BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const
     }
 
     grid.bpm = bpm;
-    grid.firstBeatSeconds = std::fmod (juce::jmax (0.0, phase), 4.0 * beatSec);   // a downbeat, within the first bar
+    grid.firstBeatSeconds = std::fmod (std::fmod (phase, 4.0 * beatSec) + 4.0 * beatSec, 4.0 * beatSec);   // a downbeat, within the first bar
     return grid;
 }
 //==============================================================================

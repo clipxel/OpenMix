@@ -663,7 +663,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
     for (size_t i = 0; i < ex->tracks.size() && (int) picks.size() < count; i += stride)
         picks.push_back (i);
 
-    struct Row { juce::String name, genre; double rbBpm, omBpm, rbFirst, omFirst, rbBar; bool variable; double secs; juce::String fmt; juce::String path; int lead = 0; double rbAlign = 0.0; };
+    struct Row { juce::String name, genre; double rbBpm, omBpm, rbFirst, omFirst, rbBar; bool variable; double secs; juce::String fmt; juce::String path; int lead = 0; double rbAlign = 0.0; Analysis::GridQuality q; };
     std::vector<Row> rows (picks.size());
     std::atomic<int> done { 0 };
     juce::AudioFormatManager fm;
@@ -707,7 +707,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                     rd->read (&buf, pad, len - skip, skip, true, buf.getNumChannels() > 1);
                     const auto t0 = juce::Time::getMillisecondCounterHiRes();
                     const auto g = Analysis::detectBeatGrid (buf, rd->sampleRate);
-                    r.rbAlign = Analysis::kickStartOffsetMs (buf, rd->sampleRate, g);   // OpenMix line vs kick start
+                    r.q = Analysis::evaluateGrid (buf, rd->sampleRate, g);
                     r.secs = (juce::Time::getMillisecondCounterHiRes() - t0) / 1000.0;
                     r.omBpm = g.bpm;
                     r.omFirst = g.firstBeatSeconds;
@@ -749,7 +749,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                  || std::abs (r.omBpm * 1.5 - r.rbBpm) <= 0.2 || std::abs (r.omBpm / 1.5 - r.rbBpm) <= 0.2) ++octave;
         else ++wrong;
         report << juce::String (r.rbBpm, 2) << "\t" << juce::String (r.omBpm, 2) << "\t" << juce::String (phaseMs, 1) << "\t"
-               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\t" << juce::String (r.rbAlign, 1) << "\n";
+               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\t" << juce::String (r.q.offsetMs, 1) << "\t" << juce::String (r.q.spreadMs, 1) << "\t" << juce::String (r.q.driftMs, 1) << "\t" << r.q.hits << "\n";
     }
     reportFile.replaceWithText (report);
 
