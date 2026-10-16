@@ -1,4 +1,5 @@
 #include "SettingsPanel.h"
+#include "../Contact.h"
 #include "../../Control/MappingImport.h"
 #include "../../Engine/Recorder.h"
 
@@ -67,8 +68,8 @@ public:
 namespace om
 {
 
-static const char* sectionNames[] = { "Audio", "Apariencia", "Interfaz", "Controladores", "Diagnóstico" };
-static const Icon sectionIcons[] = { Icon::speaker, Icon::dot, Icon::layout, Icon::controller, Icon::cpu };
+static const char* sectionNames[] = { "Audio", "Apariencia", "Interfaz", "Controladores", "Diagnóstico", "Ayuda y contacto" };
+static const Icon sectionIcons[] = { Icon::speaker, Icon::dot, Icon::layout, Icon::controller, Icon::cpu, Icon::support };
 
 SettingsPanel::SettingsPanel (AudioEngine& e, Library& l) : engine (e), library (l)
 {
@@ -127,6 +128,16 @@ SettingsPanel::SettingsPanel (AudioEngine& e, Library& l) : engine (e), library 
     addChildComponent (limCeiling);
     autoGainToggle.onClick = [this] { engine.autoGain = autoGainToggle.getToggleState(); };
     addChildComponent (autoGainToggle);
+    helpCommunity.onClick = [] { Contact::open (Contact::community()); };
+    helpInstagram.onClick = [] { Contact::open (Contact::instagramChat()); };
+    helpReport.onClick = [this] { close(); if (onOpenFeedback) onOpenFeedback(); };
+    for (auto* b : { &helpCommunity, &helpInstagram, &helpReport })
+    {
+        b->setTextType (Type::body, Weight::semibold);
+        addChildComponent (*b);
+    }
+    helpReport.setLitColour (accent());
+    helpReport.setToggleState (true, juce::dontSendNotification);
     autoCueToggle.onClick = [this] { for (int d = 0; d < 2; ++d) engine.deck (d).setAutoCue (autoCueToggle.getToggleState()); };
     addChildComponent (autoCueToggle);
 
@@ -520,6 +531,18 @@ void SettingsPanel::resized()
     if (section == controllers)
         layoutControllers (c);
 
+    for (auto* b : { &helpCommunity, &helpInstagram, &helpReport }) b->setVisible (section == help);
+    if (section == help)
+    {
+        auto h = c;
+        h.removeFromTop (118);
+        for (auto* b : { &helpReport, &helpCommunity, &helpInstagram })
+        {
+            b->setBounds (h.removeFromTop (Size::controlLg + 4).withWidth (340));
+            h.removeFromTop (Space::md);
+        }
+    }
+
     updateToggle.setVisible (section == diagnostics);
     if (section == diagnostics)
         updateToggle.setBounds (content.withTop (content.getBottom() - 30).withWidth (520));
@@ -637,6 +660,19 @@ void SettingsPanel::paint (juce::Graphics& g)
             Text::draw (g, juce::String ((int) midi->bindings().size()) + juce::String::fromUTF8 (" mapeos · clic derecho o ⌫ para borrar"),
                         ctrlListArea.toFloat().withY ((float) ctrlListArea.getY() - 18.0f).withHeight (16.0f),
                         font (Type::label), colour (Col::textTertiary));
+            break;
+        }
+
+        case help:
+        {
+            title ("Ayudanos a mejorar OpenMix");
+            Text::draw (g, juce::String::fromUTF8 ("¿Una duda, una idea o algo que no anda? Escribinos: leemos todo y te respondemos personalmente. "
+                                                  "Así mejora OpenMix para todos."),
+                        c.removeFromTop (44).toFloat(), font (Type::body), colour (Col::textSecondary), juce::Justification::topLeft, false);
+            c.removeFromTop (Space::md);
+            Text::draw (g, juce::String::fromUTF8 ("Instagram y WhatsApp: ") + Contact::handle(), c.removeFromTop (20).toFloat(),
+                        font (Type::label, Weight::semibold), colour (Col::textTertiary));
+
             break;
         }
 

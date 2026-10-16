@@ -17,6 +17,7 @@
 #include "Control/KeyboardControl.h"
 #include "Control/AutoMix.h"
 #include "UI/Views/AutoMixPanel.h"
+#include "UI/Views/FeedbackCard.h"
 #include "Library/VolumeCueStore.h"
 
 /** Main screen: top bar · stacked waveforms · [deck 1 | mixer | deck 2] · library.
@@ -35,6 +36,11 @@ public:
 
     /** Verification helper (--snapshot): load files, then call back. */
     /** Snapshot mode: advance both decks' pad pages (5 = SAMPLES/RMX). */
+    /** Goodbye card now and then (2nd close, then every 8th) unless turned off. True if shown: `quit`
+        runs when the user is done. */
+    bool offerFeedbackBeforeQuit (std::function<void()> quit);
+    void showFeedback (om::FeedbackCard::Kind, std::function<void()> after = {});
+    void showFeedbackForSnapshot (bool goodbye)    { showFeedback (goodbye ? om::FeedbackCard::Kind::goodbye : om::FeedbackCard::Kind::report); }
     std::unique_ptr<juce::Component> gridEditorForSnapshot() { return deckA.makeGridEditor(); }
     void showAutoMixForSnapshot()                 { automixOpen = true; automix.add (libraryView.visibleTracks()); resized(); frame(); }
     void showPadPageForSnapshot (int pages)       { for (int i = 0; i < pages; ++i) { deckA.nextPadPage(); deckB.nextPadPage(); } }
@@ -97,6 +103,7 @@ private:
           [this] (const juce::String& path) { auto t = library.find (path); return t != nullptr ? t : library.addFile (juce::File (path)); },
           [this] { automixOpen = false; resized(); } } };
     bool automixOpen = false;
+    std::unique_ptr<om::FeedbackCard> feedback;
     std::unique_ptr<om::MidiEngine> midi;     // not created in snapshot mode (no device access)
     std::unique_ptr<om::ControllerLibrary> controllerLib;   // plug and play: finds and installs mappings
     om::Updater updater;

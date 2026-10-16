@@ -180,6 +180,15 @@ juce::Path path (Icon i)
             p.addRoundedRectangle (11.0f, 9.0f, 3.0f, 5.0f, 1.0f);
             break;
 
+        case Icon::support:      // headset with a microphone (help / contact)
+            p.startNewSubPath (2.5f, 9.5f); p.lineTo (2.5f, 7.5f);
+            p.cubicTo (2.5f, 1.5f, 13.5f, 1.5f, 13.5f, 7.5f); p.lineTo (13.5f, 9.5f);
+            p.addRoundedRectangle (1.8f, 7.8f, 2.8f, 4.4f, 1.0f);
+            p.addRoundedRectangle (11.4f, 7.8f, 2.8f, 4.4f, 1.0f);
+            p.startNewSubPath (12.8f, 12.2f); p.cubicTo (12.8f, 14.0f, 11.0f, 14.6f, 9.0f, 14.6f);
+            p.addRoundedRectangle (6.6f, 13.7f, 2.6f, 1.8f, 0.9f);
+            break;
+
         case Icon::lock:
             p.addRoundedRectangle (3.0f, 7.0f, 10.0f, 7.0f, 1.2f);
             p.startNewSubPath (5.0f, 7.0f); p.lineTo (5.0f, 5.0f);

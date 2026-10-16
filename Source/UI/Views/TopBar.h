@@ -20,6 +20,7 @@ public:
     std::function<void()> onToggleRecord;
     std::function<void()> onToggleFx;
     std::function<void()> onToggleAutoMix;
+    std::function<void()> onOpenFeedback;
     void setAutoMixState (bool panelOpen, bool running);
     /** Small screens: the FX panel is folded away and this button shows / hides it. */
     void setFxButton (bool visible, bool panelShown);
@@ -34,7 +35,7 @@ private:
     Button settings { {}, Icon::settings, Button::Style::ghost };
     Button fx { "FX" };
     Button automixBtn { "AUTOMIX" };
-    Button helpBtn { "AYUDA" };
+    Button helpBtn { {}, Icon::support, Button::Style::ghost };
     void showHelpMenu();
     juce::Rectangle<int> brandArea;
     const ControllerLibrary* controllerLib = nullptr;

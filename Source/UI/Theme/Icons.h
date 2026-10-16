@@ -15,7 +15,7 @@ enum class Icon
     search, folder, folderOpen, playlist, history, collection, music,
     settings, record, speaker, controller, cpu,
     warning, error, unplugged, check, plus, minus, close,
-    headphones, lock, eject, layout, jog, waveform, fx, dot
+    headphones, support, lock, eject, layout, jog, waveform, fx, dot
 };
 
 namespace Icons

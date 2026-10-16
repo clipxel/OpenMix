@@ -58,6 +58,8 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     libraryView.onAddFolder = [this] { addFolder(); };
     libraryView.onAddToAutoMix = [this] (const std::vector<TrackPtr>& t) { automix.add (t); automixOpen = true; resized(); };
     topBar.onToggleAutoMix = [this] { automixOpen = ! automixOpen; resized(); };
+    topBar.onOpenFeedback = [this] { showFeedback (FeedbackCard::Kind::report); };
+    settingsPanel.onOpenFeedback = [this] { showFeedback (FeedbackCard::Kind::report); };
     addChildComponent (automixPanel);
 
     splitter->onDrag = [this] (int dy)
@@ -406,6 +408,39 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
     });
 }
 
+void MainComponent::showFeedback (FeedbackCard::Kind kind, std::function<void()> after)
+{
+    feedback = std::make_unique<FeedbackCard> (kind);
+    feedback->onDone = [this, after, kind] (bool neverAgain)
+    {
+        if (kind == FeedbackCard::Kind::goodbye && settings != nullptr)
+        {
+            if (neverAgain) settings->setValue ("feedbackOnQuit", false);
+            settings->saveIfNeeded();
+        }
+        juce::MessageManager::callAsync ([this, after]
+        {
+            feedback = nullptr;
+            if (after) after();
+        });
+    };
+    addAndMakeVisible (*feedback);
+    feedback->setBounds (getLocalBounds());
+    feedback->toFront (true);
+}
+
+bool MainComponent::offerFeedbackBeforeQuit (std::function<void()> quit)
+{
+    if (settings == nullptr || snapshotMode || feedback != nullptr) return false;
+    const int closes = settings->getIntValue ("closeCount", 0) + 1;
+    settings->setValue ("closeCount", closes);
+    settings->saveIfNeeded();
+    if (! settings->getBoolValue ("feedbackOnQuit", true) || ! (closes == 2 || (closes > 2 && closes % 8 == 0)))
+        return false;
+    showFeedback (FeedbackCard::Kind::goodbye, std::move (quit));
+    return true;
+}
+
 void MainComponent::loadFileToDeck (const juce::File& f, int deck)
 {
     // Dropped from Finder: add to the collection so tags, cues and history persist.
@@ -568,6 +603,7 @@ void MainComponent::resized()
 {
     auto r = getLocalBounds();
     settingsPanel.setBounds (r);
+    if (feedback != nullptr) feedback->setBounds (r);
 
     // Small screens (notebooks of 11–13", 1366×768, 1280×800): the FX panel folds away behind the
     // FX button and the library gives up some rows, so decks and mixer keep every control usable.

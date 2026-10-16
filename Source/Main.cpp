@@ -243,7 +243,15 @@ public:
         lookAndFeel = nullptr;
     }
 
-    void systemRequestedQuit() override { quit(); }
+    void systemRequestedQuit() override
+    {
+        // Now and then, a "¿qué te pareció?" card first (never blocks: any choice closes the app).
+        if (mainWindow != nullptr)
+            if (auto* host = dynamic_cast<ScaledHost*> (mainWindow->getContentComponent()))
+                if (host->main().offerFeedbackBeforeQuit ([this] { quit(); }))
+                    return;
+        quit();
+    }
 
     /** Holds the app and scales it as a whole on small screens: below the reference size every
         button, text, jog and waveform shrinks evenly (instead of squeezing the layout), so a
@@ -327,8 +335,10 @@ private:
                 snapshotComponent->openMappingWizardForSnapshot();
         }
         snapshotComponent->prepareSnapshot (juce::File (arg ("--load-a")), juce::File (arg ("--load-b")),
-                                            [this, out, w, h, automixShot = args.contains ("--automix"), gridShot = args.contains ("--grid-editor")]
+                                            [this, out, w, h, automixShot = args.contains ("--automix"), gridShot = args.contains ("--grid-editor"), feedbackShot = args.contains ("--feedback")]
         {
+            if (feedbackShot)
+                snapshotHost->main().showFeedbackForSnapshot (true);
             if (automixShot)
             {
                 snapshotHost->main().showAutoMixForSnapshot();

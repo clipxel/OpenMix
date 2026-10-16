@@ -19,7 +19,7 @@ namespace om
 class SettingsPanel : public juce::Component, private juce::Timer
 {
 public:
-    enum Section { audio = 0, appearance, layout, controllers, diagnostics, numSections };
+    enum Section { audio = 0, appearance, layout, controllers, diagnostics, help, numSections };
 
     SettingsPanel (AudioEngine&, Library&);
     ~SettingsPanel() override;
@@ -33,6 +33,7 @@ public:
     /** Diagnostics ▸ updates: check on launch (persisted by MainComponent). */
     juce::ToggleButton updateToggle { juce::String::fromUTF8 ("Buscar actualizaciones al abrir OpenMix (te pregunta antes de actualizar)") };
     std::function<void()> onUpdateCheckChanged;
+    std::function<void()> onOpenFeedback;
     std::function<void()> onControllerOnlineChanged;
     void close();
 
@@ -72,6 +73,7 @@ private:
     Button resetSizes { juce::String::fromUTF8 ("Restablecer tamaños originales") };
     Segmented xfCurve { { "SUAVE", "CORTE", "POTENCIA" } };
     Segmented limCeiling { { "-0.1 dBTP", "-0.5 dBTP", "-1.0 dBTP" } };
+    Button helpCommunity { "Unirme a la comunidad (WhatsApp)" }, helpInstagram { "Escribir por Instagram" }, helpReport { "Escribinos un comentario o reporte" };
     juce::ToggleButton autoCueToggle { "Auto cue: al cargar un tema sin cue, ponerlo en el primer golpe" };
     juce::ToggleButton autoGainToggle { "Auto-gain: igualar sonoridad al cargar (objetivo -14 LUFS)" };
 
