@@ -428,3 +428,8 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--paper-3); 
 .contact h2 { font-size: 30px; margin-bottom: 10px; }
 .contact .contact-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 24px 0 14px; }
 .contact .small { font-size: 13px; }
+.contact .donate { max-width: 520px; margin: 40px auto 0; padding: 26px 24px; border-radius: 16px; background: var(--paper); border: 1px solid var(--line); }
+.contact .donate h3 { font-size: 20px; margin-bottom: 6px; }
+.contact .donate p { color: var(--ink-2); margin-bottom: 16px; }
+.contact .donate-btn { background: var(--grad); border-color: transparent; color: #fff; }
+.contact .donate-btn:hover { filter: brightness(1.05); color: #fff; }

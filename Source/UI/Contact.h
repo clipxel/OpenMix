@@ -12,6 +12,8 @@ inline const char* instagram()     { return "https://www.instagram.com/nanobrune
 inline const char* instagramChat() { return "https://ig.me/m/nanobrunetti"; }
 inline const char* site()          { return "https://clipxel.github.io/OpenMix/"; }
 inline const char* handle()        { return "@nanobrunetti"; }
+inline const char* donate()        { return "https://onetouch.astropay.com/payment?external_reference_id=AERRP6sKfsrGdRunEEa6gJ7V5fQ1E0gO"; }
+inline juce::String donateNote()   { return juce::String::fromUTF8 ("OpenMix es gratis y siempre lo va a ser. Tu aporte nos ayuda a seguir mejorándolo."); }
 
 inline juce::String about()
 {

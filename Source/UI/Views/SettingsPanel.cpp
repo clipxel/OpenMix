@@ -131,11 +131,14 @@ SettingsPanel::SettingsPanel (AudioEngine& e, Library& l) : engine (e), library 
     helpCommunity.onClick = [] { Contact::open (Contact::community()); };
     helpInstagram.onClick = [] { Contact::open (Contact::instagramChat()); };
     helpReport.onClick = [this] { close(); if (onOpenFeedback) onOpenFeedback(); };
-    for (auto* b : { &helpCommunity, &helpInstagram, &helpReport })
+    helpDonate.onClick = [] { Contact::open (Contact::donate()); };
+    for (auto* b : { &helpCommunity, &helpInstagram, &helpReport, &helpDonate })
     {
         b->setTextType (Type::body, Weight::semibold);
         addChildComponent (*b);
     }
+    helpDonate.setLitColour (juce::Colour (0xffe84f7a));
+    helpDonate.setToggleState (true, juce::dontSendNotification);
     helpReport.setLitColour (accent());
     helpReport.setToggleState (true, juce::dontSendNotification);
     autoCueToggle.onClick = [this] { for (int d = 0; d < 2; ++d) engine.deck (d).setAutoCue (autoCueToggle.getToggleState()); };
@@ -531,7 +534,7 @@ void SettingsPanel::resized()
     if (section == controllers)
         layoutControllers (c);
 
-    for (auto* b : { &helpCommunity, &helpInstagram, &helpReport }) b->setVisible (section == help);
+    for (auto* b : { &helpCommunity, &helpInstagram, &helpReport, &helpDonate }) b->setVisible (section == help);
     if (section == help)
     {
         auto h = c;
@@ -541,6 +544,8 @@ void SettingsPanel::resized()
             b->setBounds (h.removeFromTop (Size::controlLg + 4).withWidth (340));
             h.removeFromTop (Space::md);
         }
+        h.removeFromTop (Space::xl + 40);                    // the donation note is painted here
+        helpDonate.setBounds (h.removeFromTop (Size::controlLg + 4).withWidth (340));
     }
 
     updateToggle.setVisible (section == diagnostics);
@@ -672,6 +677,11 @@ void SettingsPanel::paint (juce::Graphics& g)
             c.removeFromTop (Space::md);
             Text::draw (g, juce::String::fromUTF8 ("Instagram y WhatsApp: ") + Contact::handle(), c.removeFromTop (20).toFloat(),
                         font (Type::label, Weight::semibold), colour (Col::textTertiary));
+            {
+                auto d = c.withTrimmedTop (3 * (Size::controlLg + 4 + Space::md) + Space::xl + 18).withHeight (40);
+                drawSectionTitle (g, d.removeFromTop (20).toFloat(), juce::String::fromUTF8 ("Apoyá OpenMix"));
+                Text::draw (g, Contact::donateNote(), d.toFloat(), font (Type::body), colour (Col::textSecondary), juce::Justification::topLeft, false);
+            }
 
             break;
         }

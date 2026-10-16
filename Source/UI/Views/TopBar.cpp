@@ -152,6 +152,8 @@ void TopBar::showHelpMenu()
     m.addItem ("WhatsApp: buscanos como " + juce::String (Contact::handle()), false, false, nullptr);
     m.addSeparator();
     m.addItem ("Página de OpenMix", [] { Contact::open (Contact::site()); });
+    m.addSeparator();
+    m.addItem (juce::String::fromUTF8 ("♥  Apoyá OpenMix con una donación"), [] { Contact::open (Contact::donate()); });
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&helpBtn));
 }
 

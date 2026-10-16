@@ -45,6 +45,10 @@ public:
             addAndMakeVisible (*b);
         }
         community.onClick = [] { Contact::open (Contact::community()); };
+        donate.setTextType (Type::label, Weight::semibold);
+        donate.setTooltip (Contact::donateNote());
+        donate.onClick = [] { Contact::open (Contact::donate()); };
+        addAndMakeVisible (donate);
         instagram.onClick = [] { Contact::open (Contact::instagramChat()); };
 
         close.setTextType (Type::label, Weight::semibold);
@@ -109,10 +113,12 @@ public:
         linksLabel = r.removeFromTop (18);
         r.removeFromTop (Space::xs);
         auto links = r.removeFromTop (Size::controlMd);
-        const int lw = (links.getWidth() - Space::sm) / 2;
+        const int lw = (links.getWidth() - 2 * Space::sm) / 3;
         community.setBounds (links.removeFromLeft (lw));
         links.removeFromLeft (Space::sm);
-        instagram.setBounds (links);
+        instagram.setBounds (links.removeFromLeft (lw));
+        links.removeFromLeft (Space::sm);
+        donate.setBounds (links);
         auto bottom = r.removeFromBottom (Size::controlMd);
         close.setBounds (bottom.removeFromRight (110));
         never.setBounds (bottom.removeFromLeft (260));
@@ -155,7 +161,7 @@ private:
     Kind kind;
     juce::TextEditor text;
     Button send { "Enviar" };
-    Button community { "Comunidad (WhatsApp)" }, instagram { "Instagram" };
+    Button community { "Comunidad (WhatsApp)" }, instagram { "Instagram" }, donate { juce::String::fromUTF8 ("♥  Donar") };
     Button close { kind == Kind::goodbye ? "Salir" : "Cerrar" };
     juce::ToggleButton never;
     juce::Rectangle<int> card, statusArea, linksLabel;
