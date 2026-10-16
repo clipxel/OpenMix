@@ -71,7 +71,7 @@ public:
     /** Redirects all persistence (used by headless snapshot runs so user data is untouched). */
     static void setDataFolderOverride (const juce::File&);
     static bool isAudioFile (const juce::File&);
-    static constexpr int currentAnalysisVersion = 4;   // 1: BPM, 2: + key, 3: new beat tracker + MP3 timeline, 4: lines on the kick start
+    static constexpr int currentAnalysisVersion = 5;   // 1: BPM, 2: + key, 3: new beat tracker + MP3 timeline, 4: kick start, 5: whole-track attack fit
 
     const std::vector<TrackPtr>& tracks() const noexcept   { return all; }
     TrackPtr find (const juce::String& path) const;

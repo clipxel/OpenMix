@@ -189,8 +189,28 @@ public:
         bool isDropTarget = false;
     };
 
+    /** What the tree shows (counts and names): rebuilt only when it changes, not on every analysed track. */
+    juce::String signature() const
+    {
+        auto& lib = view.library;
+        juce::String sig;
+        sig << (int) lib.tracks().size() << "|" << lib.folders().size() << "|" << (int) lib.history().size() << "|";
+        for (auto& p : lib.playlists()) sig << p.name << ":" << p.paths.size() << ",";
+        for (auto& d : view.devices.devices()) sig << "|" << d->ex->volumeName << ":" << (int) d->tracks.size();
+        for (auto& v : view.devices.volumes()) sig << "|" << v.getFullPathName();
+        return sig;
+    }
+
+    void rebuildIfChanged()
+    {
+        const auto sig = signature();
+        if (sig == lastSignature) { repaintAll(); return; }
+        rebuild();
+    }
+
     void rebuild()
     {
+        lastSignature = signature();
         auto& lib = view.library;
         auto root = std::make_unique<Item> (view, "root", Icon::none, std::nullopt);
 
@@ -290,9 +310,12 @@ public:
         };
         collect (rootItem.get());
 
+        // Keep the scroll position: rebuilding must not jump the list back to the top.
+        const auto scroll = tree.getViewport() != nullptr ? tree.getViewport()->getViewPosition() : juce::Point<int>();
         tree.setRootItem (nullptr);
         rootItem = std::move (root);
         tree.setRootItem (rootItem.get());
+        restoreScroll = scroll;
 
         std::function<void (juce::TreeViewItem*)> reopen = [&] (juce::TreeViewItem* it)
         {
@@ -304,6 +327,13 @@ public:
                 }
         };
         reopen (rootItem.get());
+        if (auto* vp = tree.getViewport())
+        {
+            const auto pos = restoreScroll;
+            juce::Component::SafePointer<SourceTree> self (this);
+            vp->setViewPosition (pos);
+            juce::MessageManager::callAsync ([self, pos] { if (self != nullptr) if (auto* v = self->tree.getViewport()) v->setViewPosition (pos); });
+        }
     }
 
     void repaintAll() { tree.repaint(); }
@@ -311,6 +341,8 @@ public:
     LibraryView& view;
     juce::TreeView tree;
     std::unique_ptr<Item> rootItem;
+    juce::String lastSignature;
+    juce::Point<int> restoreScroll;
 };
 
 //==============================================================================
@@ -394,7 +426,7 @@ void LibraryView::changeListenerCallback (juce::ChangeBroadcaster*)
         seenDeviceRevision = devices.revision();
         if (source.kind == Source::Kind::device && ! juce::isPositiveAndBelow (source.index, (int) devices.devices().size()))
             source = {};
-        tree->rebuild();
+        tree->rebuildIfChanged();
         rebuildRows();
     }
     repaint (statusArea);

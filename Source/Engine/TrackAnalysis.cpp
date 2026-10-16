@@ -352,6 +352,40 @@ double attackOffsetMs (const juce::AudioBuffer<float>& audio, double sr, BeatGri
     return offs[offs.size() / 2];
 }
 
+// Diagnostics: where hits start in the drawn waveform (450 fps, bands layered as on screen), relative
+// to the grid lines — per beat, valley before the hit → peak; start = 25 % of the climb. Histogram in ms.
+static juce::String drawnHistogram (const juce::AudioBuffer<float>& audio, double sr, BeatGrid g)
+{
+    const auto w = computeWaveform (audio, sr);
+    const int nf = w.numFrames();
+    const double fps = WaveformData::framesPerSecond;
+    auto height = [&w] (int f) { return juce::jmax (0.98f * w.low[(size_t) f], 0.80f * w.mid[(size_t) f], 0.55f * w.high[(size_t) f]); };
+    std::array<int, 20> h {};
+    std::vector<double> all;
+    for (double t = g.firstBeatSeconds; ; t += 60.0 / g.bpm)
+    {
+        const int c = (int) std::round (t * fps), w0 = (int) (0.040 * fps), w1 = (int) (0.040 * fps);
+        if (c + w1 >= nf) break;
+        if (c - w0 < 1) continue;
+        int pk = c - w0;
+        for (int f = c - w0; f < c + w1; ++f) if (height (f) > height (pk)) pk = f;
+        int lo = pk;
+        for (int f = pk; f >= c - w0; --f) if (height (f) < height (lo)) lo = f;
+        const float P = height (pk), V = height (lo);
+        if (P < 8.0f || P < 1.25f * V) continue;
+        const float level = V + 0.25f * (P - V);
+        int st = lo;
+        while (st < pk && height (st) < level) ++st;
+        const double ms = (st - c) * 1000.0 / fps;
+        all.push_back (ms);
+        ++h[(size_t) juce::jlimit (0, 19, (int) std::floor ((ms + 40.0) / 4.0))];
+    }
+    juce::String out;
+    for (auto v : h) out << juce::String (v).paddedLeft (' ', 4);
+    if (! all.empty()) { std::nth_element (all.begin(), all.begin() + (long) all.size() / 2, all.end()); out << "   mediana " << juce::String (all[all.size() / 2], 1) << " ms (" << (int) all.size() << " golpes)"; }
+    return out;
+}
+
 juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid reference)
 {
     Features f;
@@ -457,6 +491,7 @@ juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGr
     };
     fine << "\ninicio del golpe (10%):" << startHist (reference);
     fine << "\n  …respecto de la grilla de OpenMix:" << startHist (mine);
+    fine << "\nDIBUJO: inicio del golpe respecto de la línea de OpenMix:" << drawnHistogram (audio, sr, mine);
     return fine + "\n" + "OpenMix " + juce::String (mine.bpm, 2) + " BPM, fase " + juce::String (d / beat, 2) + " beat respecto de la referencia\n"
          + "graves (16avos de beat desde la referencia):" + fold (env.kick) + "\n"
          + "banda completa:                           " + fold (env.full);
@@ -484,7 +519,7 @@ static double kickStartOffset (const Features& f, double bpm, double phase)
         for (auto& v : y) { st = juce::jmax (std::abs (v), st * k); v = st; }
     }
     const double beat = 60.0 / bpm;
-    const int w0 = (int) (0.045 * f.rate), w1 = (int) (0.035 * f.rate), quiet = (int) (0.010 * f.rate);
+    const int w0 = (int) (0.045 * f.rate), w1 = (int) (0.035 * f.rate);
     std::vector<double> offs;
     for (double t = std::fmod (phase, beat); ; t += beat)
     {
@@ -494,17 +529,114 @@ static double kickStartOffset (const Features& f, double bpm, double phase)
         int pk = c - w0;
         for (int i = c - w0; i < c + w1; ++i) if (y[(size_t) i] > y[(size_t) pk]) pk = i;
         const float peak = y[(size_t) pk];
-        float before = 1.0e9f;
-        for (int i = c - w0; i < c - w0 + quiet; ++i) before = juce::jmin (before, y[(size_t) i]);
-        if (peak < 1.0e-3f || before > 0.3f * peak) continue;          // no clear hit out of a quieter gap
-        int st = pk;
-        while (st > c - w0 && y[(size_t) st] > 0.15f * peak) --st;
-        if (st <= c - w0) continue;                                    // still inside the previous sound
+        // The lowest point just before the hit: the bass may keep sounding underneath (no silence needed).
+        int lo = pk;
+        for (int i = pk; i > c - w0; --i) if (y[(size_t) i] < y[(size_t) lo]) lo = i;
+        const float floorV = y[(size_t) lo];
+        if (peak < 1.0e-3f || peak < 1.5f * floorV || lo <= c - w0 + 1) continue;   // no clear hit there
+        // The hit starts where it has climbed 15 % of the way from that floor to its peak.
+        const float level = floorV + 0.15f * (peak - floorV);
+        int st = lo;
+        while (st < pk && y[(size_t) st] < level) ++st;
         offs.push_back ((st - c) / f.rate);
     }
     if (offs.size() < 16) return 0.0;
     std::nth_element (offs.begin(), offs.begin() + (long) offs.size() / 2, offs.end());
     return offs[offs.size() / 2];
+}
+
+double kickStartOffsetMs (const juce::AudioBuffer<float>& audio, double sr, BeatGrid grid)
+{
+    Features f;
+    if (! grid.isValid() || ! computeFeatures (audio, sr, nullptr, f)) return 0.0;
+    return kickStartOffset (f, grid.bpm, grid.firstBeatSeconds) * 1000.0;
+}
+
+static constexpr double attackCalibrationSec = 0.0;     // the line sits on the attack: where the hit starts in the drawn waveform
+
+// Sharp phase from the hits' attacks: full-band transient strength (pre-emphasised energy rise at
+// 0.25 ms) folded onto the beat lines of the WHOLE track; the grid moves to where the attacks pile up.
+// One fit for all beats together is far steadier than measuring hits one by one.
+static double attackPhaseShift (const juce::AudioBuffer<float>& audio, double sr, double bpm, double phase)
+{
+    const int n = audio.getNumSamples();
+    if (n < 1000 || bpm <= 0.0 || sr <= 0.0) return 0.0;
+    const int hop = juce::jmax (1, (int) std::round (sr * 0.00025));
+    const int frames = n / hop;
+    std::vector<float> le ((size_t) frames, 0.0f);
+    float prev = 0.0f;
+    for (int fr = 0; fr < frames; ++fr)
+    {
+        double e = 0.0;
+        for (int k = 0; k < hop; ++k)
+        {
+            const float x = monoSample (audio, fr * hop + k);
+            const float d = x - 0.97f * prev;                 // pre-emphasis: the click of each hit stands out
+            prev = x;
+            e += (double) d * d;
+        }
+        le[(size_t) fr] = std::log1p (1.0e5f * (float) e);
+    }
+    const double fps = sr / hop;
+    const int lag = juce::jmax (1, (int) std::round (0.001 * fps));   // rise over 1 ms
+    const int span = (int) std::round (0.030 * fps);
+    std::vector<double> h ((size_t) (2 * span + 1), 0.0);
+    const double beat = 60.0 / bpm;
+    for (double t = std::fmod (phase, beat); ; t += beat)
+    {
+        const int c = (int) std::round (t * fps);
+        if (c + span + 1 >= frames) break;
+        if (c - span - lag < 0) continue;
+        for (int k = -span; k <= span; ++k)
+        {
+            const float r = le[(size_t) (c + k)] - le[(size_t) (c + k - lag)];
+            if (r > 0.0f) h[(size_t) (k + span)] += (double) r * r;
+        }
+    }
+    // Smooth over ±1 ms and take the peak.
+    const int sm = juce::jmax (1, (int) std::round (0.001 * fps));
+    int best = span;
+    double bestV = -1.0;
+    for (int k = sm; k < (int) h.size() - sm; ++k)
+    {
+        double v = 0.0;
+        for (int j = -sm; j <= sm; ++j) v += h[(size_t) (k + j)] * (1.0 - std::abs (j) / (double) (sm + 1));
+        if (v > bestV) { bestV = v; best = k; }
+    }
+    return (best - span) / fps;
+}
+
+// Last check, with the DJ's own criterion: where each hit starts in the drawn waveform (bands layered as
+// on screen, 450 fps). Per beat: valley before the hit → its peak, start at 25 % of the climb; median
+// over the whole track. Returns 0 when there are too few clear hits to tell.
+static double drawnHitStart (const juce::AudioBuffer<float>& audio, double sr, double bpm, double phase)
+{
+    const auto w = computeWaveform (audio, sr);
+    const int nf = w.numFrames();
+    if (nf < 100 || bpm <= 0.0) return 0.0;
+    const double fps = WaveformData::framesPerSecond;
+    auto height = [&w] (int f) { return juce::jmax (0.98f * w.low[(size_t) f], 0.80f * w.mid[(size_t) f], 0.55f * w.high[(size_t) f]); };
+    std::vector<double> all;
+    const int w0 = (int) (0.040 * fps), w1 = (int) (0.040 * fps);
+    for (double t = std::fmod (phase, 60.0 / bpm); ; t += 60.0 / bpm)
+    {
+        const int c = (int) std::round (t * fps);
+        if (c + w1 >= nf) break;
+        if (c - w0 < 1) continue;
+        int pk = c - w0;
+        for (int f = c - w0; f < c + w1; ++f) if (height (f) > height (pk)) pk = f;
+        int lo = pk;
+        for (int f = pk; f >= c - w0; --f) if (height (f) < height (lo)) lo = f;
+        const float P = height (pk), V = height (lo);
+        if (P < 8.0f || P < 1.25f * V) continue;
+        const float level = V + 0.25f * (P - V);
+        int st = lo;
+        while (st < pk && height (st) < level) ++st;
+        all.push_back ((st - c) / fps);
+    }
+    if (all.size() < 32) return 0.0;
+    std::nth_element (all.begin(), all.begin() + (long) all.size() / 2, all.end());
+    return all[all.size() / 2];
 }
 
 // Fine tempo (±0.6 %) and phase (≈1 ms) from the kick attacks of the whole track.
@@ -634,9 +766,7 @@ static void refineTempoAndPhase (const Features& f, double& bpm, double& phase)
         }
     }
 
-    // Finally the beat lines go where the kicks start (a few ms before their fastest rise).
-    const double start = kickStartOffset (f, bpm, phase);
-    if (start > -0.025 && start < 0.005) phase += start;
+
 }
 
 BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid approx)
@@ -646,6 +776,14 @@ BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid 
         return approx;
     double bpm = approx.bpm, phase = approx.firstBeatSeconds;
     refineTempoAndPhase (f, bpm, phase);
+    for (int pass = 0; pass < 2; ++pass)                       // same attack fit as the analysis
+    {
+        const double d = attackPhaseShift (audio, sr, bpm, phase);
+        if (std::abs (d) < 0.029) phase += d;
+    }
+    phase += attackCalibrationSec;
+    if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.020)
+        phase += d;                                            // the hit starts here in the drawn waveform
     // Keep the DJ's bar: the refined beat nearest to the old beat 1, as the new beat 1.
     const double beat = 60.0 / bpm;
     const double k = std::round ((approx.firstBeatSeconds - phase) / beat);
@@ -683,6 +821,16 @@ BeatGrid detectBeatGrid (const juce::AudioBuffer<float>& audio, double sr, const
 
     refineTempoAndPhase (f, bpm, phase);
     beatSec = 60.0 / bpm;
+
+    // Lines on the hits' attacks, fitted on the whole track at 0.25 ms (twice, to settle).
+    for (int pass = 0; pass < 2; ++pass)
+    {
+        const double d = attackPhaseShift (audio, sr, bpm, phase);
+        if (std::abs (d) < 0.029) phase += d;
+    }
+    phase += attackCalibrationSec;
+    if (const double d = drawnHitStart (audio, sr, bpm, phase); std::abs (d) > 0.003 && std::abs (d) < 0.020)
+        phase += d;                                            // the hit starts here in the drawn waveform
 
     // 6. Downbeat: harmonic change and low-band onsets favour the "1" of the bar.
     {

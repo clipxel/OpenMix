@@ -707,7 +707,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                     rd->read (&buf, pad, len - skip, skip, true, buf.getNumChannels() > 1);
                     const auto t0 = juce::Time::getMillisecondCounterHiRes();
                     const auto g = Analysis::detectBeatGrid (buf, rd->sampleRate);
-                    r.rbAlign = Analysis::attackOffsetMs (buf, rd->sampleRate, an.grid);
+                    r.rbAlign = Analysis::kickStartOffsetMs (buf, rd->sampleRate, g);   // OpenMix line vs kick start
                     r.secs = (juce::Time::getMillisecondCounterHiRes() - t0) / 1000.0;
                     r.omBpm = g.bpm;
                     r.omFirst = g.firstBeatSeconds;

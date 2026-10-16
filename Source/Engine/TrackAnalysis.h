@@ -53,6 +53,9 @@ namespace Analysis
         the whole track as decoded here (≤ 50 ms). Unchanged when the track has no clear kicks. */
     BeatGrid alignGridToKicks (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid grid);
 
+    /** Diagnostics: median start of the kicks relative to a grid's beats (ms, − = before the line). */
+    double kickStartOffsetMs (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid grid);
+
     /** Diagnostics: median position of the kick attacks relative to a grid's beats (ms, + = late). */
     double attackOffsetMs (const juce::AudioBuffer<float>& audio, double sampleRate, BeatGrid grid);
 

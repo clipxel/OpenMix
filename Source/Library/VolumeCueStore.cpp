@@ -1,4 +1,5 @@
 #include "VolumeCueStore.h"
+#include "Library.h"
 #include "Volumes.h"
 #include "../Common/Strings.h"
 
@@ -68,9 +69,13 @@ std::optional<VolumeCueStore::Cues> VolumeCueStore::entryFor (const juce::var& d
     c.bpm = (double) entry.getProperty ("bpm", 0.0);
     c.firstBeat = (double) entry.getProperty ("firstBeat", 0.0);
     // OpenMix's own analysis ("om…"). Older "analysedBpm" entries were re-aligned exported grids: ignored.
-    c.analysedBpm = (double) entry.getProperty ("omBpm", 0.0);
-    c.analysedFirst = (double) entry.getProperty ("omFirst", 0.0);
-    c.key = entry.getProperty ("omKey", {}).toString();
+    // Analyses made by an older analyser are redone (the DJ's own grid edits, "bpm", always stay).
+    if ((int) entry.getProperty ("omVersion", 0) >= Library::currentAnalysisVersion)
+    {
+        c.analysedBpm = (double) entry.getProperty ("omBpm", 0.0);
+        c.analysedFirst = (double) entry.getProperty ("omFirst", 0.0);
+        c.key = entry.getProperty ("omKey", {}).toString();
+    }
     return c;
 }
 
@@ -93,7 +98,7 @@ juce::String VolumeCueStore::put (const juce::File& track, const Cues& c)
     o->setProperty ("hotCues", hc);
     o->setProperty ("savedLoops", sl);
     if (c.bpm > 0.0) { o->setProperty ("bpm", c.bpm); o->setProperty ("firstBeat", c.firstBeat); }
-    if (c.analysedBpm > 0.0) { o->setProperty ("omBpm", c.analysedBpm); o->setProperty ("omFirst", c.analysedFirst); }
+    if (c.analysedBpm > 0.0) { o->setProperty ("omBpm", c.analysedBpm); o->setProperty ("omFirst", c.analysedFirst); o->setProperty ("omVersion", Library::currentAnalysisVersion); }
     if (c.key.isNotEmpty()) o->setProperty ("omKey", c.key);
     o->setProperty ("updated", juce::Time::getCurrentTime().toISO8601 (true));
     tracks->setProperty (juce::Identifier (track.getRelativePathFrom (root)), juce::var (o.release()));
