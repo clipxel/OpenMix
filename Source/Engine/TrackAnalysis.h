@@ -10,7 +10,7 @@ namespace om
     One frame per (1 / framesPerSecond) seconds; values 0..255. */
 struct WaveformData
 {
-    static constexpr double framesPerSecond = 150.0;
+    static constexpr double framesPerSecond = 450.0;   // ~2 ms: zoomed in, each hit is drawn where it really starts
 
     std::vector<juce::uint8> low, mid, high;
 

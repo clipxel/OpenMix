@@ -921,8 +921,7 @@ void LibraryView::showRowMenu (int row)
     if (source.kind == Source::Kind::playlist)
         m.addItem ("Quitar de esta playlist", [this, paths] { library.removeFromPlaylist (source.index, paths); });
 
-    if (! t->isExternal())
-        m.addItem ("Volver a analizar", [this, sel] { for (auto& s : sel) library.requestAnalysis (s, true); });
+    m.addItem ("Volver a analizar (BPM y grilla)", [this, sel] { if (onReanalyse) onReanalyse (sel); });
     m.addItem ("Mostrar en Finder", [t] { t->file.revealToUser(); });
     m.showMenuAsync ({});
 }

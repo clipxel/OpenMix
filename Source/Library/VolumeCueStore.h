@@ -31,6 +31,10 @@ public:
     static void setExtraVolumeRoot (const juce::File&);
 
     std::optional<Cues> get (const juce::File& track);
+    /** Bulk reading (opening a drive with thousands of tracks): the drive's database, read once,
+        and one track's entry from it. */
+    static juce::var readDatabase (const juce::File& volumeRoot);
+    static std::optional<Cues> entryFor (const juce::var& database, const juce::String& relativePath);
     /** Returns an error message on failure (read-only medium, permissions…). */
     juce::String put (const juce::File& track, const Cues&);
     /** Records a played track's analysis on its drive (only when new or changed). */

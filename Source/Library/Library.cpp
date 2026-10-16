@@ -212,6 +212,7 @@ void Library::requestAnalysis (const TrackPtr& t, bool force)
         return;
 
     t->analysis = Track::Analysis::pending;
+    if (force) t->gridEdited = false;        // asked to re-analyse: the new grid replaces any edit
     ++analysisQueued;
 
     auto aliveFlag = alive;
@@ -297,6 +298,7 @@ void Library::requestAnalysis (const TrackPtr& t, bool force)
                     }
                     tr->detectedKey = key;
                     tr->analysisVersion = currentAnalysisVersion;
+                    if (onAnalysed) onAnalysed (tr);
                 }
             }
             touched();

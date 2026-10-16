@@ -56,6 +56,14 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
 
     libraryView.onLoadToDeck = [this] (const TrackPtr& t, int d) { loadToDeck (t, d); };
     libraryView.onAddFolder = [this] { addFolder(); };
+    libraryView.onReanalyse = [this] (const std::vector<TrackPtr>& sel) { reanalyse (sel); };
+    library.onAnalysed = [this] (const TrackPtr& t)
+    {
+        // A finished analysis reaches a deck that has this track loaded, right away.
+        for (int d = 0; d < 2; ++d)
+            if (auto lt = engine.deck (d).getTrack(); lt != nullptr && lt->file == t->file && t->bpm > 0.0)
+                lt->setGrid ({ t->bpm, t->firstBeat });
+    };
     libraryView.onAddToAutoMix = [this] (const std::vector<TrackPtr>& t) { automix.add (t); automixOpen = true; resized(); };
     topBar.onToggleAutoMix = [this] { automixOpen = ! automixOpen; resized(); };
     topBar.onOpenFeedback = [this] { showFeedback (FeedbackCard::Kind::report); };
@@ -375,12 +383,11 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
     if (t->isExternal())
     {
         // Exported USB: use its beat grid and cues as exported (read-only).
-        const auto rb = DeviceMonitor::analysisFor (*t);
-        if (rb.grid.isValid()) { meta.knownGrid = rb.grid; meta.alignGridToKicks = true; }
+        const auto rb = DeviceMonitor::analysisFor (*t);    // cues only: BPM / grid are always OpenMix's
         if (rb.cuePoint >= 0.0) meta.cuePoint = rb.cuePoint;
         meta.hotCues = rb.hotCues;
         meta.savedLoops = rb.hotLoops;
-        meta.key = t->displayKey();
+        meta.key = t->detectedKey;
     }
 
     // Cues saved with the drive by OpenMix take precedence over the exported ones.
@@ -394,18 +401,68 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
     }
 
     auto& view = deck == 1 ? deckB : deckA;
-    engine.loadTrack (deck, t->file, meta, [this, &view, deck, file = t->file, key = t->displayKey()] (bool ok, const juce::String& err)
+    engine.loadTrack (deck, t->file, meta, [this, &view, deck, t] (bool ok, const juce::String& err)
     {
         if (! ok) { view.showMessage (err, true); return; }
-        // Drive database: the analysis of every track played from an external drive stays on it.
-        if (VolumeCueStore::externalVolumeFor (file) != juce::File())
+        const auto lt = engine.deck (deck).getTrack();
+        const auto g = engine.deck (deck).getGrid();
+        const auto key = lt != nullptr ? lt->meta.key : juce::String();
+        // A track analysed on load (exported USB): the list shows it right away.
+        if (t->isExternal() && g.isValid())
         {
-            const auto g = engine.deck (deck).getGrid();
-            if (g.isValid())
-                if (const auto e = cueStore.noteAnalysis (file, g.bpm, g.firstBeatSeconds, key); e.isNotEmpty())
-                    view.showMessage (e, true);
+            // The drive's list may have been re-read meanwhile: update the row it shows now too.
+            for (auto& x : { t, devices.findByPath (t->path()) })
+                if (x != nullptr)
+                {
+                    x->bpm = g.bpm;
+                    x->firstBeat = g.firstBeatSeconds;
+                    if (key.isNotEmpty()) x->detectedKey = key;
+                    x->analysis = Track::Analysis::done;
+                }
+            libraryView.repaint();
         }
+        // Drive database: the analysis of every track played from an external drive stays on it.
+        if (VolumeCueStore::externalVolumeFor (t->file) != juce::File() && g.isValid())
+            if (const auto e = cueStore.noteAnalysis (t->file, g.bpm, g.firstBeatSeconds, key); e.isNotEmpty())
+                view.showMessage (e, true);
     });
+}
+
+void MainComponent::reanalyse (const std::vector<TrackPtr>& tracks)
+{
+    for (auto& t : tracks)
+    {
+        if (! t->isExternal())
+        {
+            library.requestAnalysis (t, true);
+            continue;
+        }
+        // Exported USB track: forget the analysis kept on the drive; analysed again now if it is
+        // loaded, otherwise on its next load.
+        t->bpm = 0.0;
+        t->analysis = Track::Analysis::pending;
+        if (auto c = cueStore.get (t->file))
+        {
+            c->bpm = 0.0; c->analysedBpm = 0.0;
+            cueStore.put (t->file, *c);
+        }
+        for (int d = 0; d < 2; ++d)
+            if (auto lt = engine.deck (d).getTrack(); lt != nullptr && lt->file == t->file)
+            {
+                juce::Component::SafePointer<MainComponent> self (this);
+                std::thread ([self, lt]
+                {
+                    const auto g = Analysis::detectBeatGrid (lt->audio, lt->sampleRate);
+                    juce::MessageManager::callAsync ([self, lt, g]
+                    {
+                        if (self == nullptr || ! g.isValid()) return;
+                        lt->setGrid (g);
+                        if (VolumeCueStore::externalVolumeFor (lt->file) != juce::File())
+                            self->cueStore.noteAnalysis (lt->file, g.bpm, g.firstBeatSeconds, {});
+                    });
+                }).detach();
+            }
+    }
 }
 
 void MainComponent::showFeedback (FeedbackCard::Kind kind, std::function<void()> after)

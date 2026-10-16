@@ -36,6 +36,7 @@ public:
     std::function<void (const TrackPtr&, int deck)> onLoadToDeck;   // deck −1 = auto
     std::function<void()> onAddFolder;
     std::function<void (const std::vector<TrackPtr>&)> onAddToAutoMix;
+    std::function<void (const std::vector<TrackPtr>&)> onReanalyse;
 
     void refresh();                                 // cheap; called every frame
     void paint (juce::Graphics&) override;

@@ -111,6 +111,8 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
                 result->audio.copyFrom (1, 0, result->audio, 0, 0, len - skip + pad);
 
             result->wave = Analysis::computeWaveform (result->audio, result->sampleRate);
+            if (result->meta.key.isEmpty())
+                result->meta.key = Analysis::detectKey (result->audio, result->sampleRate);   // not analysed yet
             result->loudnessLufs = Analysis::integratedLoudness (result->audio, result->sampleRate);
             result->analysedGrid = ! meta.knownGrid.isValid() ? Analysis::detectBeatGrid (result->audio, result->sampleRate)
                                  : meta.alignGridToKicks ? Analysis::alignGridToKicks (result->audio, result->sampleRate, meta.knownGrid)

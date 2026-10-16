@@ -42,7 +42,18 @@ std::optional<VolumeCueStore::Cues> VolumeCueStore::get (const juce::File& track
     if (root == juce::File() || ! (storeFile (root).existsAsFile() || legacyFile (root).existsAsFile()))
         return std::nullopt;   // never creates anything on read
 
-    const auto entry = volume (root).data["tracks"][juce::Identifier (track.getRelativePathFrom (root))];
+    return entryFor (volume (root).data, track.getRelativePathFrom (root));
+}
+
+juce::var VolumeCueStore::readDatabase (const juce::File& root)
+{
+    const auto file = storeFile (root).existsAsFile() ? storeFile (root) : legacyFile (root);
+    return file.existsAsFile() ? juce::JSON::parse (file) : juce::var();
+}
+
+std::optional<VolumeCueStore::Cues> VolumeCueStore::entryFor (const juce::var& db, const juce::String& relativePath)
+{
+    const auto entry = db["tracks"][juce::Identifier (relativePath)];
     if (! entry.isObject())
         return std::nullopt;
 
@@ -56,9 +67,10 @@ std::optional<VolumeCueStore::Cues> VolumeCueStore::get (const juce::File& track
             c.savedLoops[(size_t) (i / 2)] = { (double) (*sl)[i], (double) (*sl)[i + 1] };
     c.bpm = (double) entry.getProperty ("bpm", 0.0);
     c.firstBeat = (double) entry.getProperty ("firstBeat", 0.0);
-    c.analysedBpm = (double) entry.getProperty ("analysedBpm", 0.0);
-    c.analysedFirst = (double) entry.getProperty ("analysedFirst", 0.0);
-    c.key = entry.getProperty ("key", {}).toString();
+    // OpenMix's own analysis ("om…"). Older "analysedBpm" entries were re-aligned exported grids: ignored.
+    c.analysedBpm = (double) entry.getProperty ("omBpm", 0.0);
+    c.analysedFirst = (double) entry.getProperty ("omFirst", 0.0);
+    c.key = entry.getProperty ("omKey", {}).toString();
     return c;
 }
 
@@ -81,8 +93,8 @@ juce::String VolumeCueStore::put (const juce::File& track, const Cues& c)
     o->setProperty ("hotCues", hc);
     o->setProperty ("savedLoops", sl);
     if (c.bpm > 0.0) { o->setProperty ("bpm", c.bpm); o->setProperty ("firstBeat", c.firstBeat); }
-    if (c.analysedBpm > 0.0) { o->setProperty ("analysedBpm", c.analysedBpm); o->setProperty ("analysedFirst", c.analysedFirst); }
-    if (c.key.isNotEmpty()) o->setProperty ("key", c.key);
+    if (c.analysedBpm > 0.0) { o->setProperty ("omBpm", c.analysedBpm); o->setProperty ("omFirst", c.analysedFirst); }
+    if (c.key.isNotEmpty()) o->setProperty ("omKey", c.key);
     o->setProperty ("updated", juce::Time::getCurrentTime().toISO8601 (true));
     tracks->setProperty (juce::Identifier (track.getRelativePathFrom (root)), juce::var (o.release()));
     return write (root, v);

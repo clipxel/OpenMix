@@ -65,6 +65,7 @@ private:
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     void loadToDeck (const om::TrackPtr&, int deck);
+    void reanalyse (const std::vector<om::TrackPtr>&);
     void loadFileToDeck (const juce::File&, int deck);
     void addFolder();
     void toggleRecord();

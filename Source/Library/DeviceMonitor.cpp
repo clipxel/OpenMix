@@ -1,5 +1,6 @@
 #include "DeviceMonitor.h"
 #include "Volumes.h"
+#include "VolumeCueStore.h"
 
 namespace om
 {
@@ -94,6 +95,7 @@ void DeviceMonitor::applyRoots (const juce::Array<juce::File>& roots)
             if (ex != nullptr)
             {
                 dev->ex = ex;
+                const auto driveDb = VolumeCueStore::readDatabase (root);   // OpenMix's analysis on this drive, read once
                 for (const auto& row : ex->tracks)
                 {
                     auto t = std::make_shared<Track>();
@@ -103,15 +105,22 @@ void DeviceMonitor::applyRoots (const juce::Array<juce::File>& roots)
                     t->album = row.album;
                     t->genre = row.genre;
                     t->comment = row.comment;
-                    t->key = row.key;
-                    t->detectedKey = UsbExport::keyToCamelot (row.key);
-                    t->bpm = row.bpm;
+                    // Only OpenMix analyses: the export's BPM, key and grid are not used. Tracks never
+                    // played in OpenMix show as not analysed and are analysed when loaded on a deck.
+                    t->bpm = 0.0;
                     t->duration = row.durationSeconds;
                     t->playCount = row.playCount;
                     if (row.dateAdded.length() >= 10)
                         t->added = juce::Time (row.dateAdded.substring (0, 4).getIntValue(), row.dateAdded.substring (5, 7).getIntValue() - 1,
                                                row.dateAdded.substring (8, 10).getIntValue(), 0, 0);
-                    t->analysis = Track::Analysis::done;   // analysed when the drive was exported
+                    t->analysis = Track::Analysis::pending;
+                    if (auto c = VolumeCueStore::entryFor (driveDb, t->file.getRelativePathFrom (root)); c && (c->analysedBpm > 0.0 || c->bpm > 0.0))
+                    {
+                        t->bpm = c->bpm > 0.0 ? c->bpm : c->analysedBpm;
+                        t->firstBeat = c->bpm > 0.0 ? c->firstBeat : c->analysedFirst;
+                        t->detectedKey = c->key;
+                        t->analysis = Track::Analysis::done;
+                    }
                     t->device = ex;
                     t->deviceTrackId = row.id;
                     dev->byId[row.id] = t;

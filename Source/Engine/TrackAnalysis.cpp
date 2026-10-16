@@ -413,9 +413,98 @@ juce::String debugGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGr
         fine << "\nataque (subida):     "; for (auto v : hk) fine << juce::String (v).paddedLeft (' ', 4);
         fine << "\ngolpe al 50 %:       "; for (auto v : hs) fine << juce::String (v).paddedLeft (' ', 4);
     }
+    // Kick START (zero-phase low band, first sample above 10 % of each hit) relative to the
+    // reference lines and to OpenMix's own grid — what the eye sees as "where the hit begins".
+    auto startHist = [&] (BeatGrid g)
+    {
+        std::vector<float> y (f.mono);
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            juce::IIRFilter a, b;
+            a.setCoefficients (juce::IIRCoefficients::makeLowPass (f.rate, 140.0));
+            b.setCoefficients (juce::IIRCoefficients::makeHighPass (f.rate, 35.0));
+            for (auto& v : y) v = b.processSingleSampleRaw (a.processSingleSampleRaw (v));
+            std::reverse (y.begin(), y.end());
+        }
+        // Envelope that follows the wave's peaks (no dips at each zero crossing), without moving the onset.
+        {
+            const float k = (float) std::exp (-1.0 / (0.015 * f.rate));
+            float st = 0.0f;
+            for (auto& v : y) { st = juce::jmax (std::abs (v), st * k); v = st; }
+        }
+        std::array<int, 20> h {};
+        std::vector<double> all;
+        for (double t = g.firstBeatSeconds; ; t += 60.0 / g.bpm)
+        {
+            const int c = (int) std::round (t * f.rate), w0 = (int) (0.045 * f.rate), w1 = (int) (0.035 * f.rate);
+            if (c + w1 >= (int) y.size()) break;
+            if (c - w0 < 1) continue;
+            int pk = c - w0;
+            for (int i = c - w0; i < c + w1; ++i) if (y[(size_t) i] > y[(size_t) pk]) pk = i;
+            const float peak = y[(size_t) pk];
+            float floorV = 1e9f; for (int i = c - w0; i < c - w0 + (int) (0.01 * f.rate); ++i) floorV = juce::jmin (floorV, y[(size_t) i]);
+            if (peak < 1e-3f || floorV > 0.3f * peak) continue;
+            int st = pk;
+            while (st > c - w0 && y[(size_t) st] > 0.10f * peak) --st;
+            const double ms = (st - c) * 1000.0 / f.rate;
+            all.push_back (ms);
+            ++h[(size_t) juce::jlimit (0, 19, (int) std::floor ((ms + 40.0) / 4.0))];
+        }
+        juce::String out;
+        for (auto v : h) out << juce::String (v).paddedLeft (' ', 4);
+        if (! all.empty()) { std::nth_element (all.begin(), all.begin() + (long) all.size() / 2, all.end()); out << "   mediana " << juce::String (all[all.size() / 2], 1) << " ms"; }
+        return out;
+    };
+    fine << "\ninicio del golpe (10%):" << startHist (reference);
+    fine << "\n  …respecto de la grilla de OpenMix:" << startHist (mine);
     return fine + "\n" + "OpenMix " + juce::String (mine.bpm, 2) + " BPM, fase " + juce::String (d / beat, 2) + " beat respecto de la referencia\n"
          + "graves (16avos de beat desde la referencia):" + fold (env.kick) + "\n"
          + "banda completa:                           " + fold (env.full);
+}
+
+// Where the kicks START relative to the beat lines (seconds, median over the whole track): low band
+// filtered forward and backward (no delay), an envelope that follows the wave's peaks (no dips at
+// each zero crossing of the low tone), and for each beat the first moment the hit rises above 10 %
+// of its peak. Club software draws the line there — at the start of the hit, not where it grows fastest.
+static double kickStartOffset (const Features& f, double bpm, double phase)
+{
+    if (f.mono.size() < 1000 || bpm <= 0.0) return 0.0;
+    std::vector<float> y (f.mono);
+    for (int pass = 0; pass < 2; ++pass)
+    {
+        juce::IIRFilter a, b;
+        a.setCoefficients (juce::IIRCoefficients::makeLowPass (f.rate, 140.0));
+        b.setCoefficients (juce::IIRCoefficients::makeHighPass (f.rate, 35.0));
+        for (auto& v : y) v = b.processSingleSampleRaw (a.processSingleSampleRaw (v));
+        std::reverse (y.begin(), y.end());
+    }
+    {
+        const float k = (float) std::exp (-1.0 / (0.015 * f.rate));
+        float st = 0.0f;
+        for (auto& v : y) { st = juce::jmax (std::abs (v), st * k); v = st; }
+    }
+    const double beat = 60.0 / bpm;
+    const int w0 = (int) (0.045 * f.rate), w1 = (int) (0.035 * f.rate), quiet = (int) (0.010 * f.rate);
+    std::vector<double> offs;
+    for (double t = std::fmod (phase, beat); ; t += beat)
+    {
+        const int c = (int) std::round (t * f.rate);
+        if (c + w1 >= (int) y.size()) break;
+        if (c - w0 < 1) continue;
+        int pk = c - w0;
+        for (int i = c - w0; i < c + w1; ++i) if (y[(size_t) i] > y[(size_t) pk]) pk = i;
+        const float peak = y[(size_t) pk];
+        float before = 1.0e9f;
+        for (int i = c - w0; i < c - w0 + quiet; ++i) before = juce::jmin (before, y[(size_t) i]);
+        if (peak < 1.0e-3f || before > 0.3f * peak) continue;          // no clear hit out of a quieter gap
+        int st = pk;
+        while (st > c - w0 && y[(size_t) st] > 0.15f * peak) --st;
+        if (st <= c - w0) continue;                                    // still inside the previous sound
+        offs.push_back ((st - c) / f.rate);
+    }
+    if (offs.size() < 16) return 0.0;
+    std::nth_element (offs.begin(), offs.begin() + (long) offs.size() / 2, offs.end());
+    return offs[offs.size() / 2];
 }
 
 // Fine tempo (±0.6 %) and phase (≈1 ms) from the kick attacks of the whole track.
@@ -544,6 +633,10 @@ static void refineTempoAndPhase (const Features& f, double& bpm, double& phase)
             }
         }
     }
+
+    // Finally the beat lines go where the kicks start (a few ms before their fastest rise).
+    const double start = kickStartOffset (f, bpm, phase);
+    if (start > -0.025 && start < 0.005) phase += start;
 }
 
 BeatGrid refineGrid (const juce::AudioBuffer<float>& audio, double sr, BeatGrid approx)
