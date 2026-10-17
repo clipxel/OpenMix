@@ -7,6 +7,7 @@ name: iPhone
 on:
   push:
     tags: ["v*"]
+    branches: ["**"]
     paths: ["Source/**", "CMakeLists.txt", "Resources/**", ".github/workflows/ios.yml"]
   workflow_dispatch:
     inputs:
