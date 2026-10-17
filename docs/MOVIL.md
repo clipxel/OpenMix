@@ -158,8 +158,9 @@ y el key lock usa la configuración "económica" de Signalsmith.
 **No es la versión de PC achicada**: es una interfaz propia, pensada para los dedos. Los bocetos
 de las cinco pantallas están en el lienzo de diseño (Claude Design, "OpenMix Mobile").
 
-Solo horizontal. Referencia: iPhone 15/16 (852×393 pt) y Android 20:9 (~ 800×360 dp). Se
-dibuja dentro de la *safe area* (48 pt a cada lado por la isla/notch). Toques de 44 pt como
+Solo horizontal. Teléfono de referencia: **iPhone 16 Pro** (874×402 pt en horizontal, USB-C), el
+que se usa para probar. También tiene que entrar en el iPhone de 6,1" común (852×393) y en
+Android 20:9 (~ 800×360 dp). Se dibuja dentro de la *safe area* (~60 pt a cada lado por la isla). Toques de 44 pt como
 mínimo en lo que se toca mientras suena (play, cue, pads, carga en A/B); nada depende del hover.
 Mismos colores, iconos y tipografía que en escritorio (`Source/UI/Theme`).
 
@@ -171,18 +172,22 @@ Mismos colores, iconos y tipografía que en escritorio (`Source/UI/Theme`).
 │ A ▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁│▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂ │
 │ B ▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅│▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇ │
 ├──┬─────────────────────┬─────────────────┬─────────────────────────┬──┤
-│▕ │ Tema A        8A 124.0│ ◯  HI   ◯       │124.0 9A        Tema B   │ ▏│
+│+ │ Tema A        8A 124.0│ ◯  HI   ◯       │124.0 9A        Tema B   │ +│
 │▕ │[HOT CUE|LOOP|ROLL|SMP]│ ◯  MID  ◯       │[HOT CUE|LOOP|ROLL|SMP]  │ ▏│
 │█ │ [1][2][3][4]          │ ◯  LOW  ◯       │          [1][2][3][4]   │ █│
 │▕ │ [5][6][7][8]          │ ◯  FLT  ◯       │          [5][6][7][8]   │ ▏│
 │▕ │ (CUE)(▶)[SYNC] LOOP 4 │ ┃  ▮▮▮▮  ┃       │ LOOP 8 [SYNC](▶)(CUE)   │ ▏│
-│  │                       │ ◀────●────▶     │                         │  │
+│− │                       │ ◀────●────▶     │                         │ −│
 └──┴─────────────────────┴─────────────────┴─────────────────────────┴──┘
- pitch A (borde izquierdo)                                pitch B (borde derecho)
+ pitch A + pitch bend (borde izq.)                 pitch B + pitch bend (borde der.)
 ```
 
 - **Espejado**: el deck B es el reflejo del A (play y cue hacia afuera, al alcance del pulgar);
   el pitch va en el borde exterior de cada lado, como en una controladora.
+- **Pitch bend + / −**: arriba y abajo de cada pitch. Mientras se mantiene apretado, el tema
+  se adelanta (+) o se atrasa (−) para emparejar los golpes a oído; al soltar vuelve a la
+  velocidad del pitch. Usan las acciones que ya existen (`pitch_bend_plus` / `pitch_bend_minus`,
+  las mismas de F/G y [/] en el teclado y de las controladoras).
 - **Ondas**: tocar = saltar; arrastrar = scratch (en vinilo) o nudge; en pausa, arrastrar mueve
   la cue. Pellizcar = zoom. Reemplazan al jog, que no entra.
 - **Pads 4×2** con pestañas *Hot cue · Loop · Roll · Sampler* (los mismos modos de escritorio).
@@ -227,7 +232,7 @@ Es una de las funciones principales de la versión móvil.
 
 | | iPhone | Android |
 |---|---|---|
-| USB | USB-C: directo o con hub. Lightning: adaptador de cámara USB 3 **con carga** (el iPhone no alimenta controladoras grandes) | USB-C con OTG; controladoras grandes: hub con alimentación |
+| USB | USB-C (como el iPhone 16 Pro): directo o con hub; las controladoras chicas se alimentan del iPhone, las grandes con su fuente o un hub con alimentación. Lightning: adaptador de cámara USB 3 **con carga** (el iPhone no alimenta controladoras grandes) | USB-C con OTG; controladoras grandes: hub con alimentación |
 | Bluetooth MIDI | Emparejar desde OpenMix (JUCE abre el diálogo del sistema) | Igual, con la API MIDI de Android |
 | Placa de audio de la controladora | Si es *class compliant*: master a parlantes y cue a auriculares de la controladora (4 salidas) | Igual; depende del teléfono → "a probar" |
 | Mapeos | Los mismos `midi.json` de escritorio, la misma detección automática por nombre | Ídem |
@@ -311,6 +316,7 @@ CI desde la fase 0.
 
 ## 9. Preguntas abiertas
 
+- Teléfono de prueba: iPhone 16 Pro (USB-C).
 - ¿Hay una Mac disponible para probar en el simulador de iOS? (El CI compila igual en
   `macos-15`, pero depurar en el teléfono es mucho más cómodo con Xcode.)
 - Android: sin teléfono para probar, queda en pausa (se puede usar el emulador de Android Studio
