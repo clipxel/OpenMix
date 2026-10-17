@@ -155,46 +155,131 @@ y el key lock usa la configuración "económica" de Signalsmith.
 
 ## 4. Interfaz de teléfono (horizontal)
 
-Solo horizontal. Referencia: iPhone 15/16 (852×393 pt) y Android 20:9 (~ 800×360 dp).
-Toques mínimos de 44 pt; nada depende del hover.
+**No es la versión de PC achicada**: es una interfaz propia, pensada para los dedos. Los bocetos
+de las cinco pantallas están en el lienzo de diseño (Claude Design, "OpenMix Mobile").
+
+Solo horizontal. Referencia: iPhone 15/16 (852×393 pt) y Android 20:9 (~ 800×360 dp). Se
+dibuja dentro de la *safe area* (48 pt a cada lado por la isla/notch). Toques de 44 pt como
+mínimo en lo que se toca mientras suena (play, cue, pads, carga en A/B); nada depende del hover.
+Mismos colores, iconos y tipografía que en escritorio (`Source/UI/Theme`).
+
+### 4.1 Mezcla — tocando en la pantalla
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ ● OpenMix   124.0 ⟷ 128.0     REC  ⚙              🔋 batería · CPU       │  barra 28
-├──────────────────────────────────────────────────────────────────────────┤
-│ A ▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁│▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂ │  ondas
-│ B ▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅│▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇ │  2 × 52
-├────────────────────────┬────────────────────────┬────────────────────────┤
-│ Tema A · Artista   8A  │  HI  ◯      ◯  HI      │ Tema B · Artista   9A  │
-│ 124.0  −1:32           │  MID ◯      ◯  MID     │ 128.0  −3:05           │
-│ [1][2][3][4]  pads     │  LOW ◯      ◯  LOW     │ [1][2][3][4]  pads     │
-│ [5][6][7][8]           │  FLT ◯      ◯  FLT     │ [5][6][7][8]           │
-│                        │     ┃        ┃         │                        │
-│ (CUE) (▶) (SYNC) LOOP  │     ┃fader   ┃fader    │ LOOP (SYNC) (▶) (CUE)  │
-│ pitch ═══════●═══      │  ◀──────●──────▶ xfade │ pitch ═══●═══════      │
-└────────────────────────┴────────────────────────┴────────────────────────┘
-          ↑ deslizar desde abajo: biblioteca (hoja)        ↕ pestañas: PADS · FX · LOOP
+│ ● OpenMix  [Sin controladora]        MASTER 124.0  [Biblioteca] (●) (⚙)  │
+│ A ▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁│▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂ │
+│ B ▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅│▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇█▇▅▂▁▁▂▅▇▅▂▁▁▂▅▇ │
+├──┬─────────────────────┬─────────────────┬─────────────────────────┬──┤
+│▕ │ Tema A        8A 124.0│ ◯  HI   ◯       │124.0 9A        Tema B   │ ▏│
+│▕ │[HOT CUE|LOOP|ROLL|SMP]│ ◯  MID  ◯       │[HOT CUE|LOOP|ROLL|SMP]  │ ▏│
+│█ │ [1][2][3][4]          │ ◯  LOW  ◯       │          [1][2][3][4]   │ █│
+│▕ │ [5][6][7][8]          │ ◯  FLT  ◯       │          [5][6][7][8]   │ ▏│
+│▕ │ (CUE)(▶)[SYNC] LOOP 4 │ ┃  ▮▮▮▮  ┃       │ LOOP 8 [SYNC](▶)(CUE)   │ ▏│
+│  │                       │ ◀────●────▶     │                         │  │
+└──┴─────────────────────┴─────────────────┴─────────────────────────┴──┘
+ pitch A (borde izquierdo)                                pitch B (borde derecho)
 ```
 
-- **Ondas arriba**, como en escritorio: tocar = saltar, arrastrar = scratch/nudge (en pausa,
-  arrastrar mueve la cue).
-- **Decks**: pads en una grilla 4×2 con pestañas (*Hot cue · Loop · Roll · Sampler*), los mismos
-  modos que en escritorio. Sin jog (no entra); el arrastre sobre la onda lo reemplaza.
-- **Mixer**: EQ de 3 bandas + filtro por canal como perillas que se arrastran en vertical
-  (doble toque = centro), faders de canal y crossfader abajo.
-- **Biblioteca**: hoja que sube desde abajo (búsqueda, playlists, tonalidad compatible
-  resaltada). Arrastrar un tema hacia el deck A o B lo carga; también botones ◀A  B▶.
-- **FX y AutoMix**: hojas laterales.
-- **Multitáctil**: hay que poder mover el crossfader y un fader a la vez → cada control sigue
-  su propio dedo (JUCE entrega cada toque como una fuente de mouse distinta; verificar que
-  ningún control capture todas las fuentes).
+- **Espejado**: el deck B es el reflejo del A (play y cue hacia afuera, al alcance del pulgar);
+  el pitch va en el borde exterior de cada lado, como en una controladora.
+- **Ondas**: tocar = saltar; arrastrar = scratch (en vinilo) o nudge; en pausa, arrastrar mueve
+  la cue. Pellizcar = zoom. Reemplazan al jog, que no entra.
+- **Pads 4×2** con pestañas *Hot cue · Loop · Roll · Sampler* (los mismos modos de escritorio).
+  Mantener apretado un hot cue = borrarlo (en lugar de ⇧).
+- **Mixer**: EQ de 3 bandas + filtro por canal (arrastrar en vertical; doble toque = centro;
+  el kill se marca en color), faders de canal con vúmetros y crossfader.
+- **Multitáctil**: crossfader y fader a la vez, o dos pads a la vez. Cada control sigue su
+  propio dedo (en JUCE cada dedo es una fuente de mouse distinta).
+- **Barra**: estado de la controladora, BPM master, biblioteca, grabar y configuración.
 
-En **tablets** (iPad, tablets Android ≥ 10") se usa el layout de escritorio actual con el
-`ScaledHost`, toques agrandados y biblioteca como hoja si no entra.
+### 4.2 Biblioteca — hoja que sube
+
+Deslizar desde abajo o tocar *Biblioteca*. Arriba quedan a la vista los dos decks (tema, BPM,
+tiempo restante) para no perder la mezcla. Búsqueda por texto/BPM/tonalidad, filtro
+*Compatibles con A/B* (tonalidad Camelot y BPM cercano), fuentes a la izquierda (todos, en el
+iPhone, playlists, historial, Archivos…, pendrive) y en cada fila los botones **A** y **B** para
+cargar. Bajar la hoja = volver a la mezcla.
+
+### 4.3 Con controladora conectada
+
+Cuando se conecta una controladora con mapeo, **el celular pasa a ser la pantalla de la
+controladora**: se ocultan los controles táctiles y quedan ondas grandes (con loops y cues
+marcados), el estado de cada deck en letra grande (tema, BPM, tiempo, tonalidad, pitch, sync,
+key lock) y la biblioteca, que se recorre con la perilla de la controladora. Un botón
+*Mostrar controles en pantalla* vuelve a la vista 4.1 para quien quiera usar las dos cosas.
+
+### 4.4 Conexiones
+
+Una sola pantalla para lo que hay que enchufar: controladora (USB detectada sola; Bluetooth
+MIDI con *Emparejar*), mapeo cargado, salida de audio (§3) y latencia.
+
+### 4.5 Tablets
+
+En iPad y tablets Android de 10" o más entra el layout de escritorio (`ScaledHost`), con
+toques agrandados y la biblioteca como hoja si no entra.
 
 ---
 
-## 5. Música en el teléfono
+## 5. Controladoras de DJ en el celular
+
+Es una de las funciones principales de la versión móvil.
+
+| | iPhone | Android |
+|---|---|---|
+| USB | USB-C: directo o con hub. Lightning: adaptador de cámara USB 3 **con carga** (el iPhone no alimenta controladoras grandes) | USB-C con OTG; controladoras grandes: hub con alimentación |
+| Bluetooth MIDI | Emparejar desde OpenMix (JUCE abre el diálogo del sistema) | Igual, con la API MIDI de Android |
+| Placa de audio de la controladora | Si es *class compliant*: master a parlantes y cue a auriculares de la controladora (4 salidas) | Igual; depende del teléfono → "a probar" |
+| Mapeos | Los mismos `midi.json` de escritorio, la misma detección automática por nombre | Ídem |
+
+Lo que ya existe y se reutiliza tal cual: `Control/MidiEngine` (MIDI Learn, SHIFT, 7/14 bits,
+encoders, jog, soft takeover, LEDs), `ControllerLibrary` (mapeos oficiales) y el registro de
+acciones. Lo nuevo: el emparejamiento Bluetooth, la detección de controladora conectada para
+cambiar de vista (4.3) y elegir sola la placa de la controladora como salida de audio.
+
+---
+
+## 6. Actualizaciones de la versión móvil
+
+**Las versiones de celular van aparte de las de PC.** Tienen su propio número y sus propios
+releases, y salen cuando hay cambios para el celular (no con cada versión de escritorio).
+
+| | PC | Celular |
+|---|---|---|
+| Versión | `project(OpenMix VERSION …)` | `OPENMIX_MOBILE_VERSION` en `CMakeLists.txt` |
+| Tag del release | `v2.1.0` | `movil-v0.1.0` |
+| Lo compila | `release.yml` | `ios.yml` (y `android.yml` más adelante) |
+| De dónde se actualiza | `releases/latest/download/update.json` | `releases/download/movil/source.json` (dirección fija) |
+
+Los releases del celular se crean con `--latest=false`, así "latest" sigue siendo el de PC y el
+actualizador de escritorio no se confunde.
+
+**Cómo se saca una versión de celular**
+
+1. Subir `OPENMIX_MOBILE_VERSION` en `CMakeLists.txt` (ej. `0.2.0`).
+2. Escribir las novedades en `.github/release-notes/movil-v0.2.0.md`.
+3. Crear y subir el tag `movil-v0.2.0`. El CI compila el `.ipa`, crea el release y agrega la
+   versión a `source.json`.
+
+**Cómo le llega al usuario — iPhone**
+
+- `source.json` es una **fuente de SideStore/AltStore**: se agrega una vez en SideStore
+  (*Fuentes › +*, con la dirección del release `movil`) y desde ahí SideStore ve cada versión
+  nueva, la instala firmada con el Apple ID del usuario y sigue renovando la firma.
+- Además la app lee la misma fuente al abrirse y, si hay una versión más nueva, muestra la
+  tarjeta *OpenMix Mobile 0.x · Actualizar con SideStore* (solo con los dos decks parados,
+  nunca en medio de una mezcla). El toque abre SideStore con la versión lista.
+- Lo que iOS no deja: que una app se reinstale sola sin pasar por SideStore. "Se actualiza
+  sola" en iPhone = aviso en la app + un toque.
+
+**Cómo le llega al usuario — Android** (cuando exista la versión)
+
+- La app lee su manifiesto, descarga el `.apk`, verifica el SHA-256 (como el actualizador de
+  escritorio) y abre el instalador del sistema: Android pide confirmar con un toque.
+- Alternativa sin abrir la app: Obtainium sigue los releases `movil-v*` y actualiza en segundo
+  plano.
+
+## 7. Música en el teléfono
 
 | | iPhone | Android |
 |---|---|---|
@@ -211,17 +296,20 @@ Controladoras MIDI: JUCE soporta CoreMIDI en iOS (USB y Bluetooth MIDI) y la API
 
 ---
 
-## 6. Fases
+## 8. Fases
 
 | Fase | Entregable | Cómo se prueba |
 |---|---|---|
-| **0 — Compila** | ✅ CMake para iOS, guardias de plataforma, `ios.yml` · pendiente: `OpenMix.jucer` para Android, guardias de plataforma, CI (`.github/workflows/movil.yml`) que genera el `.ipa` sin firmar y el `.apk` autofirmado | Instalar el `.ipa` con SideStore y el `.apk` a mano; se ve la UI de escritorio escalada |
+| **0 — Compila** | ✅ CMake para iOS, guardias de plataforma, `ios.yml` con `.ipa` sin firmar y canal `movil-v*` · Android: `OpenMix.jucer` + `.apk` autofirmado, cuando haya teléfono | Instalar el `.ipa` con SideStore; se ve la UI de escritorio escalada |
 | **1 — Suena** | Sesión de audio, segundo plano, interrupciones, modo cable dividido, carpeta propia de música | Mezclar dos temas con auriculares por cable Y |
 | **2 — Se toca** | `Source/UI/Mobile`: layout de teléfono, hojas de biblioteca/FX, multitáctil | Sesión de 30 min solo con el teléfono |
-| **3 — Completo** | MIDI por USB/BLE, interfaces USB de 4 salidas, pendrives, grabación y compartir, actualizador en Android | Controladora + interfaz |
-| **4 — Publicado** | `.ipa`/`.apk` en Releases, fuente de SideStore, Obtainium, página de la web con instrucciones paso a paso (Modo desarrollador, flujo avanzado de Android) | Instalación desde cero siguiendo solo la web |
+| **3 — Controladoras** | Vista "con controladora" (4.3), Bluetooth MIDI, placa de la controladora como salida (4 salidas), pantalla de Conexiones | Mezclar 30 min con una controladora enchufada al iPhone |
+| **4 — Completo y publicado** | Tarjeta de actualización en la app, pendrives, grabación y compartir; página de la web con instrucciones paso a paso (SideStore, Modo desarrollador) | Instalación y actualización desde cero siguiendo solo la web |
 
-## 7. Preguntas abiertas
+El canal de actualizaciones del celular (tags `movil-v*`, `source.json`) ya está armado en el
+CI desde la fase 0.
+
+## 9. Preguntas abiertas
 
 - ¿Hay una Mac disponible para probar en el simulador de iOS? (El CI compila igual en
   `macos-15`, pero depurar en el teléfono es mucho más cómodo con Xcode.)

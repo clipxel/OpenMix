@@ -12,6 +12,15 @@ if(NOT CMAKE_OSX_ARCHITECTURES)
 endif()
 
 project(OpenMix VERSION 2.1.0 LANGUAGES C CXX)
+
+# The phone version has its own number and its own releases (tags movil-v*, see docs/MOVIL.md):
+# desktop updates and phone updates are not the same.
+set(OPENMIX_MOBILE_VERSION 0.1.0)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(OPENMIX_APP_VERSION ${OPENMIX_MOBILE_VERSION})
+else()
+    set(OPENMIX_APP_VERSION ${PROJECT_VERSION})
+endif()
 if(APPLE)
     enable_language(OBJCXX)
 endif()
@@ -25,6 +34,7 @@ add_subdirectory(external/JUCE)
 
 juce_add_gui_app(OpenMix
     PRODUCT_NAME "OpenMix"
+    VERSION ${OPENMIX_APP_VERSION}
     COMPANY_NAME "OpenMix"
     BUNDLE_ID "app.openmix.OpenMix"
     ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/Resources/AppIcon.png"

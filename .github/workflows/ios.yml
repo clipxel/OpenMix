@@ -1,18 +1,20 @@
 # Compila OpenMix para iPhone/iPad y arma un .ipa SIN FIRMAR (ver docs/MOVIL.md).
 # Cada usuario lo firma en su teléfono con su propio Apple ID gratuito, usando SideStore o AltStore.
-# Cualquier push que toque el código deja el .ipa como artefacto del run (Actions › iPhone › Artifacts);
-# con un tag v* (o a mano) además lo sube al release.
+# Cualquier push que toque el código deja el .ipa como artefacto del run (Actions › iPhone › Artifacts).
+# La versión de celular va aparte de la de PC: OPENMIX_MOBILE_VERSION en CMakeLists.txt y tags movil-v*.
+# Con un tag movil-v<versión> (o a mano) sube el .ipa a su release y actualiza la fuente de SideStore/AltStore
+# (release "movil", archivo source.json), de donde los iPhone sacan las actualizaciones.
 name: iPhone
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["movil-v*"]
     branches: ["**"]
     paths: ["Source/**", "CMakeLists.txt", "Resources/**", ".github/workflows/ios.yml"]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag del release donde subir el .ipa (vacío: solo artefacto)"
+        description: "Tag movil-v<versión> donde subir el .ipa (vacío: solo artefacto)"
         required: false
         default: ""
 
@@ -35,7 +37,7 @@ jobs:
           git clone --depth 1 --branch 0.6.4 https://github.com/Signalsmith-Audio/linear.git external/signalsmith-linear
 
       - name: Versión
-        run: echo "VERSION=$(sed -n 's/^project(OpenMix VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)" >> "$GITHUB_ENV"
+        run: echo "VERSION=$(sed -n 's/^set(OPENMIX_MOBILE_VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)" >> "$GITHUB_ENV"
 
       - name: Compilar (iphoneos, arm64, sin firma)
         run: |
@@ -62,14 +64,27 @@ jobs:
           path: ${{ env.ASSET }}
           retention-days: 30
 
-      - name: Subir al release
+      - name: Subir al release y actualizar la fuente de SideStore
         if: (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') || startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
-          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            NOTES=".github/release-notes/$TAG.md"
-            [ -f "$NOTES" ] || { echo "OpenMix $VERSION" > notes.md; NOTES=notes.md; }
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "OpenMix $VERSION" --notes-file "$NOTES" --verify-tag || true
-          fi
-          gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"
+          [ "$TAG" = "movil-v$VERSION" ] || { echo "El tag ($TAG) no coincide con OPENMIX_MOBILE_VERSION ($VERSION)"; exit 1; }
+          NOTES=".github/release-notes/$TAG.md"
+          [ -f "$NOTES" ] || { echo "OpenMix Mobile $VERSION" > notes.md; NOTES=notes.md; }
+          # --latest=false: "releases/latest" sigue siendo el de PC (de ahí se actualiza la versión de escritorio).
+          gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$REPO" --title "OpenMix Mobile $VERSION" --notes-file "$NOTES" --verify-tag --latest=false
+          gh release upload "$TAG" "$ASSET" --clobber --repo "$REPO"
+
+          # Fuente de SideStore/AltStore: una dirección fija que nunca cambia
+          # (https://github.com/<repo>/releases/download/movil/source.json), con todas las versiones.
+          gh release view movil --repo "$REPO" >/dev/null 2>&1 \
+            || gh release create movil --repo "$REPO" --title "OpenMix Mobile · fuente de actualizaciones" --latest=false \
+                 --target "$GITHUB_SHA" --notes "Fuente de SideStore/AltStore. Agregar en SideStore: https://github.com/$REPO/releases/download/movil/source.json"
+          gh release download movil --repo "$REPO" --pattern source.json --output old-source.json 2>/dev/null || echo '{}' > old-source.json
+          python3 .github/scripts/sidestore_source.py old-source.json source.json \
+            --version "$VERSION" --ipa "$ASSET" --notes "$NOTES" \
+            --url "https://github.com/$REPO/releases/download/$TAG/$ASSET" --repo "$REPO"
+          gh release upload movil source.json --clobber --repo "$REPO"
