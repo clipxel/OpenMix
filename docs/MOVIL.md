@@ -1,6 +1,22 @@
 # OpenMix para iPhone y Android — diseño
 
-Estado: **borrador de diseño** (octubre 2026). Nada de esto está implementado todavía.
+Estado (octubre 2026): **fase 0 en curso, solo iPhone.** El CI (`.github/workflows/ios.yml`) compila
+un `.ipa` sin firmar con la interfaz de escritorio escalada. Android queda para cuando haya un
+teléfono para probar.
+
+## Probarlo en el iPhone (fase 0)
+
+1. Bajar el `.ipa`: *Actions › iPhone ›* el último run verde *› Artifacts › OpenMix-…-iOS*
+   (viene dentro de un `.zip`: descomprimirlo).
+2. Instalar **SideStore** siguiendo <https://sidestore.io> (una sola vez, con una compu) o
+   **AltStore** (<https://altstore.io>) con AltServer en la Mac/PC.
+3. Pasar el `.ipa` al iPhone (AirDrop o Archivos) y abrirlo con SideStore/AltStore
+   (*Mis apps › +*). Se firma con tu Apple ID gratuito.
+4. La primera vez: *Ajustes › Privacidad y seguridad › Modo desarrollador* → activar y reiniciar.
+5. Música: *Archivos › En mi iPhone › OpenMix* → copiar los temas ahí.
+
+La firma dura 7 días; SideStore la renueva sola (AltStore, cuando el iPhone ve a AltServer en la
+misma red).
 
 Objetivo: que OpenMix corra en iPhone y en Android **sin firma digital de editor**, es decir, sin
 pagar la cuenta de desarrollador de Apple (USD 99/año) y sin registrarse como desarrollador
@@ -199,7 +215,7 @@ Controladoras MIDI: JUCE soporta CoreMIDI en iOS (USB y Bluetooth MIDI) y la API
 
 | Fase | Entregable | Cómo se prueba |
 |---|---|---|
-| **0 — Compila** | CMake para iOS, `OpenMix.jucer` para Android, guardias de plataforma, CI (`.github/workflows/movil.yml`) que genera el `.ipa` sin firmar y el `.apk` autofirmado | Instalar el `.ipa` con SideStore y el `.apk` a mano; se ve la UI de escritorio escalada |
+| **0 — Compila** | ✅ CMake para iOS, guardias de plataforma, `ios.yml` · pendiente: `OpenMix.jucer` para Android, guardias de plataforma, CI (`.github/workflows/movil.yml`) que genera el `.ipa` sin firmar y el `.apk` autofirmado | Instalar el `.ipa` con SideStore y el `.apk` a mano; se ve la UI de escritorio escalada |
 | **1 — Suena** | Sesión de audio, segundo plano, interrupciones, modo cable dividido, carpeta propia de música | Mezclar dos temas con auriculares por cable Y |
 | **2 — Se toca** | `Source/UI/Mobile`: layout de teléfono, hojas de biblioteca/FX, multitáctil | Sesión de 30 min solo con el teléfono |
 | **3 — Completo** | MIDI por USB/BLE, interfaces USB de 4 salidas, pendrives, grabación y compartir, actualizador en Android | Controladora + interfaz |
@@ -208,7 +224,9 @@ Controladoras MIDI: JUCE soporta CoreMIDI en iOS (USB y Bluetooth MIDI) y la API
 ## 7. Preguntas abiertas
 
 - ¿Hay una Mac disponible para probar en el simulador de iOS? (El CI compila igual en
-  `macos-14`, pero depurar en el teléfono es mucho más cómodo con Xcode.)
+  `macos-15`, pero depurar en el teléfono es mucho más cómodo con Xcode.)
+- Android: sin teléfono para probar, queda en pausa (se puede usar el emulador de Android Studio
+  para lo básico, pero no sirve para medir latencia).
 - ¿iPad desde el principio o después del teléfono?
 - Versión mínima: iOS 15 / Android 8 propuesto; subirla si simplifica algo.
 - ¿Un solo `.apk` arm64 alcanza? (Cubre prácticamente todos los teléfonos actuales.)

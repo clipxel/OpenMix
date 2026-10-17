@@ -1,10 +1,10 @@
-// Tags on Windows and Linux (macOS uses MetadataReader_mac.mm): ID3v2 frames read directly from
+// Tags on Windows, Linux and Android (macOS and iOS use MetadataReader_mac.mm): ID3v2 frames read directly from
 // MP3 / AIFF files, RIFF INFO and FLAC / Ogg comments through JUCE's readers, and the duration
 // from the decoder. Read-only.
 
 #include "MetadataReader.h"
 
-#if ! JUCE_MAC
+#if ! (JUCE_MAC || JUCE_IOS)
 
 #include <juce_audio_formats/juce_audio_formats.h>
 

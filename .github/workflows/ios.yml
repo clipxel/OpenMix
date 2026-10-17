@@ -1,0 +1,74 @@
+# Compila OpenMix para iPhone/iPad y arma un .ipa SIN FIRMAR (ver docs/MOVIL.md).
+# Cada usuario lo firma en su teléfono con su propio Apple ID gratuito, usando SideStore o AltStore.
+# Cualquier push que toque el código deja el .ipa como artefacto del run (Actions › iPhone › Artifacts);
+# con un tag v* (o a mano) además lo sube al release.
+name: iPhone
+
+on:
+  push:
+    tags: ["v*"]
+    paths: ["Source/**", "CMakeLists.txt", "Resources/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag del release donde subir el .ipa (vacío: solo artefacto)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    name: iPhone (.ipa sin firmar)
+    runs-on: macos-15
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias (JUCE y Signalsmith, mismas versiones que scripts/bootstrap.sh)
+        run: |
+          git clone --depth 1 --branch 8.0.16-security https://github.com/juce-framework/JUCE.git external/JUCE
+          git clone --depth 1 --branch 1.4.0 https://github.com/Signalsmith-Audio/signalsmith-stretch.git external/signalsmith-stretch
+          git clone --depth 1 --branch 0.6.4 https://github.com/Signalsmith-Audio/linear.git external/signalsmith-linear
+
+      - name: Versión
+        run: echo "VERSION=$(sed -n 's/^project(OpenMix VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)" >> "$GITHUB_ENV"
+
+      - name: Compilar (iphoneos, arm64, sin firma)
+        run: |
+          cmake -S . -B build-ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
+          cmake --build build-ios --config Release --target OpenMix -- \
+            -sdk iphoneos -quiet \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM=""
+
+      - name: Empaquetar .ipa
+        run: |
+          APP=$(find build-ios -type d -name OpenMix.app -not -path "*/Intermediates*" | head -1)
+          [ -n "$APP" ] || { echo "No se encontró OpenMix.app"; exit 1; }
+          echo "App: $APP"
+          lipo -archs "$APP/OpenMix"                                     # arm64
+          plutil -p "$APP/Info.plist" | grep -E "CFBundleIdentifier|CFBundleShortVersionString|MinimumOSVersion|UIFileSharingEnabled|UIBackgroundModes" -A1 || true
+          mkdir Payload && cp -R "$APP" Payload/
+          zip -qry "OpenMix-$VERSION-iOS.ipa" Payload
+          ls -la "OpenMix-$VERSION-iOS.ipa"
+          echo "ASSET=OpenMix-$VERSION-iOS.ipa" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenMix-${{ env.VERSION }}-iOS
+          path: ${{ env.ASSET }}
+          retention-days: 30
+
+      - name: Subir al release
+        if: (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') || startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            NOTES=".github/release-notes/$TAG.md"
+            [ -f "$NOTES" ] || { echo "OpenMix $VERSION" > notes.md; NOTES=notes.md; }
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "OpenMix $VERSION" --notes-file "$NOTES" --verify-tag || true
+          fi
+          gh release upload "$TAG" "$ASSET" --clobber --repo "$GITHUB_REPOSITORY"

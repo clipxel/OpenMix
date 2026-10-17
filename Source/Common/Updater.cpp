@@ -49,7 +49,10 @@ int Updater::compareVersions (const juce::String& a, const juce::String& b)
 
 std::optional<Updater::Info> Updater::parseManifest (const juce::var& m)
 {
-   #if JUCE_MAC
+   #if JUCE_IOS || JUCE_ANDROID
+    static const juce::var none;          // phones update through SideStore / the APK, never by themselves
+    const auto& a = none;
+   #elif JUCE_MAC
     const auto& a = m["assets"]["mac"];
    #elif JUCE_WINDOWS
     // The installer when the manifest has it; "windows" is the .zip older versions understand.

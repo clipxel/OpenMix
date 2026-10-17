@@ -264,10 +264,20 @@ public:
 
         void resized() override
         {
-            constexpr float refW = 1440.0f, refH = 880.0f, minScale = 0.72f;
-            const float w = (float) getWidth(), h = (float) getHeight();
+            auto area = getLocalBounds();
+           #if JUCE_IOS || JUCE_ANDROID
+            // Phones: stay clear of the camera cutout and the home indicator; shrink further
+            // than on a notebook so the desktop layout fits a landscape phone (until the touch layout).
+            constexpr float minScale = 0.6f;
+            if (auto* d = juce::Desktop::getInstance().getDisplays().getDisplayForRect (getScreenBounds()))
+                area = d->safeAreaInsets.subtractedFrom (area);
+           #else
+            constexpr float minScale = 0.72f;
+           #endif
+            constexpr float refW = 1440.0f, refH = 880.0f;
+            const float w = (float) area.getWidth(), h = (float) area.getHeight();
             const float scale = juce::jlimit (minScale, 1.0f, juce::jmin (w / refW, h / refH));
-            content.setTransform (juce::AffineTransform::scale (scale));
+            content.setTransform (juce::AffineTransform::scale (scale).translated ((float) area.getX(), (float) area.getY()));
             content.setBounds (0, 0, juce::roundToInt (w / scale), juce::roundToInt (h / scale));
         }
 
@@ -283,6 +293,9 @@ public:
         {
             setUsingNativeTitleBar (true);
             setContentOwned (new ScaledHost(), false);
+           #if JUCE_IOS || JUCE_ANDROID
+            setFullScreen (true);              // phones and tablets: the whole screen, always
+           #else
             setResizable (true, true);
             setResizeLimits (960, 560, 10000, 10000);
 
@@ -290,12 +303,15 @@ public:
             const auto saved = stateFile().loadFileAsString();
             if (saved.isEmpty() || ! restoreWindowStateFromString (saved))
                 setBounds (juce::Desktop::getInstance().getDisplays().getPrimaryDisplay()->userBounds.toNearestInt());
+           #endif
             setVisible (true);
         }
 
         ~MainWindow() override
         {
+           #if ! (JUCE_IOS || JUCE_ANDROID)
             stateFile().replaceWithText (getWindowStateAsString());
+           #endif
         }
 
         static juce::File stateFile() { return om::Library::dataFolder().getChildFile ("window.txt"); }
