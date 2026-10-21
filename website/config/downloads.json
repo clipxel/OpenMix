@@ -1,24 +1,24 @@
 {
-  "version": "2.1.0",
-  "released": "2026-10-16",
+  "version": "2.2.0",
+  "released": "2026-10-21",
   "repo": "clipxel/OpenMix",
   "platforms": {
     "mac": {
       "release": true,
-      "file": "OpenMix-2.1.0-macOS-universal.dmg",
-      "size": "7,1 MB",
+      "file": "OpenMix-2.2.0-macOS-universal.dmg",
+      "size": "7,7 MB",
       "requirements": "macOS 12 o posterior · Apple Silicon e Intel"
     },
     "windows": {
       "release": true,
-      "file": "OpenMix-2.1.0-Windows-Setup.exe",
-      "size": "4,5 MB",
+      "file": "OpenMix-2.2.0-Windows-Setup.exe",
+      "size": "4,6 MB",
       "requirements": "Windows 10 u 11 · 64 bits"
     },
     "linux": {
       "release": true,
-      "file": "OpenMix-2.1.0-Linux-x86_64.tar.gz",
-      "size": "3,7 MB",
+      "file": "OpenMix-2.2.0-Linux-x86_64.tar.gz",
+      "size": "4,0 MB",
       "requirements": "x86_64 · ALSA o JACK"
     }
   }
