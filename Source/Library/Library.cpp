@@ -141,6 +141,22 @@ TrackPtr Library::addFile (const juce::File& f)
     return t;
 }
 
+TrackPtr Library::addTrack (const TrackPtr& t)
+{
+    if (t == nullptr) return nullptr;
+    if (auto existing = find (t->path()))
+        return existing;
+    if (! t->file.existsAsFile() || ! isAudioFile (t->file))
+        return nullptr;
+
+    all.push_back (t);
+    byPath[t->path()] = t;
+    if (t->analysis != Track::Analysis::done && t->analysis != Track::Analysis::analysing)
+        requestAnalysis (t);
+    touched();
+    return t;
+}
+
 void Library::addFolder (const juce::File& folder)
 {
     if (! folder.isDirectory() || watched.contains (folder))

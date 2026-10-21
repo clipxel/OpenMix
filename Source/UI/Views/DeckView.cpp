@@ -934,7 +934,8 @@ void DeckView::paint (juce::Graphics& g)
 
     if (engine.isLoading (index))
     {
-        Text::draw (g, juce::String::fromUTF8 ("Cargando y analizando…"), h.removeFromTop (20.0f), font (Type::deckTitle, Weight::semibold),
+        Text::draw (g, engine.isAnalysingOnLoad (index) ? juce::String::fromUTF8 ("Cargando y analizando…") : juce::String::fromUTF8 ("Cargando…"),
+                    h.removeFromTop (20.0f), font (Type::deckTitle, Weight::semibold),
                     colour (Col::textSecondary));
     }
     else if (track != nullptr)

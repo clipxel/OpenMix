@@ -404,7 +404,7 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
     // analysis, cues and history are kept like any other track.
     if (! t->isExternal() && library.find (t->path()) == nullptr)
     {
-        if (auto added = library.addFile (t->file))
+        if (auto added = library.addTrack (t))           // keeps an analysis already done in the EXPLORADOR
         {
             loadToDeck (added, deck);
             return;

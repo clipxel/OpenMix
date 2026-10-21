@@ -103,6 +103,8 @@ public:
         (message thread). Refuses if the deck is playing. */
     void loadTrack (int deckIndex, const juce::File&, TrackMeta, LoadCallback);
     bool isLoading (int deckIndex) const noexcept { return loading[(size_t) deckIndex].load(); }
+    /** The track being loaded has no analysis yet: its beat grid is being detected now. */
+    bool isAnalysingOnLoad (int deckIndex) const noexcept { return analysingOnLoad[(size_t) deckIndex].load(); }
 
     /** Opens every output channel of the current card (routing picks the pairs). */
     void enableAllOutputs();
@@ -177,7 +179,7 @@ private:
 
     juce::AudioBuffer<float> deckBuf, cueBuf, masterBuf, sepBuf;
     juce::ThreadPool loaderPool { juce::ThreadPoolOptions{}.withNumberOfThreads (2).withThreadName ("OpenMix loader") };
-    std::array<std::atomic<bool>, numDecks> loading {};
+    std::array<std::atomic<bool>, numDecks> loading {}, analysingOnLoad {};
     std::array<int, numDecks> loadGeneration {};
     std::shared_ptr<bool> alive = std::make_shared<bool> (true);
 

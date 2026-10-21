@@ -79,6 +79,7 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
 
     const int generation = ++loadGeneration[(size_t) deckIndex];
     loading[(size_t) deckIndex] = true;
+    analysingOnLoad[(size_t) deckIndex] = ! meta.knownGrid.isValid();
     sendChangeMessage();
 
     auto aliveFlag = alive;

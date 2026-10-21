@@ -2131,6 +2131,24 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         }
     }
 
+    {
+        // A track analysed in the EXPLORADOR (outside the collection) keeps that analysis when it is
+        // loaded and joins the collection: it is not analysed again.
+        juce::AudioFormatManager fm;
+        fm.registerBasicFormats();
+        Library lib (fm);
+        auto t = std::make_shared<Track>();
+        t->file = trackA;
+        t->bpm = 123.0;
+        t->firstBeat = 0.2;
+        t->analysis = Track::Analysis::done;
+        const int queued = lib.pendingAnalysisCount();
+        const auto added = lib.addTrack (t);
+        rep.check (added == t && added->bpm == 123.0 && added->analysis == Track::Analysis::done
+                   && lib.pendingAnalysisCount() == queued && lib.find (t->path()) == t,
+                   "Tema analizado en el Explorador: al cargarlo no se vuelve a analizar"_u);
+    }
+
     std::cout << "== MIDI" << std::endl;
     Actions actions (engine, {});
     MidiEngine midi (actions);
