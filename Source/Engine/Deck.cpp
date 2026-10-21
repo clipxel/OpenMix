@@ -246,11 +246,11 @@ void Deck::hotCue (int slot)
     }
     else if (! isPlaying())
     {
-        // Gate cue (club player): plays while the pad is held, returns on release.
+        // Starts from the hot cue. Gate (club player, optional): only while the pad is held.
         requestJump (Jump::absolute, c);
         publishedPos = c;
         publishedAtMs = juce::Time::getMillisecondCounterHiRes();
-        gateSlot = slot;
+        gateSlot = hotCueGate.load() ? slot : -1;
         previewing = false;
         playRequested = true;
     }

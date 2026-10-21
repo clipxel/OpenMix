@@ -1618,7 +1618,23 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         c.setTrack (quiet);
         rep.check (std::abs (c.getCuePoint() - 1.5) < 0.02, "Auto cue en el primer sonido", juce::String (c.getCuePoint(), 3) + " s");
 
-        // Gate cue: paused, hold hot cue → plays; release → back to the cue, paused.
+        // Hot cue with the deck stopped (default): jumps and keeps playing after release.
+        c.seek (10.0);
+        run (c, 0.01);
+        c.hotCue (2);                       // set at 10 s
+        c.seek (3.0);
+        run (c, 0.01);
+        c.hotCue (2);
+        c.hotCueRelease (2);
+        run (c, 0.5);
+        rep.check (c.isPlaying() && c.audioPositionSeconds() > c.getHotCue (2) + 0.4,
+                   "Hot cue con el deck parado: arranca y sigue sonando al soltar");
+        c.togglePlay();
+        run (c, 0.05);
+        c.clearHotCue (2);
+
+        // Gate cue (option): paused, hold hot cue → plays; release → back to the cue, paused.
+        c.setHotCueGate (true);
         c.seek (10.0);
         run (c, 0.01);
         c.hotCue (2);                       // set at 10 s
@@ -1631,6 +1647,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         run (c, 0.05);
         rep.check (playedWhileHeld && ! c.isPlaying() && std::abs (c.audioPositionSeconds() - c.getHotCue (2)) < 0.001,
                    "Gate cue: suena mientras se mantiene y vuelve al soltar");
+        c.setHotCueGate (false);
 
         // Instant doubles: the other deck lands in the same place, tempo and play state.
         Deck other (1);

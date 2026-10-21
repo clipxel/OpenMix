@@ -219,7 +219,7 @@ void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* 
     bindingBox.setColour (juce::ListBox::backgroundColourId, colour (Col::bgField));
     addChildComponent (bindingBox);
 
-    for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &wizardBtn, &importBtn })
+    for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &hotCueGateToggle, &learnShift, &learnBtn, &cancelLearnBtn, &wizardBtn, &importBtn })
         addChildComponent (c);
 
     importBtn.onClick = [this]
@@ -278,6 +278,10 @@ void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* 
     vinylToggle.onClick = [this]
     {
         for (int d = 0; d < AudioEngine::numDecks; ++d) engine.deck (d).setVinylMode (vinylToggle.getToggleState());
+    };
+    hotCueGateToggle.onClick = [this]
+    {
+        for (int d = 0; d < AudioEngine::numDecks; ++d) engine.deck (d).setHotCueGate (hotCueGateToggle.getToggleState());
     };
     learnBtn.useAccentWhenLit();
     learnBtn.onClick = [this] { startLearnFlow(); };
@@ -350,6 +354,7 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     c.removeFromTop (Space::md);
 
     vinylToggle.setVisible (midiTab);
+    hotCueGateToggle.setVisible (midiTab);
     onlineToggle.setVisible (midiTab && controllerLib != nullptr);
     {
         // A plugged-in controller whose driver is missing: one button to its official download page.
@@ -380,6 +385,7 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
 
     monitorArea = c.removeFromTop (44);
     vinylToggle.setBounds (c.removeFromTop (24).withWidth (360));
+    hotCueGateToggle.setBounds (c.removeFromTop (24).withWidth (620));
     if (controllerLib != nullptr)
         onlineToggle.setBounds (c.removeFromTop (24).withWidth (620));
     if (driverBtn.isVisible())
@@ -436,7 +442,7 @@ void SettingsPanel::setSection (int s)
     hexField.setVisible (s == appearance);
     for (auto* c : std::initializer_list<juce::Component*> { &laneSlider, &resetSizes, &xfCurve, &limCeiling, &autoGainToggle, &autoCueToggle })
         c->setVisible (s == layout);
-    for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &bindingBox })
+    for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &hotCueGateToggle, &learnShift, &learnBtn, &cancelLearnBtn, &bindingBox })
         c->setVisible (s == controllers);
     onlineToggle.setVisible (s == controllers && ctrlTab.getSelected() == 0 && controllerLib != nullptr);
     wizardBtn.setVisible (s == controllers && ctrlTab.getSelected() == 0 && wizardView != nullptr);
@@ -445,6 +451,7 @@ void SettingsPanel::setSection (int s)
     if (controllerLib != nullptr) onlineToggle.setToggleState (controllerLib->onlineLookup(), juce::dontSendNotification);
     if (keyMap != nullptr) keyMap->setVisible (s == controllers && ctrlTab.getSelected() == 1);
     vinylToggle.setToggleState (engine.deck (0).isVinylMode() && engine.deck (1).isVinylMode(), juce::dontSendNotification);
+    hotCueGateToggle.setToggleState (engine.deck (0).isHotCueGate(), juce::dontSendNotification);
     bindingBox.updateContent();
 
     syncLayoutControls();
