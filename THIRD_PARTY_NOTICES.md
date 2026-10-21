@@ -17,7 +17,7 @@ No se incluye en este repositorio: se descarga del sitio del fabricante al compi
 
 `Resources/mappings/library.json` reúne dos tipos de mapeos:
 
-- **Propios de OpenMix** (`Resources/mappings/sources/*.midi.csv`), escritos a partir de la información
+- **Propios de OpenMix** (`Resources/mappings/sources/*.openmix.json`), escritos a partir de la información
   de asignación MIDI que publica cada fabricante para su equipo (qué mensaje envía y recibe cada
   control). Solo contienen esos datos técnicos. Mismos términos que OpenMix (AGPLv3).
 - **Convertidos** al formato de OpenMix desde los mapeos MIDI del proyecto Mixxx (https://mixxx.org),
@@ -188,3 +188,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ```
+
+## Marcas
+
+VirtualDJ, rekordbox, Serato, Traktor, Pioneer DJ, AlphaTheta, Hercules y los demás nombres de programas y
+equipos son marcas de sus dueños. Se nombran solo para indicar compatibilidad; OpenMix no está afiliado a
+ninguno de ellos. OpenMix lee los mapeos que el usuario ya tiene en su computadora y ejecuta los comandos
+de los mappers según la documentación pública de cada programa; no incluye código de esos programas.

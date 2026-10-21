@@ -2229,6 +2229,39 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    "Scripts «hot_cue 3», «loop 4» (entra y sale), «volume» y «play ? nothing : goto_start & key +2»"_u,
                    juce::String (d2.getHotCue (2), 2) + " " + juce::String ((int) looped) + " " + juce::String ((int) d2.isLoopActive())
                    + " " + juce::String (engine.channel (1).fader.load(), 3) + " " + juce::String (d2.getKeyShift()));
+        {
+            // Lights and the newer verbs, straight on the engine.
+            VdjScript vs (actions);
+            VdjScript::Context c;
+            c.deck = 1;
+            d2.exitLoop();
+            run (d2, 0.02);
+            const auto dimLight = vs.light ("loop ? on : dim", c);
+            d2.clearHotCue (0);
+            const auto offCue = vs.light ("hot_cue 1 ? color 'red' : off", c);
+            d2.hotCue (0);
+            const auto redCue = vs.light ("hot_cue 1 ? color 'red' : off", c);
+            const auto ownColour = vs.light ("hot_cue 1", c);
+            engine.channel (1).eqLow = 0.7f;
+            vs.run ("eq_kill_low", c);
+            const bool killedLow = engine.channel (1).eqLow.load() < 0.001f;
+            vs.run ("eq_kill_low", c);
+            const bool restored = std::abs (engine.channel (1).eqLow.load() - 0.7f) < 0.001f;
+            d2.clearHotCue (2);
+            vs.run ("cue 3", c);
+            c.value = 0.0f; vs.run ("cue 3", c); c.value = 1.0f;
+            rep.check (dimLight.level == Actions::Led::dim && offCue.level == Actions::Led::off
+                       && redCue.level == Actions::Led::on && redCue.colour == juce::Colour (0xffff0000)
+                       && ownColour.level == Actions::Led::on && ! ownColour.colour.isTransparent()
+                       && killedLow && restored && d2.getHotCue (2) >= 0.0,
+                       "Scripts de VirtualDJ: luces «dim» / «color», color propio del hot cue, «eq_kill_low» y «cue 3»"_u);
+            rep.check (VdjScript::isContinuous ("touchwheel") && ! VdjScript::isContinuous ("touchwheel_touch")
+                       && VdjScript::unknownVerbs ("holding ? sync : play_pause & loop_pad 3 & beatjump_select 4 & pause_stop").isEmpty(),
+                       "Scripts de VirtualDJ: «touchwheel» es el giro del jog y «…_touch» el toque; holding, loop_pad, beatjump_select…"_u);
+            d2.setPlaying (false);
+            d2.clearHotCue (0);
+            d2.clearHotCue (2);
+        }
         rep.check (VdjScript::unknownVerbs ("shift ? hot_cue 1 : sampler_play 2 & video_fx").joinIntoString (",") == "sampler_play,video_fx"
                    && VdjScript::isContinuous ("shift ? jogwheel : jogwheel") && ! VdjScript::isContinuous ("play_pause"),
                    "Scripts de VirtualDJ: se detectan los verbos sin equivalente y los controles continuos"_u);

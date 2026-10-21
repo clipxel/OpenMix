@@ -356,6 +356,7 @@ void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMess
         VdjScript::Context ctx;
         ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, b.deck);
         ctx.shift = shiftHeld[currentDevice];
+        ctx.control = b.describeControl();
         using E = MidiBinding::Encoding;
         switch (b.encoding)
         {
@@ -515,18 +516,23 @@ void MidiEngine::tick()
             using L = Actions::Led;
             // A script's light: the script read as a condition ("play_pause" → playing…).
             const bool isScript = b.action == "vdj";
-            const auto lightAction = isScript ? vdj.mainAction (b.script, b.deck) : b.action;
             Actions::Led level;
+            juce::Colour colour;
             if (isScript)
             {
                 VdjScript::Context ctx;
                 ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, b.deck);
                 ctx.shift = shiftHeld[b.device];
-                level = vdj.query (b.script, ctx) ? L::on : L::off;
+                const auto l = vdj.light (b.script, ctx);
+                level = l.level;
+                if (b.rgb != MidiBinding::Rgb::none) colour = l.colour;
             }
-            else level = actions.ledLevel (b.action, b.deck);
-            // RGB pad: the action's own colour, full when on, darker when dim.
-            const auto colour = b.rgb != MidiBinding::Rgb::none ? actions.ledColour (lightAction, b.deck) : juce::Colour();
+            else
+            {
+                level = actions.ledLevel (b.action, b.deck);
+                // RGB pad: the action's own colour, full when on, darker when dim.
+                if (b.rgb != MidiBinding::Rgb::none) colour = actions.ledColour (b.action, b.deck);
+            }
             const int full = MidiBinding::encodeColour (b.rgb, colour, 1.0f);
             const int dim = MidiBinding::encodeColour (b.rgb, colour, 0.3f);
             const int on = full >= 0 ? full : b.onValue;
