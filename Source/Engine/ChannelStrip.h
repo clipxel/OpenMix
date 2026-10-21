@@ -26,6 +26,8 @@ public:
     /** Sound Color FX on the FILTER knob (club mixer style): left/right variations of each colour. */
     enum class Color { filter = 0, space, dubEcho, sweep, noise, crush, numColors };
     std::atomic<int> colorType { (int) Color::filter };
+    std::atomic<bool> colorOn { true };          // a SOUND COLOR FX button is lit (off: the COLOR knob does nothing)
+    std::atomic<float> colorParam { 0.5f };      // PARAMETER knob of the SOUND COLOR FX section (0 … 1)
     static juce::String colorName (Color);
 
     MeterState meter;                            // post-EQ/FX, pre-fader
@@ -49,10 +51,11 @@ private:
     LR lowSplit, highSplit, lowAllpass;
     juce::dsp::StateVariableTPTFilter<float> svf;
     juce::SmoothedValue<float> gLow, gMid, gHigh, gTrim, filterMix;
-    float lastFilterKnob = 0.0f;
+    float lastFilterKnob = 0.0f, lastParam = -1.0f;
     FxUnit colorFx;
     juce::dsp::StateVariableTPTFilter<float> bandSvf;
     juce::SmoothedValue<float> bandMix;
+    bool sweepPass = false;                      // SWEEP: band-pass (right) or band-stop (left)
     int lastColor = 0;
     double sr = 48000.0;
 };

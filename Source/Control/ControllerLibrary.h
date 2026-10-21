@@ -64,6 +64,11 @@ public:
     /** Resolves a device right now on the calling thread (tests; tick() does it in the background). */
     Device resolveNow (const juce::String& deviceName);
 
+    /** True when this bundled mapping's unit mixes the decks itself (each deck needs its own output pair). */
+    static bool hasHardwareMixer (const juce::String& profileName);
+    /** The mapping that ships inside OpenMix for this controller name, if any: (its name, bindings). */
+    static std::optional<std::pair<juce::String, std::vector<MidiBinding>>> findBundled (const juce::String& deviceName);
+
     static juce::String normalise (const juce::String& midiName);
     static bool nameMatches (const juce::String& deviceName, const juce::String& pattern);
     static std::vector<Profile> parseIndex (const juce::var&);
@@ -75,6 +80,7 @@ private:
     struct Result { Status status; juce::String profileName, detail; std::vector<MidiBinding> bindings; };
     Result lookup (const juce::String& deviceName);                 // any thread: cache + network
     void install (const juce::String& deviceName, Result);          // message thread
+    void refreshFromLibrary (const juce::String& deviceName);       // message thread
     juce::var loadIndex (bool allowNetwork, bool force, bool& downloaded, juce::String& error);
     static juce::URL indexUrl();
     static juce::File cacheFolder();

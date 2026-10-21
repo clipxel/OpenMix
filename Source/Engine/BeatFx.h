@@ -4,6 +4,8 @@
 #include <juce_dsp/juce_dsp.h>
 #include <atomic>
 #include <vector>
+#include <array>
+#include <algorithm>
 
 namespace om
 {
@@ -28,10 +30,27 @@ public:
     {
         delay = 0, echo, pingPong, spiral, reverb, trans, filter, flanger, phaser, pitch,
         slipRoll, roll, vinylBrake, helix,
+        tripletFilter, tripletRoll, mobius,
         numTypes
     };
 
     static juce::String typeName (Type);
+    /** The 14 BEAT FX of the club mixer, in its selector's order. */
+    static const std::array<Type, 14>& clubOrder()
+    {
+        static const std::array<Type, 14> o { Type::delay, Type::echo, Type::pingPong, Type::spiral, Type::helix, Type::reverb,
+                                              Type::flanger, Type::phaser, Type::filter, Type::tripletFilter, Type::trans,
+                                              Type::roll, Type::tripletRoll, Type::mobius };
+        return o;
+    }
+    /** Next / previous effect on the club mixer's selector (wraps around). */
+    static Type clubStep (Type current, int dir)
+    {
+        const auto& o = clubOrder();
+        const auto it = std::find (o.begin(), o.end(), current);
+        const int i = it == o.end() ? 0 : (int) (it - o.begin());
+        return o[(size_t) ((i + dir + (int) o.size()) % (int) o.size())];
+    }
     static juce::String paramName (Type);
     static juce::String paramText (Type, float param);
     static float defaultParam (Type);       // the BEAT value the effect starts on
@@ -42,6 +61,7 @@ public:
     std::atomic<bool>  enabled { false };
     std::atomic<float> wet { 0.5f };        // LEVEL/DEPTH
     std::atomic<float> param { 0.5f };      // BEAT (normalised 0 … 1)
+    std::atomic<float> timeMs { 0.0f };     // TIME knob: > 0 = this many ms instead of the BEAT fraction
 
     void prepare (double sampleRate, int maxBlock);
     /** `beat` = deck beat position at the block's first sample (−1 = no grid / stopped),
@@ -50,6 +70,13 @@ public:
 
     /** Beats for the current BEAT setting (delay time, cut, cycle, roll length …). */
     static double beatsFor (Type, float param) noexcept;
+    /** MOBIUS with a negative BEAT: the tone falls instead of rising. */
+    static bool falling (Type, float param) noexcept;
+    /** The BEAT values of an effect, as control values (for the X-PAD's positions). */
+    static int beatSteps (Type) noexcept;
+    static float paramAt (Type, int index) noexcept;
+    /** BEAT ◀ ▶ on the mixer: the next beat value (or the next REVERB / PITCH step) in that direction. */
+    static float stepBeat (Type, float param, int direction) noexcept;
 
 private:
     static bool hasTail (Type t) noexcept
@@ -112,6 +139,10 @@ private:
 
     // VINYL BRAKE
     double brakeRead = 0.0, brakeElapsed = 0.0;
+
+    // MOBIUS: octave-spaced sine partials gliding endlessly up (or down) once per BEAT cycle
+    std::array<double, 7> mbPhase {};
+    float mbLp = 0.0f;
 
     // HELIX
     std::vector<float> hxL, hxR;

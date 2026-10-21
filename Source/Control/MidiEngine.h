@@ -43,6 +43,16 @@ struct MidiBinding
     int dimValue = -1;             // −1 = this light has no dim level (dim shows as off)
     bool outputOnly = false;       // a light with no control (VU meter, "track loaded", end warning)
 
+    /** RGB pads: how the light's value encodes a colour. With a colour format, an action that has a
+        colour (hot cues, loops…) is shown in that colour; dim = the same colour, darker. */
+    enum class Rgb
+    {
+        none,
+        hercules,      // 7-bit 0bRRGGGBB (Hercules DJControl Inpulse, …)
+    };
+    Rgb rgb = Rgb::none;
+    static int encodeColour (Rgb, juce::Colour, float brightness);
+
     int lightChannel() const noexcept  { return outChannel > 0 ? outChannel : channel; }
     Kind lightKind() const noexcept    { return outNumber >= 0 ? outKind : kind; }
     int lightNumber() const noexcept   { return outNumber >= 0 ? outNumber : number; }

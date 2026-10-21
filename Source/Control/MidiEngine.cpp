@@ -57,7 +57,24 @@ juce::var MidiBinding::toVar() const
     if (offValue != 0) o->setProperty ("off", offValue);
     if (dimValue >= 0) o->setProperty ("dim", dimValue);
     if (outputOnly) o->setProperty ("output_only", true);
+    if (rgb == Rgb::hercules) o->setProperty ("rgb", "hercules");
     return juce::var (o.release());
+}
+
+int MidiBinding::encodeColour (Rgb format, juce::Colour c, float brightness)
+{
+    if (format == Rgb::none || c.isTransparent())
+        return -1;
+    // Levels per channel (some controllers have fewer red / blue steps than green). A colour never
+    // rounds to black: its strongest channel keeps at least one step.
+    auto level = [brightness] (juce::uint8 v, int steps) { return (int) std::lround ((double) v / 255.0 * steps * brightness); };
+    int r = level (c.getRed(), 3), g = level (c.getGreen(), 7), b = level (c.getBlue(), 3);
+    if (r == 0 && g == 0 && b == 0 && brightness > 0.0f)
+    {
+        const auto top = juce::jmax (c.getRed(), c.getGreen(), c.getBlue());
+        if (top == c.getGreen()) g = 1; else if (top == c.getRed()) r = 1; else b = 1;
+    }
+    return (r << 5) | (g << 2) | b;
 }
 
 MidiBinding MidiBinding::fromVar (const juce::var& v)
@@ -92,6 +109,7 @@ MidiBinding MidiBinding::fromVar (const juce::var& v)
     b.offValue = juce::jlimit (0, 127, (int) v.getProperty ("off", 0));
     b.dimValue = juce::jlimit (-1, 127, (int) v.getProperty ("dim", -1));
     b.outputOnly = (bool) v.getProperty ("output_only", false) || Actions::isMeter (b.action);
+    b.rgb = v["rgb"].toString() == "hercules" ? Rgb::hercules : Rgb::none;
     return b;
 }
 
@@ -457,11 +475,17 @@ void MidiEngine::tick()
             if (b.encoding != MidiBinding::Encoding::button || b.shift != shiftHeld[b.device])
                 continue;
             using L = Actions::Led;
-            switch (actions.ledLevel (b.action, b.deck))
+            const auto level = actions.ledLevel (b.action, b.deck);
+            // RGB pad: the action's own colour, full when on, darker when dim.
+            const auto colour = b.rgb != MidiBinding::Rgb::none ? actions.ledColour (b.action, b.deck) : juce::Colour();
+            const int full = MidiBinding::encodeColour (b.rgb, colour, 1.0f);
+            const int dim = MidiBinding::encodeColour (b.rgb, colour, 0.3f);
+            const int on = full >= 0 ? full : b.onValue;
+            switch (level)
             {
-                case L::on:    value = b.onValue; break;
-                case L::dim:   value = b.dimValue >= 0 ? b.dimValue : b.offValue; break;
-                case L::blink: value = actions.blinkPhase (b.deck) ? b.onValue : b.offValue; break;
+                case L::on:    value = on; break;
+                case L::dim:   value = dim >= 0 ? dim : b.dimValue >= 0 ? b.dimValue : b.offValue; break;
+                case L::blink: value = actions.blinkPhase (b.deck) ? on : (dim >= 0 ? dim : b.offValue); break;
                 case L::off:
                 default:       value = b.offValue; break;
             }

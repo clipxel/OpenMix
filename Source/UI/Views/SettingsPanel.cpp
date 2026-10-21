@@ -174,12 +174,12 @@ void SettingsPanel::setControllerLibrary (ControllerLibrary* lib)
     };
 }
 
-void SettingsPanel::importMapping (const juce::File& file, const juce::String& controllerHint)
+void SettingsPanel::importMapping (const juce::Array<juce::File>& files, const juce::String& controllerHint)
 {
     if (midi == nullptr) return;
     MappingImport::Result r;
-    if (file != juce::File())
-        r = MappingImport::fromFile (file);
+    if (! files.isEmpty())
+        r = MappingImport::fromFiles (files);
     else
         for (auto& s : MappingImport::findInstalled())
             if (s.controller == controllerHint) { r = MappingImport::convert (s); break; }
@@ -187,7 +187,10 @@ void SettingsPanel::importMapping (const juce::File& file, const juce::String& c
 
     if (r.bindings.empty())
     {
-        learnStatus = juce::String::fromUTF8 ("No se pudo leer ningún control de ese archivo");
+        learnStatus = r.missingDefinition
+            ? juce::String::fromUTF8 ("Ese archivo es solo el \"mapper\" de ") + r.controller
+              + juce::String::fromUTF8 (": falta la definición del controlador (archivo de la carpeta Devices). Elegí los dos archivos juntos")
+            : juce::String::fromUTF8 ("No se pudo leer ningún control de ese archivo (formatos: VirtualDJ .xml, Mixxx .midi.xml, rekordbox .csv)");
         repaint();
         return;
     }
@@ -200,8 +203,11 @@ void SettingsPanel::importMapping (const juce::File& file, const juce::String& c
         if (ControllerLibrary::nameMatches (d, r.controller)) target = d;
     if (target == "*" && connected.size() == 1) target = connected[0];
     midi->installMapping (target, r.bindings);
-    learnStatus = juce::String::fromUTF8 ("Importado: ") + juce::String ((int) r.bindings.size())
-                + juce::String::fromUTF8 (" asignaciones") + (r.untranslated.isEmpty() ? juce::String()
+    learnStatus = (r.basedOn.isNotEmpty()
+                     ? juce::String::fromUTF8 ("Importado sobre el mapeo de OpenMix para ") + r.basedOn + ": "
+                       + juce::String (r.changed) + juce::String::fromUTF8 (" controles con tus funciones")
+                     : juce::String::fromUTF8 ("Importado: ") + juce::String ((int) r.bindings.size())
+                       + juce::String::fromUTF8 (" asignaciones")) + (r.untranslated.isEmpty() ? juce::String()
                 : juce::String::fromUTF8 (" · ") + juce::String (r.untranslated.size()) + juce::String::fromUTF8 (" funciones sin equivalente en OpenMix"));
     bindingBox.updateContent();
     repaint();
@@ -232,20 +238,21 @@ void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* 
         for (size_t i = 0; i < found.size(); ++i)
             menu.addItem ((int) i + 1, found[i].controller);
         menu.addSeparator();
-        menu.addItem (100000, juce::String::fromUTF8 ("Elegir archivo (.csv o .xml)…"));
+        menu.addItem (100000, juce::String::fromUTF8 ("Elegir archivo (VirtualDJ, Mixxx, rekordbox: .xml o .csv)…"));
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (importBtn), [this, found] (int r)
         {
             if (r == 100000)
             {
                 importChooser = std::make_unique<juce::FileChooser> (juce::String::fromUTF8 ("Mapeo de otro programa"), juce::File(), "*.csv;*.xml");
-                importChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                                            [this] (const juce::FileChooser& fc) { if (fc.getResult().existsAsFile()) importMapping (fc.getResult(), {}); });
+                importChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
+                                              | juce::FileBrowserComponent::canSelectMultipleItems,
+                                            [this] (const juce::FileChooser& fc) { if (! fc.getResults().isEmpty()) importMapping (fc.getResults(), {}); });
             }
             else if (juce::isPositiveAndBelow (r - 1, (int) found.size()))
             {
                 const auto& s = found[(size_t) (r - 1)];
                 auto res = MappingImport::convert (s);
-                importMapping ({}, s.controller);
+                importMapping (juce::Array<juce::File>(), s.controller);
                 juce::ignoreUnused (res);
             }
         });

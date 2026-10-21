@@ -711,7 +711,7 @@ void Deck::render (float* left, float* right, int numSamples)
         restAt = -1.0;
     }
 
-    // Musical clock for effects / RMX scheduled on this deck (heard position, start of block).
+    // Musical clock for effects scheduled on this deck (heard position, start of block).
     {
         const auto g = t.grid();
         const double heardSec = (stretchActive ? pos - stretchLead * (t.sampleRate / outRate) : pos) / t.sampleRate;

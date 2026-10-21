@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
+namespace juce { class AudioFormatReader; }
 #include <vector>
 
 namespace om
@@ -78,6 +79,8 @@ namespace Analysis
         drives: > 0 = silence to prepend (samples the decoder trimmed), < 0 = samples to drop from
         the start (decoder delay this decoder keeps). Read-only peek at the header. */
     int mp3TrimmedLeadSamples (const juce::File&);
+    /** Same, but 0 when the file was not decoded by the OS (our own MP3 decoder does not trim). */
+    int mp3TrimmedLeadSamples (const juce::File&, const juce::AudioFormatReader&);
 
     /** Integrated loudness in LUFS (ITU-R BS.1770-4 / EBU R128: K-weighting,
         400 ms blocks, −70 LUFS absolute and −10 LU relative gates). Silence → −100. */

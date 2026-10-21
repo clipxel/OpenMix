@@ -317,6 +317,7 @@ void AutoMix::startTransition()
     }
     auto& fx = engine.fx (onAir, 0);
     savedFx = { fx.enabled.load(), fx.type.load(), fx.wet.load(), fx.param.load() };
+    engine.autoMixFx = active == Mode::reverb || active == Mode::echo;
     engine.autoXfPerSecond = 0.0f;
 
     if (active == Mode::reverb || active == Mode::echo)
@@ -422,6 +423,7 @@ void AutoMix::finishTransition()
     }
     auto& fx = engine.fx (old, 0);
     fx.enabled = savedFx.enabled; fx.type = savedFx.type; fx.wet = savedFx.wet; fx.param = savedFx.param;
+    engine.autoMixFx = false;                                // the BEAT FX section takes over again
     engine.channel (0).xfAssign = (int) ChannelStrip::XfAssign::a;
     engine.channel (1).xfAssign = (int) ChannelStrip::XfAssign::b;
     engine.deck (next).setSync (false);                      // its tempo glides home while it plays

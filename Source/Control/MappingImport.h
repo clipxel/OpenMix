@@ -24,6 +24,9 @@ struct Result
     std::vector<MidiBinding> bindings;
     juce::StringArray untranslated; // controls that have no OpenMix equivalent (or need decks 3–4)
     juce::String controller;
+    juce::String basedOn;           // a mapper without its definition: the OpenMix mapping it was laid over
+    int changed = 0;                // … and how many controls it changed there
+    bool missingDefinition = false; // a mapper whose definition is not on disk, for a model OpenMix does not know
 };
 
 /** Mappings found in the usual places of DJ software installed on this computer. Read-only. */
@@ -36,8 +39,13 @@ Result convert (const Source&);
 Result fromCsv (const juce::String& csvText);
 Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml);
 Result fromPreset (const juce::String& presetXml);   // one-file XML presets (<…ControllerPreset>)
+/** A mapper alone (controllers the other program supports natively keep their definition built in):
+    laid over OpenMix's own mapping for that model. */
+Result fromMapperOnly (const juce::String& mapperXml, const juce::String& fallbackName = {});
 
 /** Picks the right parser for a file the user chose (.csv, or a .xml definition / mapper). */
 Result fromFile (const juce::File&);
+/** Several files chosen together (a definition and its mapper, or a mapper alone). */
+Result fromFiles (const juce::Array<juce::File>&);
 
 } // namespace om::MappingImport

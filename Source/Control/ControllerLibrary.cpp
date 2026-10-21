@@ -148,7 +148,16 @@ static const juce::var& bundledLibrary()
     return lib;
 }
 
-ControllerLibrary::Result ControllerLibrary::lookup (const juce::String& deviceName)
+bool ControllerLibrary::hasHardwareMixer (const juce::String& profileName)
+{
+    if (auto* arr = bundledLibrary()["mappings"].getArray())
+        for (auto& m : *arr)
+            if (m["name"].toString() == profileName)
+                return (bool) m["hardwareMixer"];
+    return false;
+}
+
+std::optional<std::pair<juce::String, std::vector<MidiBinding>>> ControllerLibrary::findBundled (const juce::String& deviceName)
 {
     if (auto* arr = bundledLibrary()["mappings"].getArray())
     {
@@ -175,9 +184,16 @@ ControllerLibrary::Result ControllerLibrary::lookup (const juce::String& deviceN
             if (auto* b = (*best)["bindings"].getArray())
                 for (auto& v : *b) bindings.push_back (MidiBinding::fromVar (v));
             if (! bindings.empty())
-                return { Status::mapped, (*best)["name"].toString(), {}, std::move (bindings) };
+                return std::pair { (*best)["name"].toString(), std::move (bindings) };
         }
     }
+    return std::nullopt;
+}
+
+ControllerLibrary::Result ControllerLibrary::lookup (const juce::String& deviceName)
+{
+    if (auto found = findBundled (deviceName))
+        return { Status::mapped, found->first, {}, std::move (found->second) };
 
     juce::String error;
     bool downloaded = false;
@@ -241,18 +257,60 @@ ControllerLibrary::Result ControllerLibrary::lookup (const juce::String& deviceN
 // Which library mapping was installed for each device (so a reconnect says "listo", not "propio").
 static juce::File installedFile() { return Library::dataFolder().getChildFile ("controllers").getChildFile ("installed.json"); }
 
-static juce::String installedProfile (const juce::String& device)
+// installed.json: device → { "profile": name, "hash": fingerprint of the bindings as installed }
+// (older versions stored just the name).
+static juce::var installedEntry (const juce::String& device)
 {
-    return juce::JSON::parse (installedFile())[device.toRawUTF8()].toString();
+    return juce::JSON::parse (installedFile())[device.toRawUTF8()];
 }
 
-static void rememberInstalled (const juce::String& device, const juce::String& profileName)
+static juce::String installedProfile (const juce::String& device)
+{
+    const auto e = installedEntry (device);
+    return e.isObject() ? e["profile"].toString() : e.toString();
+}
+
+static juce::String fingerprint (std::vector<MidiBinding> bindings)
+{
+    juce::Array<juce::var> list;
+    for (auto& b : bindings) { b.device = "*"; list.add (b.toVar()); }
+    return juce::String::toHexString (juce::JSON::toString (juce::var (list), true).hashCode64());
+}
+
+static void rememberInstalled (const juce::String& device, const juce::String& profileName, const std::vector<MidiBinding>& bindings)
 {
     auto v = juce::JSON::parse (installedFile());
     if (! v.isObject()) v = juce::var (new juce::DynamicObject());
-    v.getDynamicObject()->setProperty (device, profileName);
+    auto e = std::make_unique<juce::DynamicObject>();
+    e->setProperty ("profile", profileName);
+    e->setProperty ("hash", fingerprint (bindings));
+    v.getDynamicObject()->setProperty (device, juce::var (e.release()));
     installedFile().getParentDirectory().createDirectory();
     installedFile().replaceWithText (juce::JSON::toString (v));
+}
+
+/** A mapping OpenMix installed from its library is brought up to date when a new version of OpenMix
+    ships a better one, unless the user changed it since (MIDI learn, import): then it is left alone. */
+void ControllerLibrary::refreshFromLibrary (const juce::String& deviceName)
+{
+    const auto entry = installedEntry (deviceName);
+    const auto profile = installedProfile (deviceName);
+    if (profile.isEmpty()) return;
+    auto found = findBundled (deviceName);
+    if (! found || found->first != profile) return;
+
+    std::vector<MidiBinding> current;
+    for (auto& b : midi.bindings()) if (b.device == deviceName) current.push_back (b);
+    const auto now = fingerprint (current), shipped = fingerprint (found->second);
+    if (now == shipped)
+    {
+        if (! entry.isObject()) rememberInstalled (deviceName, profile, current);
+        return;
+    }
+    if (entry.isObject() && entry["hash"].toString() != now)
+        return;                                                 // edited by the user: theirs now
+    midi.installMapping (deviceName, found->second);
+    rememberInstalled (deviceName, profile, found->second);
 }
 
 void ControllerLibrary::install (const juce::String& deviceName, Result r)
@@ -262,7 +320,7 @@ void ControllerLibrary::install (const juce::String& deviceName, Result r)
         if (! midi.hasBindingsFor (deviceName))                 // the user may have mapped it meanwhile
         {
             midi.installMapping (deviceName, r.bindings);
-            rememberInstalled (deviceName, r.profileName);
+            rememberInstalled (deviceName, r.profileName, r.bindings);
         }
         else
         {
@@ -290,6 +348,7 @@ ControllerLibrary::Device ControllerLibrary::resolveNow (const juce::String& dev
     }
     if (midi.hasBindingsFor (deviceName))
     {
+        refreshFromLibrary (deviceName);
         const auto p = installedProfile (deviceName);
         install (deviceName, { p.isNotEmpty() ? Status::mapped : Status::mappedByUser, p, {}, {} });
     }
@@ -326,6 +385,7 @@ void ControllerLibrary::tick()
 
         if (midi.hasBindingsFor (name))
         {
+            refreshFromLibrary (name);
             list.back().profileName = installedProfile (name);
             list.back().status = list.back().profileName.isNotEmpty() ? Status::mapped : Status::mappedByUser;
             continue;

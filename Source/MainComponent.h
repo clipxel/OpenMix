@@ -7,8 +7,8 @@
 #include "UI/Views/WaveformViews.h"
 #include "UI/Views/DeckView.h"
 #include "UI/Views/MixerView.h"
-#include "UI/Views/LibraryView.h"
 #include "UI/Views/FxPanel.h"
+#include "UI/Views/LibraryView.h"
 #include "UI/Views/SettingsPanel.h"
 #include "Control/Actions.h"
 #include "Control/MidiEngine.h"
@@ -35,7 +35,7 @@ public:
     bool keyPressed (const juce::KeyPress&) override;
 
     /** Verification helper (--snapshot): load files, then call back. */
-    /** Snapshot mode: advance both decks' pad pages (5 = SAMPLES/RMX). */
+    /** Snapshot mode: advance both decks' pad pages . */
     /** Goodbye card now and then (2nd close, then every 8th) unless turned off. True if shown: `quit`
         runs when the user is done. */
     bool offerFeedbackBeforeQuit (std::function<void()> quit);
@@ -43,6 +43,7 @@ public:
     void showFeedbackForSnapshot (bool goodbye)    { showFeedback (goodbye ? om::FeedbackCard::Kind::goodbye : om::FeedbackCard::Kind::report); }
     std::unique_ptr<juce::Component> gridEditorForSnapshot() { return deckA.makeGridEditor(); }
     void showAutoMixForSnapshot()                 { automixOpen = true; automix.add (libraryView.visibleTracks()); resized(); frame(); }
+    void setFxModeForSnapshot (int m)             { setFxMode (m); }
     void showPadPageForSnapshot (int pages)       { for (int i = 0; i < pages; ++i) { deckA.nextPadPage(); deckB.nextPadPage(); } }
     /** Snapshot mode: open a settings section (and controllers tab) for the picture. */
     void showSettingsForSnapshot (int section, int tab)
@@ -63,6 +64,7 @@ private:
 
     void frame();
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
+    void controllersChanged();
 
     void loadToDeck (const om::TrackPtr&, int deck);
     void reanalyse (const std::vector<om::TrackPtr>&);
@@ -84,9 +86,11 @@ private:
 
     om::TopBar topBar { engine };
     om::WaveformStrip waveforms { engine.deck (0), engine.deck (1) };
-    om::FxPanel fxPanel { engine };
     om::DeckView deckA { engine, 0 }, deckB { engine, 1 };
     om::MixerView mixer { engine };
+    om::FxPanel fxPanel { engine };          // 3 FX workspace: three effects per deck above the decks
+    int fxMode = 0;                          // 0 BEAT FX · 1 3 FX
+    void setFxMode (int);
     om::LibraryView libraryView { library, engine, devices };
     std::unique_ptr<Splitter> splitter, waveSplitter;
     om::Actions actions { engine, { [this] (int d) { loadToDeck (libraryView.selectedTrack(), d); },
@@ -115,7 +119,6 @@ private:
     juce::TooltipWindow tooltips { this, 600 };
 
     om::Workspace current;   // sizes of the single layout
-    bool fxOpenCompact = false;   // small screens: FX panel folded unless the user opens it
 
     std::array<bool, 2> playNoted { false, false };
     std::array<const void*, 2> trackSeen { nullptr, nullptr };

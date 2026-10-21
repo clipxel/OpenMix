@@ -49,7 +49,6 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     // Wiring ------------------------------------------------------------------
     topBar.onOpenSettings = [this] (int s) { settingsPanel.setBounds (getLocalBounds()); settingsPanel.show (s); };
     topBar.onToggleRecord = [this] { toggleRecord(); };
-    topBar.onToggleFx = [this] { fxOpenCompact = ! fxOpenCompact; resized(); };
 
     deckA.onLoadRequest = [this] (const juce::File& f) { loadFileToDeck (f, 0); };
     deckB.onLoadRequest = [this] (const juce::File& f) { loadFileToDeck (f, 1); };
@@ -66,14 +65,14 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     };
     libraryView.onAddToAutoMix = [this] (const std::vector<TrackPtr>& t) { automix.add (t); automixOpen = true; resized(); };
     topBar.onToggleAutoMix = [this] { automixOpen = ! automixOpen; resized(); };
+    topBar.onFxModeChange = [this] (int m) { setFxMode (m); if (settings != nullptr) saveSettings(); };
     topBar.onOpenFeedback = [this] { showFeedback (FeedbackCard::Kind::report); };
     settingsPanel.onOpenFeedback = [this] { showFeedback (FeedbackCard::Kind::report); };
     addChildComponent (automixPanel);
 
     splitter->onDrag = [this] (int dy)
     {
-        const float avail = (float) juce::jmax (1, getHeight() - topBar.getHeight() - waveforms.getHeight()
-                                                  - (fxPanel.isVisible() ? fxPanel.getHeight() : 0));
+        const float avail = (float) juce::jmax (1, getHeight() - topBar.getHeight() - waveforms.getHeight());
         current.libraryRatio = juce::jlimit (0.12f, 0.75f, current.libraryRatio - (float) dy / avail);
         resized();
     };
@@ -172,6 +171,7 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
         settingsPanel.setControllers (midi.get(), &actions, &keyboard);
         settingsPanel.setControllerLibrary (controllerLib.get());
         topBar.setControllerLibrary (controllerLib.get());
+        controllerLib->addChangeListener (this);
         settingsPanel.onControllerOnlineChanged = [this] { if (settings != nullptr) saveSettings(); };
         settingsPanel.onUpdateCheckChanged = [this] { if (settings != nullptr) saveSettings(); };
         updater.addChangeListener (this);
@@ -192,17 +192,7 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
         auto audioState = settings->getXmlValue ("audioDevice");
         engine.initialiseDevice (audioState.get());
 
-        for (int d = 0; d < AudioEngine::numDecks; ++d)
-            for (int p = 0; p < RmxUnit::numDrums; ++p)
-                if (const juce::File f (settings->getValue ("rmxSample" + juce::String (d) + juce::String (p))); f.existsAsFile())
-                    engine.loadRmxSample (d, p, f, nullptr);
-        for (int d = 0; d < AudioEngine::numDecks; ++d)
-        {
-            engine.rmx (d).setBaseRoll (settings->getDoubleValue ("rmxRoll" + juce::String (d), RmxUnit::defaultRoll));
-            engine.rmx (d).drumLevel = (float) settings->getDoubleValue ("rmxVol" + juce::String (d), 0.8);
-            if (const auto tone = (float) settings->getDoubleValue ("rmxTone" + juce::String (d), 0.0); std::abs (tone) > 0.01f)
-                engine.setRmxToneSpeed (d, tone, 1.0f);
-        }
+        resized();
     }
     else
     {
@@ -218,6 +208,7 @@ MainComponent::~MainComponent()
     if (! snapshotMode)
         saveSettings();
     updater.removeChangeListener (this);
+    if (controllerLib != nullptr) controllerLib->removeChangeListener (this);
     Theme::get().removeChangeListener (this);
     engine.removeChangeListener (this);
     for (int i = 0; i < 2; ++i)
@@ -266,10 +257,10 @@ void MainComponent::frame()
     deckA.refresh();
     deckB.refresh();
     mixer.refresh();
-    libraryView.refresh();
-    topBar.refresh();
     if (fxPanel.isVisible())
         fxPanel.refresh();
+    libraryView.refresh();
+    topBar.refresh();
 
     // History: a track counts as played the first time it actually starts.
     for (int i = 0; i < 2; ++i)
@@ -347,6 +338,7 @@ void MainComponent::updaterChanged()
 void MainComponent::changeListenerCallback (juce::ChangeBroadcaster* source)
 {
     if (source == &updater) { updaterChanged(); return; }
+    if (controllerLib != nullptr && source == controllerLib.get()) { controllersChanged(); return; }
     if (source == &Theme::get())
     {
         // Accent changed: everything repaints with the new token.
@@ -357,6 +349,43 @@ void MainComponent::changeListenerCallback (juce::ChangeBroadcaster* source)
     }
     deckA.repaint();
     deckB.repaint();
+}
+
+/** A unit with its own mixer (all-in-one systems, club-style controllers) mixes the decks itself: OpenMix
+    must send each deck to its own channel of the unit's sound card instead of a finished mix. Done once
+    per unit, only when the current sound card has the outputs for it; the user can change it back. */
+void MainComponent::controllersChanged()
+{
+    if (settings == nullptr) return;
+    for (auto& d : controllerLib->devices())
+    {
+        if (d.status != ControllerLibrary::Status::mapped || ! ControllerLibrary::hasHardwareMixer (d.profileName))
+            continue;
+        const auto key = "hwMixer_" + ControllerLibrary::normalise (d.profileName);
+        if (settings->getBoolValue (key) || engine.outputChannelCount() < 4)
+            continue;
+        settings->setValue (key, true);
+        if (engine.outputMode.load() != AudioEngine::separateDecks)
+        {
+            engine.outputMode = AudioEngine::separateDecks;
+            engine.splitMono = false;
+            engine.deckChannel[0] = 0;
+            engine.deckChannel[1] = 2;
+            engine.phonesChannel = -1;
+            saveSettings();
+            deckA.showMessage (d.profileName + juce::String::fromUTF8 (" tiene mixer propio: cada deck sale por su canal"), false);
+        }
+    }
+}
+
+/** Effects workspace: BEAT FX (club mixer: one effect section at the mixer's side) or 3 FX per deck
+    (a row of three effects above each deck). Controllers keep their own way either way. */
+void MainComponent::setFxMode (int m)
+{
+    fxMode = juce::jlimit (0, 1, m);
+    topBar.setFxMode (fxMode);
+    mixer.setShowBeatFx (fxMode == 0);
+    resized();
 }
 
 //==============================================================================
@@ -604,6 +633,23 @@ void MainComponent::loadSettings()
         engine.deck (d).setQuantizeBeats (settings->getDoubleValue ("quantizeBeats" + juce::String (d + 1), 1.0));
         engine.channel (d).colorType = juce::jlimit (0, (int) ChannelStrip::Color::numColors - 1, settings->getIntValue ("colorFx" + juce::String (d + 1), 0));
     }
+    {
+        // SOUND COLOR FX lit button (−1: none) and its PARAMETER; BEAT FX section.
+        const int color = juce::jlimit (-1, (int) ChannelStrip::Color::numColors - 1, settings->getIntValue ("colorFxSelected", (int) ChannelStrip::Color::filter));
+        for (int d = 0; d < AudioEngine::numDecks; ++d)
+        {
+            if (color >= 0) engine.channel (d).colorType = color;
+            engine.channel (d).colorOn = color >= 0;
+            engine.channel (d).colorParam = (float) settings->getDoubleValue ("colorFxParam", 0.5);
+        }
+        auto& bx = engine.beatFx();
+        bx.select ((BeatFx::Type) juce::jlimit (0, (int) BeatFx::Type::numTypes - 1, settings->getIntValue ("beatFxType", (int) BeatFx::Type::echo)));
+        bx.param = (float) settings->getDoubleValue ("beatFxBeat", bx.param.load());
+        bx.level = (float) settings->getDoubleValue ("beatFxLevel", bx.level.load());
+        bx.target = juce::jlimit (0, (int) AudioEngine::BeatFxSection::numTargets - 1, settings->getIntValue ("beatFxChannel", AudioEngine::BeatFxSection::master));
+        for (int k = 0; k < 3; ++k) bx.bands[(size_t) k] = settings->getBoolValue ("beatFxBand" + juce::String (k), true);
+    }
+    setFxMode (settings->getIntValue ("fxMode", 0));
     engine.limiter().enabled = settings->getBoolValue ("limiterOn", true);
     engine.outputMode = settings->getIntValue ("outputMode", om::AudioEngine::speakersPhones);
     engine.masterChannel = settings->getIntValue ("masterChannel", 0);
@@ -638,12 +684,18 @@ void MainComponent::saveSettings()
         settings->setValue ("keyLock" + juce::String (d + 1), engine.deck (d).isKeyLock());
         settings->setValue ("quantizeBeats" + juce::String (d + 1), engine.deck (d).getQuantizeBeats());
         settings->setValue ("colorFx" + juce::String (d + 1), engine.channel (d).colorType.load());
-        for (int p = 0; p < RmxUnit::numDrums; ++p)
-            settings->setValue ("rmxSample" + juce::String (d) + juce::String (p), engine.rmx (d).sampleName (p));
-        settings->setValue ("rmxTone" + juce::String (d), engine.rmx (d).getTone());
-        settings->setValue ("rmxRoll" + juce::String (d), engine.rmx (d).getBaseRoll());
-        settings->setValue ("rmxVol" + juce::String (d), engine.rmx (d).drumLevel.load());
     }
+    settings->setValue ("colorFxSelected", engine.channel (0).colorOn.load() ? engine.channel (0).colorType.load() : -1);
+    settings->setValue ("colorFxParam", engine.channel (0).colorParam.load());
+    {
+        const auto& bx = engine.beatFx();
+        settings->setValue ("beatFxType", bx.type.load());
+        settings->setValue ("beatFxBeat", bx.param.load());
+        settings->setValue ("beatFxLevel", bx.level.load());
+        settings->setValue ("beatFxChannel", bx.target.load());
+        for (int k = 0; k < 3; ++k) settings->setValue ("beatFxBand" + juce::String (k), bx.bands[(size_t) k].load());
+    }
+    settings->setValue ("fxMode", fxMode);
     settings->setValue ("limiterOn", engine.limiter().enabled.load());
     settings->setValue ("outputMode", engine.outputMode.load());
     settings->setValue ("masterChannel", engine.masterChannel.load());
@@ -687,19 +739,19 @@ void MainComponent::resized()
     settingsPanel.setBounds (r);
     if (feedback != nullptr) feedback->setBounds (r);
 
-    // Small screens (notebooks of 11–13", 1366×768, 1280×800): the FX panel folds away behind the
-    // FX button and the library gives up some rows, so decks and mixer keep every control usable.
+    // Small screens (notebooks of 11–13", 1366×768, 1280×800): the library gives up some rows,
+    // so decks and mixer keep every control usable.
     const bool compact = getHeight() < 780;
-    const bool showFx = ! compact || fxOpenCompact;
-    topBar.setFxButton (compact, showFx);
-    fxPanel.setVisible (showFx);
 
     topBar.setBounds (r.removeFromTop (Size::topBar));
 
     // Waveforms are the visual protagonists, but shrink before decks become unusable.
-    const int fxH = showFx ? 70 : 0;
+    const bool deckFxRow = fxMode == 1;
+    fxPanel.setVisible (deckFxRow);
+    const int fxH = deckFxRow ? (compact ? 60 : 70) : 0;
     const int minLibH = compact ? 110 : 150;
-    const int mixerW = juce::jlimit (268, 340, juce::roundToInt ((float) r.getWidth() * 0.22f));
+    const int mixerW = deckFxRow ? juce::jlimit (268, 340, juce::roundToInt ((float) r.getWidth() * 0.22f))
+                                 : juce::jlimit (330, 420, juce::roundToInt ((float) r.getWidth() * 0.27f));   // club mixer: BEAT FX at its side
     const int deckW = (r.getWidth() - mixerW) / 2;
     const bool wantsJog = deckW >= 440;      // small screens: compact decks, waveforms keep priority
     const int minDeckH = wantsJog ? 400 : 330;    // with jogs: decks keep room for the platter before the library grows
@@ -708,8 +760,7 @@ void MainComponent::resized()
     waveforms.setLaneHeight (lane);
     waveforms.setBounds (r.removeFromTop (waveforms.preferredHeight()));
     waveSplitter->setBounds (r.removeFromTop (5));
-
-    if (showFx)
+    if (deckFxRow)
         fxPanel.setBounds (r.removeFromTop (fxH));
 
     {

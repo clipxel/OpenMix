@@ -5,7 +5,7 @@ if(NOT CMAKE_OSX_ARCHITECTURES)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Universal macOS build" FORCE)
 endif()
 
-project(OpenMix VERSION 2.1.0 LANGUAGES C CXX)
+project(OpenMix VERSION 2.2.0 LANGUAGES C CXX)
 if(APPLE)
     enable_language(OBJCXX)
 endif()
@@ -44,7 +44,8 @@ target_compile_definitions(OpenMix PRIVATE
     $<IF:$<PLATFORM_ID:Linux>,JUCE_USE_CURL=1,JUCE_USE_CURL=0>   # Linux downloads with libcurl; macOS/Windows use the OS
     JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:OpenMix,JUCE_PRODUCT_NAME>"
     JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:OpenMix,JUCE_VERSION>"
-    $<$<NOT:$<PLATFORM_ID:Darwin>>:JUCE_USE_MP3AUDIOFORMAT=1>)   # macOS decodes MP3/AAC with the OS
+    JUCE_USE_MP3AUDIOFORMAT=1      # macOS decodes with the OS first; this reads the MP3s it refuses
+    $<$<PLATFORM_ID:Windows>:JUCE_USE_WINDOWS_MEDIA_FORMAT=1>)   # Windows: WMA/AAC/M4A via Media Foundation
 
 if(APPLE)
     target_link_libraries(OpenMix PRIVATE "-framework AudioToolbox")

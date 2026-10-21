@@ -430,7 +430,7 @@ DeckView::DeckView (AudioEngine& e, int i)
     jumpFwd.setTooltip ("Beat jump adelante (tamaño del loop)"_u);
 
     // Pads -------------------------------------------------------------------
-    const char* tabNames[] = { "HOT CUE", "ROLL", "LOOP", "S.LOOP", "JUMP", "SAMPLES/RMX" };
+    const char* tabNames[] = { "HOT CUE", "ROLL", "LOOP", "S.LOOP", "JUMP" };
     for (int t = 0; t < numPadModes; ++t)
     {
         auto b = std::make_unique<Button> (tabNames[t]);
@@ -448,43 +448,10 @@ DeckView::DeckView (AudioEngine& e, int i)
         b->onPress   = [this, p] { padDown (p, juce::ModifierKeys::currentModifiers.isShiftDown()); };
         b->onRelease = [this, p] { padUp (p); };
         b->onRightClick = [this, p] (const juce::MouseEvent&) { padRightClick (p); };
-        // SAMPLES/RMX: while an X-PAD is held, up / down = tone, left / right = roll speed.
-        b->onDrag = [this, p] (const juce::MouseEvent& ev)
-        {
-            if (padMode != PadMode::sampler || p >= RmxUnit::numDrums) return;
-            const float semis = (float) juce::jlimit (-12, 12, juce::roundToInt (-ev.getDistanceFromDragStartY() / 8.0));
-            const int steps = juce::jlimit (-2, 2, juce::roundToInt (ev.getDistanceFromDragStartX() / 28.0));
-            engine.rmx (index).padGesture (p, semis, steps);
-        };
         addAndMakeVisible (*b);
         pads[(size_t) p] = std::move (b);
     }
 
-    auto rollName = [] (double beats) { return "1/" + juce::String (juce::roundToInt (4.0 / beats)); };
-    padTone.setRange (-12.0, 12.0, 1.0);
-    padTone.setDefault (0.0);
-    padTone.setArcColour (Theme::get().deckColour (index));
-    padTone.formatter = [] (double v) { return v == 0.0 ? juce::String ("0") : (v > 0 ? "+" : "") + juce::String ((int) v) + " st"; };
-    padTone.bind ({ [this] { return (double) engine.rmx (index).getTone(); },
-                    [this] (double v) { if (std::abs (v - engine.rmx (index).getTone()) > 0.01) engine.setRmxToneSpeed (index, (float) v, 1.0f); } });
-    padTone.setTooltip (juce::String::fromUTF8 ("Tono de los X-PAD (semitonos, sin cambiar la duración). Mientras mantenés un pad: arrastrá arriba / abajo"));
-    padRoll.setRange (0.0, 4.0, 1.0);
-    padRoll.setDefault (2.0);
-    padRoll.setArcColour (Theme::get().deckColour (index));
-    padRoll.formatter = [rollName] (double v) { return rollName (std::pow (0.5, v)); };
-    padRoll.bind ({ [this] { return std::round (std::log2 (1.0 / engine.rmx (index).getBaseRoll())); },
-                    [this] (double v) { engine.rmx (index).setBaseRoll (std::pow (0.5, v)); } });
-    padRoll.setTooltip (juce::String::fromUTF8 ("Velocidad del roll al mantener un X-PAD (1/4 … 1/64). Mientras lo mantenés: arrastrá izquierda / derecha"));
-    padVol.setRange (0.0, 1.0);
-    padVol.setDefault (0.8);
-    padVol.setArcColour (Theme::get().deckColour (index));
-    padVol.formatter = [] (double v) { return juce::String ((int) std::round (v * 100)) + "%"; };
-    padVol.bind ({ [this] { return (double) engine.rmx (index).drumLevel.load(); },
-                   [this] (double v) { engine.rmx (index).drumLevel = (float) v; } });
-    padVol.setTooltip (juce::String::fromUTF8 ("Volumen de los X-PAD (el tema no cambia)"));
-    addChildComponent (padTone);
-    addChildComponent (padRoll);
-    addChildComponent (padVol);
     setPadMode (PadMode::hotCue);
 }
 
@@ -501,9 +468,6 @@ void DeckView::setPadMode (PadMode m)
     padMode = m;
     for (int t = 0; t < numPadModes; ++t)
         padTabs[(size_t) t]->setToggleState (t == (int) m, juce::dontSendNotification);
-    padTone.setVisible (m == PadMode::sampler);
-    padRoll.setVisible (m == PadMode::sampler);
-    padVol.setVisible (m == PadMode::sampler);
     updatePads();
     resized();
 }
@@ -534,9 +498,6 @@ void DeckView::padDown (int p, bool shift)
         case PadMode::jump:
             deck.beatJump ((p < 4 ? -1.0 : 1.0) * padJumpSizes[p % 4]);
             break;
-        case PadMode::sampler:
-            engine.rmx (index).padDown (p, shift);
-            break;
     }
 }
 
@@ -546,35 +507,10 @@ void DeckView::padUp (int p)
         deck.loopRoll (padRollSizes[p], false);
     else if (padMode == PadMode::hotCue)
         deck.hotCueRelease (p);                 // gate cue: release returns to the cue
-    else if (padMode == PadMode::sampler)
-        engine.rmx (index).padUp (p);
 }
 
 void DeckView::padRightClick (int p)
 {
-    if (padMode == PadMode::sampler && p < RmxUnit::numDrums)
-    {
-        juce::PopupMenu m;
-        m.addSectionHeader ("X-PAD " + RmxUnit::padName (p));
-        m.addItem (juce::String::fromUTF8 ("Cargar sample…"), [this, p]
-        {
-            sampleChooser = std::make_unique<juce::FileChooser> ("Sample para " + RmxUnit::padName (p),
-                                                                  juce::File::getSpecialLocation (juce::File::userMusicDirectory),
-                                                                  "*.wav;*.aif;*.aiff;*.mp3;*.flac;*.m4a");
-            sampleChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                                        [this, p] (const juce::FileChooser& fc)
-            {
-                const auto f = fc.getResult();
-                if (f.existsAsFile())
-                    engine.loadRmxSample (index, p, f, [this] (bool ok, const juce::String& err) { if (! ok) showMessage (err, true); });
-            });
-        });
-        m.addItem ("Sonido original", engine.rmx (index).sampleName (p).isNotEmpty(), false,
-                   [this, p] { engine.loadRmxSample (index, p, {}, nullptr); });
-        m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (pads[(size_t) p].get()));
-        return;
-    }
-
     juce::PopupMenu m;
     const auto letter = juce::String (p + 1);
     if (padMode == PadMode::hotCue && deck.getHotCue (p) >= 0.0)
@@ -673,28 +609,6 @@ void DeckView::updatePads()
                                       : "Requiere BPM analizado");
                 break;
             }
-            case PadMode::sampler:
-            {
-                auto& rx = engine.rmx (index);
-                const bool drum = p < RmxUnit::numDrums;
-                const auto custom = drum ? rx.sampleName (p) : juce::String();
-                b.setButtonText (RmxUnit::padName (p));
-                const float liveSt = drum ? rx.getTone() + rx.liveTone (p) : 0.0f;
-                const bool gesturing = drum && rx.isLit (p) && (std::abs (rx.liveTone (p)) > 0.01f || std::abs (rx.rollRate (p) - rx.getBaseRoll()) > 1.0e-6);
-                b.setSubText (gesturing ? (liveSt > 0 ? "+" : "") + juce::String ((int) liveSt) + " st · 1/" + juce::String (juce::roundToInt (4.0 / rx.rollRate (p)))
-                            : drum ? (custom.isNotEmpty() ? juce::File (custom).getFileNameWithoutExtension().substring (0, 14) : juce::String ("X-PAD"))
-                                   : (p == RmxUnit::brake ? juce::String::fromUTF8 ("⇧ BACKSPIN") : juce::String ("SCENE")));
-                const auto base = drum ? Theme::hotCueColour (p) : accent();
-                b.setPadColour (rx.isLit (p) ? C (base) : C (base.withMultipliedAlpha (0.28f)));
-                padLeds[(size_t) p] = rx.isLit (p) ? 2 : 1;
-                b.setEnabled (true);
-                b.setTooltip (drum ? juce::String::fromUTF8 ("Suena apenas lo apretás. Mantené: roll en la grilla del tema (VEL.). Mientras lo mantenés, arrastrá arriba/abajo = tono, izquierda/derecha = velocidad del roll. Clic derecho: cargar sample")
-                                   : p == RmxUnit::buildUp   ? juce::String::fromUTF8 ("Mantené: el tema sube durante 8 beats (filtro, ruido, cortes en tiempo y eco); soltá para el drop")
-                                   : p == RmxUnit::breakDown ? juce::String::fromUTF8 ("Mantené: el tema baja (filtro que se cierra y eco)")
-                                   : p == RmxUnit::echoOut   ? juce::String::fromUTF8 ("Repite al instante lo último que sonó y vuelve solo a los 4 beats")
-                                                             : juce::String::fromUTF8 ("Mantené: freno de vinilo (⇧: backspin). El tema sigue corriendo"));
-                break;
-            }
         }
     }
 }
@@ -752,7 +666,6 @@ void DeckView::refresh()
     overview.refresh();
     if (showJog) jog.refresh();
     pitch.syncFromEngine();
-    if (padMode == PadMode::sampler) { padTone.syncFromEngine(); padRoll.syncFromEngine(); padVol.syncFromEngine(); }
 
     play.setToggleState (deck.isPlaying(), juce::dontSendNotification);
     cue.setToggleState (deck.hasTrack() && ! deck.isPlaying() && std::abs (deck.getPosition() - deck.getCuePoint()) < 0.02,
@@ -951,19 +864,6 @@ void DeckView::layoutLoopAndPads (juce::Rectangle<int> loopRow, int padRowH)
             tabs.removeFromLeft (Space::xs);
         }
         pa.removeFromTop (4);
-        if (padMode == PadMode::sampler)
-        {
-            // TONO · VEL. · VOL beside the pads, same size, one row.
-            const int kw = juce::jlimit (34, 48, padRowH + 8);
-            auto knobs = pa.removeFromRight (kw * 3 + Space::xs * 2);
-            pa.removeFromRight (Space::sm);
-            const int kh = juce::jmin (knobs.getHeight(), kw + 18);
-            for (auto* k : { &padTone, &padRoll, &padVol })
-            {
-                k->setBounds (knobs.removeFromLeft (kw).withSizeKeepingCentre (kw, kh));
-                knobs.removeFromLeft (Space::xs);
-            }
-        }
         const int pw = (pa.getWidth() - 3 * Space::sm) / 4;
         for (int row = 0; row < 2; ++row)
         {

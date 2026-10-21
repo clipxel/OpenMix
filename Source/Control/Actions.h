@@ -52,6 +52,8 @@ public:
         cue point…). Blinking follows the beat while the deck plays, otherwise twice a second. */
     enum class Led { off = 0, dim, on, blink };
     Led ledLevel (const juce::String& id, int deck) const;
+    /** Colour of an RGB light (pads), the same the screen shows; transparent when the action has none. */
+    juce::Colour ledColour (const juce::String& id, int deck) const;
     bool blinkPhase (int deck) const;
 
     /** Controller VU meters: 0…1 with peak hold and fall-off. deck −1 = master. Message thread. */
@@ -65,6 +67,10 @@ public:
 
 
     static constexpr double rollSizes[4] = { 0.125, 0.25, 0.5, 1.0 };
+    // The screen's pad pages (DeckView): LOOP, ROLL and JUMP (pads 1–4 back, 5–8 forward).
+    static constexpr double padLoopSizes[8] = { 0.25, 0.5, 1, 2, 4, 8, 16, 32 };
+    static constexpr double padRollSizes[8] = { 1.0 / 32, 1.0 / 16, 0.125, 0.25, 0.5, 1, 2, 4 };
+    static constexpr double padJumpSizes[4] = { 1, 4, 8, 16 };
 
 private:
     struct Entry
@@ -74,12 +80,18 @@ private:
         std::function<bool (int deck)> led;
         std::function<float (int deck)> value;
         std::function<Led (int deck)> level;        // overrides `led` when set
+        std::function<juce::Colour (int deck)> colour;
     };
 
     void add (ActionInfo, std::function<void (int, float)>, std::function<bool (int)> led = {},
               std::function<float (int)> value = {});
     void build();
     void setLevel (const juce::String& id, std::function<Led (int)>);
+    void setColour (const juce::String& id, std::function<juce::Colour (int)>);
+    /** Beatmatch guide (tempo / phase lights): this deck against the other one. */
+    enum class Guide { none, faster, slower, ok };
+    Guide tempoGuide (int deck) const;
+    Guide phaseGuide (int deck) const;      // faster = behind (nudge forward), slower = ahead
 
     AudioEngine& engine;
     Hooks hooks;

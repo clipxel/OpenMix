@@ -6,12 +6,12 @@ namespace om
 FxPanel::FxPanel (AudioEngine& e) : engine (e)
 {
     for (int d = 0; d < AudioEngine::numDecks; ++d)
-        for (int i = 0; i < AudioEngine::numFxSlots; ++i)
+        for (int i = 0; i < AudioEngine::numDeckFx; ++i)
         {
             auto s = std::make_unique<Slot>();
             s->deck = d;
             s->index = i;
-            auto& fx = engine.fx (d, i);
+            auto& fx = engine.deckFx (d, i);
             auto* raw = s.get();
 
             s->type.setTextType (Type::caption, Weight::bold);
@@ -40,13 +40,13 @@ FxPanel::FxPanel (AudioEngine& e) : engine (e)
 
 void FxPanel::showTypeMenu (Slot& s)
 {
-    auto& fx = engine.fx (s.deck, s.index);
+    auto& fx = engine.deckFx (s.deck, s.index);
     juce::PopupMenu m;
     m.addSectionHeader ("FX " + juce::String (s.index + 1) + " · DECK " + juce::String (s.deck + 1));
     using T = BeatFx::Type;
     m.addSectionHeader ("BEAT FX");
     for (auto type : { T::delay, T::echo, T::pingPong, T::spiral, T::reverb, T::trans, T::filter, T::flanger, T::phaser,
-                       T::pitch, T::slipRoll, T::roll, T::vinylBrake, T::helix })
+                       T::pitch, T::slipRoll, T::roll, T::vinylBrake, T::helix, T::tripletFilter, T::tripletRoll, T::mobius })
         m.addItem (BeatFx::typeName (type), true, fx.type.load() == (int) type, [&fx, type]
         {
             fx.enabled = false;
@@ -63,7 +63,7 @@ void FxPanel::refresh()
     for (auto& sp : slots)
     {
         auto& s = *sp;
-        auto& fx = engine.fx (s.deck, s.index);
+        auto& fx = engine.deckFx (s.deck, s.index);
         const auto t = (BeatFx::Type) fx.type.load();
         if ((int) t != s.lastType)
         {
@@ -95,9 +95,9 @@ void FxPanel::resized()
         auto a = deckAreas[(size_t) d];
         a.removeFromLeft (44);                                    // deck label
         const int w = (a.getWidth() - 2 * Space::md) / 3;
-        for (int i = 0; i < AudioEngine::numFxSlots; ++i)
+        for (int i = 0; i < AudioEngine::numDeckFx; ++i)
         {
-            auto& s = *slots[(size_t) (d * AudioEngine::numFxSlots + i)];
+            auto& s = *slots[(size_t) (d * AudioEngine::numDeckFx + i)];
             s.area = a.removeFromLeft (w);
             a.removeFromLeft (Space::md);
             auto sa = s.area;
@@ -122,7 +122,7 @@ void FxPanel::paint (juce::Graphics& g)
     {
         auto label = deckAreas[(size_t) d].withWidth (40).toFloat();
         bool any = false;
-        for (int i = 0; i < AudioEngine::numFxSlots; ++i) any = any || engine.fx (d, i).enabled.load();
+        for (int i = 0; i < AudioEngine::numDeckFx; ++i) any = any || engine.deckFx (d, i).enabled.load();
         Icons::draw (g, Icon::fx, label.removeFromTop (label.getHeight() * 0.55f).withSizeKeepingCentre (16, 16).translated (0, 4),
                      any ? Theme::get().deckColour (d) : colour (Col::textTertiary));
         Text::caption (g, "FX " + juce::String (d + 1), label, any ? Theme::get().deckColour (d) : colour (Col::textTertiary),

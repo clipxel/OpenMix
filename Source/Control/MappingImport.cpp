@@ -1,4 +1,5 @@
 #include "MappingImport.h"
+#include <regex>
 #include "ControllerLibrary.h"
 #include <set>
 
@@ -56,6 +57,17 @@ static void addXmlPair (const juce::File& base, std::vector<Source>& out)
             if (auto mx = juce::XmlDocument::parse (m.getFile()); mx != nullptr && mx->getStringAttribute ("device") == id)
                 mapper = m.getFile();
         out.push_back ({ name, mapper != juce::File() ? mapper : e.getFile(), e.getFile() });
+    }
+
+    // Mappers of controllers the program supports natively (their definition is built in).
+    for (const auto& m : juce::RangedDirectoryIterator (mappers, false, "*.xml", juce::File::findFiles))
+    {
+        auto mx = juce::XmlDocument::parse (m.getFile());
+        if (mx == nullptr || ! mx->hasTagName ("mapper")) continue;
+        const auto id = mx->getStringAttribute ("device");
+        if (std::any_of (out.begin(), out.end(), [&m] (const Source& s) { return s.file == m.getFile(); })) continue;
+        if (ControllerLibrary::findBundled (id))
+            out.push_back ({ id, m.getFile(), {} });
     }
 }
 
@@ -172,10 +184,54 @@ static MidiBinding::Encoding csvEncoding (const juce::String& type, bool& ok, in
 
 static int hex (const juce::String& s) { return s.trim().getHexValue32(); }
 
+/** Effect controls of a vendor table. Two kinds of controllers:
+      · one effect section (FX1 only: select, channel assign, beat, depth, on) → OpenMix's BEAT FX
+      · one effect unit per side (FX1 = left deck, FX2 = right deck, 1–3 slots each) → the deck effects */
+static juce::String csvFxAction (const juce::String& raw, bool perDeck, int& fixedDeck)
+{
+    static const std::regex re (R"(^fx([12])(?:-([123]))?(on|select|selectback|beatdown|beatup|assign\.(ch1|ch2|master))?$)",
+                                std::regex::icase);
+    std::smatch m;
+    const auto str = raw.trim().toLowerCase().toStdString();
+    if (! std::regex_match (str, m, re)) return {};
+    const int unit = std::stoi (m[1].str());
+    const int slot = m[2].matched ? std::stoi (m[2].str()) : 0;
+    const auto what = m[3].str();
+    if (perDeck)
+    {
+        fixedDeck = unit - 1;
+        if (what == "beatdown") return "effect_beat_down";
+        if (what == "beatup")   return "effect_beat_up";
+        if (slot == 0) return {};
+        const auto n = juce::String (slot);
+        if (what.empty())       return "effect_wet_" + n;
+        if (what == "on")       return "effect_active_" + n;
+        if (what == "select")   return "effect_select_" + n;
+        return {};
+    }
+    if (unit != 1) return {};
+    fixedDeck = 0;
+    if (what.empty() && slot == 1) return "beat_fx_level";
+    if (what == "on" && slot == 1) return "beat_fx_on";
+    if (what == "select")     return "beat_fx_select";
+    if (what == "selectback") return "beat_fx_select_back";
+    if (what == "beatdown")   return "beat_fx_beat_down";
+    if (what == "beatup")     return "beat_fx_beat_up";
+    if (m[4].matched)
+    {
+        const auto ch = m[4].str();
+        if (ch == "master") return "beat_fx_master";
+        fixedDeck = ch == "ch1" ? 0 : 1;
+        return "beat_fx_channel";
+    }
+    return {};
+}
+
 Result fromCsv (const juce::String& text)
 {
     Result r;
     bool anyOutput = false;      // a table without any output column: lights answer on the input message
+    const bool fxPerDeck = text.contains ("FX2-");                    // an effect unit on each side
     juce::StringArray lines;
     lines.addLines (text);
     for (auto line : lines)
@@ -250,7 +306,9 @@ Result fromCsv (const juce::String& text)
         }
 
         int fixedDeck = -2;
-        auto action = csvAction (parts[0], shift, fixedDeck);
+        auto action = csvFxAction (name, fxPerDeck, fixedDeck);          // column 1 says what the control does
+        if (action.isEmpty()) action = csvFxAction (parts[0], fxPerDeck, fixedDeck);
+        if (action.isEmpty()) action = csvAction (parts[0], shift, fixedDeck);
         if (action.isEmpty()) action = csvAction (name, shift, fixedDeck);   // the control's own label
         bool encOk = false;
         int lsbDummy = -1;
@@ -366,6 +424,17 @@ static std::pair<juce::String, int> scriptAction (juce::String script, bool& shi
         { "eq_mid", "eq_mid" }, { "eq_low", "eq_low" }, { "filter", "filter" }, { "pfl", "pfl" }, { "crossfader", "crossfader" },
         { "master_volume", "master_volume" }, { "headphone_volume", "headphone_volume" }, { "headphone_mix", "headphone_mix" },
         { "browser_scroll", "browser_scroll" }, { "shift", "shift" }, { "record", "record" }, { "quantize", "quantize" },
+        { "pause", "play_pause" }, { "play_stutter", "stutter" }, { "stutter", "stutter" }, { "goto_start", "start_play" },
+        { "cue", "cue_button" }, { "jogwheel_touch", "jog_touch" }, { "touch_wheel", "jog_touch" }, { "scratch_wheel_touch", "jog_touch" },
+        { "scratch_wheel", "jog" }, { "nudge_wheel", "jog" }, { "jog_search", "jog_search" }, { "seek", "jog_search" },
+        { "pitch_range", "pitch_range" }, { "pitch_zero", "pitch_reset" }, { "key_match", "key_match" }, { "key_sync", "key_match" },
+        { "key_reset", "key_reset" }, { "eq_hi", "eq_high" }, { "eq_bass", "eq_low" }, { "trim", "gain" },
+        { "filter_selectcolorfx", "filter" }, { "color_fx", "filter" }, { "headphones", "pfl" }, { "listen", "pfl" },
+        { "headphone_gain", "headphone_volume" }, { "master_level", "master_volume" }, { "crossfader_curve", "" },
+        { "automix", "automix" }, { "loop_move", "loop_move_fwd" }, { "loop_roll", "loop_roll_3" }, { "reloop", "reloop" },
+        { "loop_button", "loop" }, { "loop_select", "loop_resize" }, { "loop_halve", "loop_half" }, { "instant_doubles", "instant_doubles" },
+        { "clone_deck", "instant_doubles" }, { "master_deck", "master" }, { "backspin", "backspin" }, { "pad_page", "pad_page" },
+        { "load_track", "load" }, { "unload", "" }, { "browser_enter", "" }, { "dump", "brake" },
     };
 
     const auto verb = words[0].toLowerCase();
@@ -381,6 +450,46 @@ static std::pair<juce::String, int> scriptAction (juce::String script, bool& shi
     }
     if (verb == "pitch_bend" && words.size() >= 2)
         return { words[1].startsWithChar ('-') ? "pitch_bend_minus" : "pitch_bend_plus", deck };
+    if ((verb == "set_cue" || verb == "goto_cue") && words.size() >= 2)
+    {
+        const int n = words[1].getIntValue();
+        if (n >= 1 && n <= 8) return { "hot_cue_" + juce::String (n), deck };
+    }
+    if (verb == "pad" && words.size() >= 2)                    // "pad 3": the pad of the current page
+    {
+        const int n = words[1].getIntValue();
+        if (n >= 1 && n <= 8) return { "pad_" + juce::String (n), deck };
+    }
+    if ((verb == "effect_active" || verb == "effect_slider" || verb == "effect_select") && words.size() >= 2)
+    {
+        const int n = words[1].getIntValue();
+        if (n >= 1 && n <= 3) return { (verb == "effect_active" ? "effect_active_" : verb == "effect_slider" ? "effect_wet_" : "effect_select_") + juce::String (n), deck };
+        return { verb == "effect_active" ? "effect_active_1" : verb == "effect_slider" ? "effect_wet_1" : "effect_select_1", deck };
+    }
+    // "loop 4" / "loop 1/2": a loop of that size; "loop_roll 0.25": a roll of that size.
+    auto beats = [] (const juce::String& w) -> double
+    {
+        if (w.containsChar ('/')) { const double den = w.fromFirstOccurrenceOf ("/", false, false).getDoubleValue(); return den > 0.0 ? w.upToFirstOccurrenceOf ("/", false, false).getDoubleValue() / den : 0.0; }
+        return w.retainCharacters ("0123456789.").getDoubleValue();
+    };
+    if ((verb == "loop" || verb == "auto_loop" || verb == "loop_roll") && words.size() >= 2 && beats (words[1]) > 0.0)
+    {
+        const double size = beats (words[1]);
+        const auto* sizes = verb == "loop_roll" ? Actions::padRollSizes : Actions::padLoopSizes;
+        int best = 0;
+        for (int i = 1; i < 8; ++i) if (std::abs (std::log2 (sizes[i] / size)) < std::abs (std::log2 (sizes[best] / size))) best = i;
+        if (verb != "loop_roll" && std::abs (size - 4.0) < 1e-6) return { "loop_4", deck };
+        return { (verb == "loop_roll" ? "pad_roll_" : "pad_loop_") + juce::String (best + 1), deck };
+    }
+    if ((verb == "beatjump" || verb == "goto") && words.size() >= 2)
+        return { words[1].startsWithChar ('-') ? "beatjump_back" : "beatjump_fwd", deck };
+    if (verb == "key" && words.size() >= 2)
+    {
+        const auto w = words[1];
+        if (w.startsWithChar ('-')) return { w.contains ("2") ? "key_tone_down" : "key_down", deck };
+        if (w.startsWithChar ('+')) return { w.contains ("2") ? "key_tone_up" : "key_up", deck };
+        if (w == "0" || w == "0%") return { "key_reset", deck };
+    }
     if (auto it = verbs.find (verb); it != verbs.end())
         return { it->second, deck };
     return { {}, deck };
@@ -489,6 +598,127 @@ Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml
         if (! any && controls.count (key) > 0)
             r.untranslated.addIfNotAlreadyThere (value);
     }
+    return r;
+}
+
+//==============================================================================
+// A mapper of a controller the other program supports natively: its definition (which MIDI message
+// each control name stands for) is built into that program and never written to disk. The messages
+// come from OpenMix's own mapping for that model; each control name of the mapper is matched to the
+// control of that mapping that does the same job ("PLAY" → the binding of play_pause…), and gets the
+// user's action. Controls the mapper does not mention keep OpenMix's mapping.
+
+/** Which OpenMix action a control name usually stands for ("PLAY", "PAD3", "HOTCUE_5", "LOOP_IN"…). */
+static juce::String roleOf (const juce::String& controlName)
+{
+    auto k = controlName.toUpperCase().retainCharacters ("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+    const int n = k.getTrailingIntValue();
+    const auto word = n > 0 ? k.dropLastCharacters (juce::String (n).length()) : k;
+    const auto padNo = juce::String (juce::jlimit (1, 8, n));
+    auto has = [&word] (const char* w) { return word.contains (w); };
+
+    if (n >= 1 && n <= 8)
+    {
+        if (has ("SHIFT") && (has ("HOTCUE") || word == "PAD" || has ("CUE"))) return "delete_hot_cue_" + padNo;
+        if (has ("HOTCUE") || word == "PAD" || word == "PADS" || word == "CUE" || word == "HOT")  return "hot_cue_" + padNo;
+        if (has ("ROLL"))                   return "pad_roll_" + padNo;
+        if (has ("JUMP"))                   return "pad_jump_" + padNo;
+        if (has ("SAVEDLOOP") || has ("SLICER")) return "saved_loop_" + padNo;
+        if (has ("LOOP"))                   return "pad_loop_" + padNo;
+        if (has ("FX") || has ("EFFECT"))   return n <= 3 ? "effect_active_" + padNo : juce::String();
+    }
+    if (has ("CROSSFADER") || has ("XFADER")) return "crossfader";
+    if (has ("SHIFT"))                     return "shift";
+    if (has ("JOG") || has ("WHEEL") || has ("PLATTER"))
+        return has ("TOUCH") ? "jog_touch" : "jog";
+    if (has ("PLAY"))                      return "play_pause";
+    if (has ("SYNC"))                      return "sync";
+    if (has ("LOAD"))                      return "load";
+    if (has ("PFL") || has ("HEADPHONE") || has ("LISTEN")) return "pfl";
+    if (has ("CUE"))                       return "cue_button";
+    if (has ("LOOPIN"))                    return "loop_in";
+    if (has ("LOOPOUT"))                   return "loop_out";
+    if (has ("VINYL") || has ("SCRATCH"))  return "vinyl_mode";
+    if (has ("SLIP"))                      return "slip_mode";
+    if (has ("QUANT") || word == "Q")      return "quantize";
+    if (has ("KEYLOCK") || has ("MASTERTEMPO")) return "key_lock";
+    if (has ("PITCH") || has ("TEMPO"))    return "pitch";
+    if (has ("VOLUME") || has ("FADER") || word == "LEVEL") return "volume";
+    if (has ("HIGH") || has ("TREBLE") || word == "EQHI") return "eq_high";
+    if (has ("MID"))                       return "eq_mid";
+    if (has ("LOW") || has ("BASS"))       return "eq_low";
+    if (has ("GAIN") || has ("TRIM"))      return "gain";
+    if (has ("FILTER"))                    return "filter";
+    if (has ("BROWSE"))                    return "browser_scroll";
+    if (has ("LOOP"))                      return "loop";
+    return {};
+}
+
+Result fromMapperOnly (const juce::String& mapperXml, const juce::String& fallbackName)
+{
+    Result r;
+    auto mapper = juce::XmlDocument::parse (mapperXml);
+    if (mapper == nullptr || ! mapper->hasTagName ("mapper"))
+        return r;
+    r.controller = mapper->getStringAttribute ("device", fallbackName);
+    auto base = ControllerLibrary::findBundled (r.controller);
+    if (! base && fallbackName.isNotEmpty()) base = ControllerLibrary::findBundled (fallbackName);
+    if (! base)
+    {
+        r.missingDefinition = true;
+        return r;
+    }
+    r.basedOn = base->first;
+
+    std::vector<MidiBinding> out = base->second;
+    std::set<size_t> replaced;
+    std::vector<MidiBinding> added;
+    for (auto* m : mapper->getChildWithTagNameIterator ("map"))
+    {
+        auto key = m->getStringAttribute ("value");
+        const auto script = m->getStringAttribute ("action");
+        bool shiftHeld = false;
+        if (key.startsWithIgnoreCase ("SHIFT+")) { shiftHeld = true; key = key.substring (6); }
+        const auto role = roleOf (key);
+        if (role.isEmpty()) { r.untranslated.addIfNotAlreadyThere (key); continue; }
+
+        juce::StringArray variants { script }, layers { shiftHeld ? "1" : "0" };
+        if (script.contains ("?") && script.trimStart().startsWithIgnoreCase ("shift"))
+        {
+            const auto rest = script.fromFirstOccurrenceOf ("?", false, false);
+            variants = { rest.upToFirstOccurrenceOf (":", false, false), rest.fromFirstOccurrenceOf (":", false, false) };
+            layers = { "1", "0" };
+        }
+
+        bool any = false;
+        for (size_t i = 0; i < base->second.size(); ++i)
+        {
+            const auto& b = base->second[i];
+            if (b.action != role || b.outputOnly || b.shift) continue;
+            for (int v = 0; v < variants.size(); ++v)
+            {
+                bool unused = false;
+                auto [action, deck] = scriptAction (variants[v], unused);
+                if (action.isEmpty() || ! juce::isPositiveAndBelow (deck < 0 ? b.deck : deck, 2)) continue;
+                auto c = b;
+                c.action = action;
+                c.shift = layers[v] == "1";
+                if (deck >= 0) c.deck = deck;
+                if (action == "jog" && c.encoding == MidiBinding::Encoding::button) c.action = "jog_touch";
+                // Only touch OpenMix's binding when the user's action is really different.
+                if (c.action == b.action && c.shift == b.shift && c.deck == b.deck) { any = true; continue; }
+                if (! c.shift) replaced.insert (i);
+                added.push_back (c);
+                any = true;
+            }
+        }
+        if (! any) r.untranslated.addIfNotAlreadyThere (key);
+    }
+    for (size_t i = out.size(); i-- > 0;)
+        if (replaced.count (i) > 0) out.erase (out.begin() + (long) i);
+    out.insert (out.end(), added.begin(), added.end());
+    r.bindings = std::move (out);
+    r.changed = (int) added.size();
     return r;
 }
 
@@ -796,6 +1026,12 @@ Result convert (const Source& s)
             if (r.controller.isEmpty()) r.controller = s.controller;
             return r;
         }
+    if (s.definition == juce::File())
+    {
+        auto r = fromMapperOnly (s.file.loadFileAsString(), s.controller);
+        if (r.controller.isEmpty()) r.controller = s.controller;
+        return r;
+    }
     const auto mapper = s.file != s.definition ? s.file.loadFileAsString() : juce::String();
     auto r = fromXml (s.definition.loadFileAsString(), mapper);
     if (r.controller.isEmpty()) r.controller = s.controller;
@@ -826,8 +1062,32 @@ Result fromFile (const juce::File& f)
         for (const auto& d : juce::RangedDirectoryIterator (f.getParentDirectory().getSiblingFile ("Devices"), false, "*.xml", juce::File::findFiles))
             if (auto dx = juce::XmlDocument::parse (d.getFile()); dx != nullptr && dx->getStringAttribute ("name") == id)
                 return fromXml (d.getFile().loadFileAsString(), f.loadFileAsString());
+        // Built-in controller of the other program: no definition on disk.
+        return fromMapperOnly (f.loadFileAsString(), f.getFileNameWithoutExtension().upToFirstOccurrenceOf (" - ", false, false));
     }
     return {};
+}
+
+Result fromFiles (const juce::Array<juce::File>& files)
+{
+    // A definition and its mapper chosen together; otherwise the first file that reads.
+    juce::File def, map;
+    for (auto& f : files)
+        if (auto x = juce::XmlDocument::parse (f))
+        {
+            if (x->hasTagName ("device")) def = f;
+            else if (x->hasTagName ("mapper")) map = f;
+        }
+    if (def.existsAsFile() && map.existsAsFile())
+        return fromXml (def.loadFileAsString(), map.loadFileAsString());
+    Result last;
+    for (auto& f : files)
+    {
+        auto r = fromFile (f);
+        if (! r.bindings.empty()) return r;
+        if (r.missingDefinition || last.controller.isEmpty()) last = r;
+    }
+    return last;
 }
 
 } // namespace om::MappingImport

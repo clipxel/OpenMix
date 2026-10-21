@@ -93,8 +93,8 @@ public:
     void itemDragExit (const SourceDetails&) override                  { dragOver = false; repaint(); }
 
 private:
-    enum class PadMode { hotCue = 0, roll, loop, savedLoop, jump, sampler };
-    static constexpr int numPadModes = 6;
+    enum class PadMode { hotCue = 0, roll, loop, savedLoop, jump };
+    static constexpr int numPadModes = 5;
 
     void setPadMode (PadMode);
     void layoutLoopAndPads (juce::Rectangle<int> loopRow, int padRowH);
@@ -119,7 +119,6 @@ private:
     Button vinylBtn { "VINYL" };
     Button gridBtn { "GRID" };
     void openGridEditor();
-    std::unique_ptr<juce::FileChooser> sampleChooser;
 
     Fader pitch { true, true };
     Button pitchRange { "±8%"_u, Icon::none, Button::Style::ghost };
@@ -136,8 +135,6 @@ private:
     std::array<std::unique_ptr<Button>, 8> pads;
     PadMode padMode = PadMode::hotCue;
     std::array<int, 8> padLeds {};
-    // SAMPLES/RMX: X-PAD tone and roll speed, set before launching (the held-pad gesture adds to them)
-    Knob padTone { "TONO", true }, padRoll { "VEL.", false }, padVol { "VOL", false };
 
     bool showJog = true, dense = false, dragOver = false;
     juce::String message;
