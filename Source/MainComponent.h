@@ -85,8 +85,12 @@ private:
     om::VolumeCueStore cueStore;      // cues that travel with external drives (<drive>/.OpenMix)
 
     om::TopBar topBar { engine };
-    om::WaveformStrip waveforms { engine.deck (0), engine.deck (1) };
-    om::DeckView deckA { engine, 0 }, deckB { engine, 1 };
+    om::WaveformStrip waveforms { engine };
+    om::DeckView deckA { engine, 0 }, deckB { engine, 1 }, deckC { engine, 2 }, deckD { engine, 3 };
+    om::DeckView& viewFor (int d)                 { return d == 1 ? deckB : d == 2 ? deckC : d == 3 ? deckD : deckA; }
+    om::DeckView& sideView (int side)             { return viewFor (engine.visibleDeck (side)); }
+    std::pair<int, int> shownDecks { 0, 1 };      // decks laid out on screen last time
+    juce::StringArray noteShown;                  // one-time notices this session
     om::MixerView mixer { engine };
     om::FxPanel fxPanel { engine };          // 3 FX workspace: three effects per deck above the decks
     int fxMode = 0;                          // 0 BEAT FX · 1 3 FX
@@ -96,11 +100,16 @@ private:
     om::Actions actions { engine, { [this] (int d) { loadToDeck (libraryView.selectedTrack(), d); },
                                     [this] (int delta) { libraryView.moveSelection (delta); },
                                     [this] { toggleRecord(); },
-                                    [this] (int d, int pad, bool down) { (d == 0 ? deckA : deckB).externalPad (pad, down); },
-                                    [this] (int d) { (d == 0 ? deckA : deckB).nextPadPage(); },
-                                    [this] (int d, int pad) { return (d == 0 ? deckA : deckB).padLed (pad); },
+                                    [this] (int d, int pad, bool down) { viewFor (d).externalPad (pad, down); },
+                                    [this] (int d) { viewFor (d).nextPadPage(); },
+                                    [this] (int d, int pad) { return viewFor (d).padLed (pad); },
                                     [this] { automix.setRunning (! automix.isRunning()); },
-                                    [this] { libraryView.browseFocusToggle(); } } };
+                                    [this] { libraryView.browseFocusToggle(); },
+                                    [this] (int d, int page, const juce::String& note)
+                                    {
+                                        if (page >= 0) viewFor (d).showPadPage (page);
+                                        if (note.isNotEmpty()) viewFor (d).showMessage (note, false);
+                                    } } };
     om::KeyboardControl keyboard { actions };
     om::AutoMix automix { engine, { [this] (const om::TrackPtr& t, int d) { loadToDeck (t, d); } } };
     om::AutoMixPanel automixPanel { automix, engine,
@@ -121,8 +130,8 @@ private:
 
     om::Workspace current;   // sizes of the single layout
 
-    std::array<bool, 2> playNoted { false, false };
-    std::array<const void*, 2> trackSeen { nullptr, nullptr };
+    std::array<bool, om::AudioEngine::numDecks> playNoted {};
+    std::array<const void*, om::AudioEngine::numDecks> trackSeen {};
     std::unique_ptr<juce::FileChooser> chooser;
     std::unique_ptr<juce::VBlankAttachment> vblank;
 

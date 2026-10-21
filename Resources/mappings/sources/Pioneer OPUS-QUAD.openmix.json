@@ -50,6 +50,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 81,
+   "encoding": "button",
+   "action": "load",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 81,
+   "encoding": "button",
+   "action": "load",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "cc",
    "number": 34,
@@ -67,6 +87,28 @@
    "encoding": "rel_offset",
    "action": "jog",
    "deck": 1,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 34,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 2,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 34,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 3,
    "shift": false,
    "scale": 0.001953125
   },
@@ -94,6 +136,28 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 32,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 2,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 32,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 3,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 72,
@@ -111,6 +175,28 @@
    "encoding": "button",
    "action": "jog_touch",
    "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 72,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 2,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 72,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 3,
    "shift": false,
    "led": false
   },
@@ -138,6 +224,28 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 33,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 2,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 33,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 3,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "cc",
    "number": 38,
@@ -155,6 +263,28 @@
    "encoding": "rel_offset",
    "action": "jog",
    "deck": 1,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 38,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 2,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 38,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 3,
    "shift": false,
    "scale": 0.001953125
   },
@@ -182,6 +312,28 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 0,
+   "lsb": 32,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 0,
+   "lsb": 32,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 16,
@@ -199,6 +351,28 @@
    "encoding": "button",
    "action": "pitch_range",
    "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 16,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 2,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 16,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 3,
    "shift": false,
    "led": false
   },
@@ -224,6 +398,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 17,
+   "encoding": "button",
+   "action": "key_lock",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 17,
+   "encoding": "button",
+   "action": "key_lock",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 31,
@@ -244,6 +438,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 31,
+   "encoding": "button",
+   "action": "sync",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 31,
+   "encoding": "button",
+   "action": "sync",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 18,
@@ -260,6 +474,26 @@
    "encoding": "button",
    "action": "vinyl_mode",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 18,
+   "encoding": "button",
+   "action": "vinyl_mode",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 18,
+   "encoding": "button",
+   "action": "vinyl_mode",
+   "deck": 3,
    "shift": false
   },
   {
@@ -286,6 +520,28 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 63,
+   "encoding": "button",
+   "action": "shift",
+   "deck": 2,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 63,
+   "encoding": "button",
+   "action": "shift",
+   "deck": 3,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "cc",
    "number": 46,
@@ -302,6 +558,26 @@
    "encoding": "rel_twos",
    "action": "loop",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 46,
+   "encoding": "rel_twos",
+   "action": "loop",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 46,
+   "encoding": "rel_twos",
+   "action": "loop",
+   "deck": 3,
    "shift": false
   },
   {
@@ -326,6 +602,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "loop_in",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "loop_in",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 7,
@@ -342,6 +638,26 @@
    "encoding": "button",
    "action": "loop_out",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "loop_out",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "loop_out",
+   "deck": 3,
    "shift": false
   },
   {
@@ -366,6 +682,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "cue_button",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "cue_button",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 0,
@@ -382,6 +718,26 @@
    "encoding": "button",
    "action": "play_pause",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 3,
    "shift": false
   },
   {
@@ -406,6 +762,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 8,
+   "encoding": "button",
+   "action": "hot_cue_1",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 8,
+   "encoding": "button",
+   "action": "hot_cue_1",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 10,
@@ -422,6 +798,26 @@
    "encoding": "button",
    "action": "hot_cue_1",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 10,
+   "encoding": "button",
+   "action": "hot_cue_1",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 10,
+   "encoding": "button",
+   "action": "hot_cue_1",
+   "deck": 3,
    "shift": false
   },
   {
@@ -446,6 +842,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 11,
+   "encoding": "button",
+   "action": "hot_cue_2",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 11,
+   "encoding": "button",
+   "action": "hot_cue_2",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 12,
@@ -462,6 +878,26 @@
    "encoding": "button",
    "action": "hot_cue_2",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 12,
+   "encoding": "button",
+   "action": "hot_cue_2",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 12,
+   "encoding": "button",
+   "action": "hot_cue_2",
+   "deck": 3,
    "shift": false
   },
   {
@@ -486,6 +922,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 13,
+   "encoding": "button",
+   "action": "hot_cue_3",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 13,
+   "encoding": "button",
+   "action": "hot_cue_3",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 14,
@@ -502,6 +958,26 @@
    "encoding": "button",
    "action": "hot_cue_3",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 14,
+   "encoding": "button",
+   "action": "hot_cue_3",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 14,
+   "encoding": "button",
+   "action": "hot_cue_3",
+   "deck": 3,
    "shift": false
   },
   {
@@ -526,6 +1002,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 15,
+   "encoding": "button",
+   "action": "hot_cue_4",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 15,
+   "encoding": "button",
+   "action": "hot_cue_4",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 20,
@@ -542,6 +1038,26 @@
    "encoding": "button",
    "action": "hot_cue_4",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "hot_cue_4",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "hot_cue_4",
+   "deck": 3,
    "shift": false
   },
   {
@@ -566,6 +1082,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "hot_cue_5",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "hot_cue_5",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 22,
@@ -582,6 +1118,26 @@
    "encoding": "button",
    "action": "hot_cue_5",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "hot_cue_5",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "hot_cue_5",
+   "deck": 3,
    "shift": false
   },
   {
@@ -606,6 +1162,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 23,
+   "encoding": "button",
+   "action": "hot_cue_6",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 23,
+   "encoding": "button",
+   "action": "hot_cue_6",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 24,
@@ -622,6 +1198,26 @@
    "encoding": "button",
    "action": "hot_cue_6",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 24,
+   "encoding": "button",
+   "action": "hot_cue_6",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 24,
+   "encoding": "button",
+   "action": "hot_cue_6",
+   "deck": 3,
    "shift": false
   },
   {
@@ -646,6 +1242,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 25,
+   "encoding": "button",
+   "action": "hot_cue_7",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 25,
+   "encoding": "button",
+   "action": "hot_cue_7",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 26,
@@ -662,6 +1278,26 @@
    "encoding": "button",
    "action": "hot_cue_7",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 26,
+   "encoding": "button",
+   "action": "hot_cue_7",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 26,
+   "encoding": "button",
+   "action": "hot_cue_7",
+   "deck": 3,
    "shift": false
   },
   {
@@ -686,6 +1322,26 @@
   },
   {
    "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 27,
+   "encoding": "button",
+   "action": "hot_cue_8",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 27,
+   "encoding": "button",
+   "action": "hot_cue_8",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 28,
@@ -702,6 +1358,26 @@
    "encoding": "button",
    "action": "hot_cue_8",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 28,
+   "encoding": "button",
+   "action": "hot_cue_8",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 28,
+   "encoding": "button",
+   "action": "hot_cue_8",
+   "deck": 3,
    "shift": false
   },
   {
@@ -732,6 +1408,26 @@
    "encoding": "abs7",
    "action": "volume",
    "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 19,
+   "encoding": "abs7",
+   "action": "volume",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 20,
+   "encoding": "abs7",
+   "action": "volume",
+   "deck": 3,
    "shift": false
   }
  ],

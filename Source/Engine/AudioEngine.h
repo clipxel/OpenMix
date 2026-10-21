@@ -21,7 +21,17 @@ class AudioEngine : public juce::AudioIODeviceCallback,
                     private juce::Timer
 {
 public:
-    static constexpr int numDecks = 2;
+    static constexpr int numDecks = 4;
+
+    /** Two decks are on screen at a time, as on a 2-deck controller: the left side shows deck 1 or 3,
+        the right side deck 2 or 4 (a button swaps them). Controllers without their own deck buttons
+        drive the deck their side shows. */
+    int  visibleDeck (int side) const noexcept    { return visible[(size_t) juce::jlimit (0, 1, side)].load(); }
+    bool isVisible (int deck) const noexcept      { return visibleDeck (deck % 2) == deck; }
+    void showDeck (int deck) noexcept             { if (juce::isPositiveAndBelow (deck, numDecks)) visible[(size_t) (deck % 2)] = deck; }
+    void swapSide (int side) noexcept             { const int s = juce::jlimit (0, 1, side); showDeck (visibleDeck (s) == s ? s + 2 : s); }
+    /** The deck this one mixes against: the one on screen on the other side. */
+    int  otherDeck (int deck) const noexcept      { return visibleDeck (1 - deck % 2); }
     static constexpr int numFxSlots = 1;   // per channel: the processor the BEAT FX section drives
     static constexpr int numDeckFx = 3;    // per deck: the effect units of controllers that have FX on each side
 
@@ -129,7 +139,7 @@ public:
     enum OutputMode { speakersOnly = 0, speakersPhones = 1, separateDecks = 2 };
     std::atomic<int>  outputMode { speakersPhones };
     std::atomic<int>  masterChannel { 0 }, phonesChannel { 2 };
-    std::array<std::atomic<int>, numDecks> deckChannel { 0, 2 };
+    std::array<std::atomic<int>, numDecks> deckChannel { 0, 2, 4, 6 };   // decks 3–4: their side's pair if the card has fewer
     std::atomic<bool> splitMono { false };
     double getSampleRate() const noexcept         { return currentRate.load(); }
     int    getBufferSize() const noexcept         { return currentBlock.load(); }
@@ -156,6 +166,7 @@ private:
     juce::AudioDeviceManager deviceManager;
     juce::AudioFormatManager formatManager;
 
+    std::array<std::atomic<int>, 2> visible { 0, 1 };
     std::array<std::unique_ptr<Deck>, numDecks> decks;
     std::array<ChannelStrip, numDecks> channels;
     std::array<std::array<BeatFx, numFxSlots>, numDecks> fxSlots;

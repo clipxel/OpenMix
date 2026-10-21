@@ -38,6 +38,9 @@ public:
         std::function<int (int deck, int pad)> padLed;                 // Led of PAD 1–8 in the current page
         std::function<void()> toggleAutoMix;
         std::function<void()> browseFocus;                             // browse knob pushed: tracks ↔ playlists
+        /** A controller's pad-mode button: show that pad page on screen (0 HOT CUE, 1 ROLL, 2 LOOP,
+            3 S.LOOP, 4 JUMP), or −1 with a note for a mode OpenMix has no page for. */
+        std::function<void (int deck, int page, const juce::String& note)> padMode;
     };
 
     Actions (AudioEngine&, Hooks);
@@ -101,8 +104,8 @@ private:
     Hooks hooks;
     std::vector<ActionInfo> infos;
     std::map<juce::String, Entry> entries;
-    std::array<double, 2> lastJogMs { 0, 0 };
-    std::array<float, 3> vu { 0, 0, 0 };
+    std::array<double, AudioEngine::numDecks> lastJogMs {};
+    std::array<float, AudioEngine::numDecks + 1> vu {};       // decks, then master
 };
 
 } // namespace om

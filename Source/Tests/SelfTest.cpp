@@ -2187,6 +2187,26 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     rep.check (d2.isReverse() && ! d2.isPlaying(), "SHIFT + botón dispara la capa shift"_u);
     midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
 
+    if (auto inp = ControllerLibrary::findBundled ("DJControl Inpulse 500"))
+    {
+        // The Inpulse sends another message while its SHIFT is held (deck 2: channel 6). Those
+        // messages have normal bindings: SHIFT held must not silence them.
+        d2.setReverse (false);
+        d2.setPlaying (false);
+        d2.seek (20.0);
+        run (d2, 0.05);
+        midi.setBindings (inp->second);
+        midi.inject ("Test", juce::MidiMessage::noteOn (3, 0x04, (juce::uint8) 127));     // SHIFT (deck 2)
+        midi.inject ("Test", juce::MidiMessage::noteOn (6, 0x06, (juce::uint8) 127));     // SHIFT + CUE → start and play
+        midi.inject ("Test", juce::MidiMessage::noteOff (6, 0x06));
+        midi.inject ("Test", juce::MidiMessage::noteOff (3, 0x04));
+        run (d2, 0.05);
+        rep.check (d2.isPlaying() && d2.getPosition() < 2.0, "Inpulse 500: con SHIFT apretado andan las funciones de SHIFT (SHIFT + CUE vuelve al principio)"_u,
+                   juce::String (d2.getPosition(), 2) + " s");
+        d2.setPlaying (false);
+        midi.setBindings (b);
+    }
+
     {
         // VirtualDJ scripts, run as written.
         d2.setReverse (false);
@@ -2261,6 +2281,61 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
             d2.setPlaying (false);
             d2.clearHotCue (0);
             d2.clearHotCue (2);
+        }
+        {
+            // Decks 3 and 4: each side shows one of its two decks; 2-deck controllers follow the side,
+            // controllers with their own deck buttons drive the deck they name and the screen follows.
+            auto& d3 = engine.deck (2);
+            d3.prepare (sr);
+            d3.setTrack (tb);
+            engine.showDeck (0); engine.showDeck (1);
+            const bool start = engine.visibleDeck (0) == 0 && engine.visibleDeck (1) == 1 && engine.otherDeck (0) == 1;
+            engine.swapSide (0);
+            const bool swapped = engine.visibleDeck (0) == 2 && engine.otherDeck (1) == 2 && engine.isVisible (2) && ! engine.isVisible (0);
+
+            MidiBinding p1; p1.device = "Two"; p1.channel = 4; p1.kind = MidiBinding::Kind::note; p1.number = 1; p1.action = "play_pause"; p1.deck = 0;
+            midi.setBindings ({ p1 });
+            d3.setPlaying (false); engine.deck (0).setPlaying (false);
+            midi.inject ("Two", juce::MidiMessage::noteOn (4, 1, (juce::uint8) 127));
+            midi.inject ("Two", juce::MidiMessage::noteOff (4, 1));
+            const bool followsSide = d3.isPlaying() && ! engine.deck (0).isPlaying();
+            d3.setPlaying (false);
+
+            MidiBinding q1 = p1; q1.device = "Four";
+            MidiBinding q3 = p1; q3.device = "Four"; q3.channel = 5; q3.deck = 2;
+            midi.setBindings ({ q1, q3 });
+            engine.showDeck (0);
+            midi.inject ("Four", juce::MidiMessage::noteOn (4, 1, (juce::uint8) 127));
+            midi.inject ("Four", juce::MidiMessage::noteOff (4, 1));
+            const bool ownDeck = engine.deck (0).isPlaying() && ! d3.isPlaying();
+            engine.deck (0).setPlaying (false);
+            midi.inject ("Four", juce::MidiMessage::noteOn (5, 1, (juce::uint8) 127));
+            midi.inject ("Four", juce::MidiMessage::noteOff (5, 1));
+            const bool screenFollows = d3.isPlaying() && engine.visibleDeck (0) == 2;
+            d3.setPlaying (false);
+
+            VdjScript vs (actions);
+            VdjScript::Context c;
+            c.deck = 0;
+            vs.run ("deck 3 play_pause", c);
+            const bool deck3Verb = d3.isPlaying();
+            d3.setPlaying (false);
+            vs.run ("deck left play_pause", c);                 // left shows deck 3 now
+            const bool leftVerb = d3.isPlaying();
+            d3.setPlaying (false);
+            vs.run ("deck 1 select", c);
+            const bool selectVerb = engine.visibleDeck (0) == 0;
+            actions.trigger ("deck_swap", 1, 1.0f);
+            const bool swapAction = engine.visibleDeck (1) == 3 && actions.isActive ("deck_swap", 1);
+            actions.trigger ("deck_swap", 1, 1.0f);
+            rep.check (start && swapped && followsSide && ownDeck && screenFollows && deck3Verb && leftVerb && selectVerb
+                       && swapAction && engine.visibleDeck (1) == 1,
+                       "Decks 3 y 4: cambio de lado, controlador de 2 decks sigue al deck a la vista, el de 4 decks maneja el suyo y la pantalla lo sigue, scripts «deck 3» / «deck left» / «select»"_u,
+                       juce::String ((int) start) + juce::String ((int) swapped) + juce::String ((int) followsSide) + juce::String ((int) ownDeck)
+                       + juce::String ((int) screenFollows) + juce::String ((int) deck3Verb) + juce::String ((int) leftVerb)
+                       + juce::String ((int) selectVerb) + juce::String ((int) swapAction));
+            engine.showDeck (0);
+            midi.setBindings (b);
         }
         rep.check (VdjScript::unknownVerbs ("shift ? hot_cue 1 : sampler_play 2 & video_fx").joinIntoString (",") == "sampler_play,video_fx"
                    && VdjScript::isContinuous ("shift ? jogwheel : jogwheel") && ! VdjScript::isContinuous ("play_pause"),
@@ -2682,7 +2757,8 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         rep.check (inp ("hot_cue_1", 0, 7, 0x00, true) && inp ("delete_hot_cue_1", 0, 7, 0x08, true) && inp ("delete_hot_cue_8", 1, 8, 0x0F, true)
                    && inp ("pad_loop_3", 0, 7, 0x12, true) && inp ("pad_roll_1", 1, 8, 0x50, true) && inp ("pad_jump_8", 0, 7, 0x77, true)
                    && inp ("play_pause", 0, 2, 0x07, false) && inp ("stutter", 0, 5, 0x07, false) && inp ("jog", 1, 3, 0x0A, false)
-                   && inp ("guide_tempo_ok", 0, 2, 0x2C, false) && inp ("volume", 1, 3, 0x00, false),
+                   && inp ("guide_tempo_ok", 0, 2, 0x2C, false) && inp ("volume", 1, 3, 0x00, false)
+                   && inp ("pad_mode_loop", 0, 2, 0x10, false) && inp ("pad_mode_jump", 1, 3, 0x16, false),
                    "Hercules Inpulse 500 incluido: pads por modo con color, SHIFT + pad borra el hot cue, transporte, jog y guía de beatmatch"_u);
 
         // A VirtualDJ mapper of a natively supported controller: no definition on disk, so the messages
@@ -2691,7 +2767,9 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
               <map value="PLAY" action="play_pause"/><map value="CUE" action="cue_stop"/>
               <map value="PAD1" action="hot_cue 2"/><map value="SYNC" action="shift ? key_match : sync"/>
               <map value="MYSTERY_BUTTON" action="play_pause"/><map value="SHIFT_CUE" action="goto_start"/>
-              <map value="SHIFT" action="shift"/><map value="JOG" action="play_pause"/><map value="SHIFT_PAD3" action="delete_cue 3"/></mapper>)");
+              <map value="SHIFT" action="shift"/><map value="JOG" action="play_pause"/><map value="SHIFT_PAD3" action="delete_cue 3"/>
+              <map value="PLAYLIST" action="browser_window 'playlists'"/><map value="MASTER_VOLUME" action="master_volume"/>
+              <map value="PAD_MODE_HOTCUE" action="pad_page 1"/><map value="LOOP_HALVE" action="loop_half"/></mapper>)");
         auto scrL = [&lone] (const char* script, int dk, int chn, int nm)
         {
             return std::any_of (lone.bindings.begin(), lone.bindings.end(), [=] (const MidiBinding& mb)
@@ -2708,7 +2786,9 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    "Mapper de VirtualDJ sin definición: cada script tal cual sobre el mapeo de OpenMix de ese controlador"_u);
         rep.check (hasL ("shift", 0, 2, 0x04) && ! scrL ("goto_start", 0, 2, 0x04) && scrL ("goto_start", 0, 5, 0x06)
                    && hasL ("jog", 0, 2, 0x0A) && ! scrL ("play_pause", 0, 2, 0x0A) && scrL ("delete_cue 3", 0, 7, 0x0A)
-                   && hasL ("loop", 0, 2, 0x2C),
+                   && hasL ("loop", 0, 2, 0x2C) && ! scrL ("browser_window 'playlists'", 0, 2, 0x07) && ! scrL ("master_volume", 0, 2, 0x00)
+                   && hasL ("volume", 0, 2, 0x00) && ! scrL ("pad_page 1", 0, 2, 0x06) && ! scrL ("loop_half", 0, 2, 0x2C)
+                   && lone.untranslated.contains ("PLAYLIST") && lone.untranslated.contains ("MASTER_VOLUME"),
                    "Mapper de VirtualDJ: «SHIFT_…» va al mensaje con SHIFT y no pisa el botón SHIFT, el jog no se vuelve botón, la perilla de loop entra / sale"_u);
         const auto unknown = MappingImport::fromMapperOnly (R"(<mapper device="Nobody Knows This 9000"><map value="PLAY" action="play_pause"/></mapper>)");
         rep.check (unknown.bindings.empty() && unknown.missingDefinition, "Mapper sin definición de un controlador desconocido: se avisa que falta la definición"_u);
@@ -3077,6 +3157,7 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
         o->setProperty ("match", v["match"]);
         o->setProperty ("bindings", v["bindings"]);
         if ((bool) v["hardwareMixer"]) o->setProperty ("hardwareMixer", true);
+        if ((bool) v["soundcard"]) o->setProperty ("soundcard", true);
         native.insert (ControllerLibrary::normalise (name));
         entries.add (juce::var (o.release()));
         notices.add ("- " + name + (v["author"].toString().isNotEmpty() ? juce::String::fromUTF8 (" — ") + v["author"].toString() : juce::String()));

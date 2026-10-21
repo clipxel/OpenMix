@@ -63,7 +63,7 @@ bool Actions::blinkPhase (int deck) const
 float Actions::meterLevel (int deck)
 {
     auto& m = deck < 0 ? engine.masterMeter() : engine.channel (juce::jlimit (0, AudioEngine::numDecks - 1, deck)).meter;
-    auto& held = vu[(size_t) (deck < 0 ? 2 : juce::jlimit (0, 1, deck))];
+    auto& held = vu[(size_t) (deck < 0 ? AudioEngine::numDecks : juce::jlimit (0, AudioEngine::numDecks - 1, deck))];
     const float peak = m.drainController();
     const float db = juce::Decibels::gainToDecibels (peak, -60.0f);
     const float now = juce::jlimit (0.0f, 1.0f, (db + 36.0f) / 36.0f);     // −36 dB … 0 dB
@@ -109,7 +109,7 @@ juce::Colour Actions::ledColour (const juce::String& id, int deck) const
 Actions::Guide Actions::tempoGuide (int d) const
 {
     auto& me = engine.deck (d);
-    auto& other = engine.deck (1 - d);
+    auto& other = engine.deck (engine.otherDeck (d));
     double a = me.getEffectiveBpm(), b = other.getEffectiveBpm();
     if (! me.hasTrack() || ! other.hasTrack() || a < 1.0 || b < 1.0)
         return Guide::none;
@@ -124,7 +124,7 @@ Actions::Guide Actions::phaseGuide (int d) const
     if (tempoGuide (d) != Guide::ok)
         return Guide::none;
     auto& me = engine.deck (d);
-    auto& other = engine.deck (1 - d);
+    auto& other = engine.deck (engine.otherDeck (d));
     const auto gm = me.getGrid(), go = other.getGrid();
     if (! me.isPlaying() || ! other.isPlaying() || ! gm.isValid() || ! go.isValid())
         return Guide::none;
@@ -209,12 +209,13 @@ void Actions::build()
     add ({ "key_reset", "Tonalidad original", "Tonalidad", T::button },
          [=] (int d, float v) { if (pressed (v)) deck (d).setKeyShift (0); });
     add ({ "key_match", "Igualar tonalidad con el otro deck", "Tonalidad", T::button },
-         [deck] (int d, float v)
+         [this, deck] (int d, float v)
          {
              if (v < 0.5f) return;
-             auto mine = deck (d).getTrack(), other = deck (1 - d).getTrack();
+             const int o = engine.otherDeck (d);
+             auto mine = deck (d).getTrack(), other = deck (o).getTrack();
              if (mine == nullptr || other == nullptr) return;
-             deck (d).setKeyShift (Analysis::semitonesToMatch (mine->meta.key, deck (1 - d).getEffectiveKey()));
+             deck (d).setKeyShift (Analysis::semitonesToMatch (mine->meta.key, deck (o).getEffectiveKey()));
          });
 
     add ({ "quantize", "Quantize", "Transporte", T::button },
@@ -351,6 +352,18 @@ void Actions::build()
         add ({ "pad_" + juce::String (i + 1), "Pad " + juce::String (i + 1) + " (página actual)"_u, "Pads", T::button },
              [this, i] (int d, float v) { if (hooks.padPress) hooks.padPress (d, i, v > 0.5f); },
              [this, i] (int d) { return hooks.padLed && hooks.padLed (d, i) >= (int) Led::on; });
+    // Pad-mode buttons of controllers (HOT CUE, LOOP, ROLL…): the screen shows the same page.
+    for (auto [id, label, page, note] : { std::tuple { "pad_mode_hot_cue", "Modo de pads: HOT CUE", 0, "" },
+                                          std::tuple { "pad_mode_roll", "Modo de pads: ROLL", 1, "" },
+                                          std::tuple { "pad_mode_loop", "Modo de pads: LOOP", 2, "" },
+                                          std::tuple { "pad_mode_saved_loop", "Modo de pads: LOOPS GUARDADOS (SLICER)", 3, "SLICER: los pads disparan los loops guardados" },
+                                          std::tuple { "pad_mode_jump", "Modo de pads: BEAT JUMP", 4, "" },
+                                          std::tuple { "pad_mode_key", "Modo de pads: TONO (TONE PLAY)", -1, "TONO: los pads suben y bajan la tonalidad" },
+                                          std::tuple { "pad_mode_fx", "Modo de pads: FX", -1, "FX: pads 1-3 = efectos del deck · 4 reverse · 5 censor · 6 brake · 7 backspin" },
+                                          std::tuple { "pad_mode_sampler", "Modo de pads: SAMPLER", -1, "SAMPLER: OpenMix todavía no tiene sampler" } })
+        add ({ id, juce::String::fromUTF8 (label), "Pads", T::button },
+             [this, page, note = juce::String::fromUTF8 (note)] (int d, float v) { if (v > 0.5f && hooks.padMode) hooks.padMode (d, page, note); });
+
     add ({ "pad_page", "Página de pads siguiente"_u, "Pads", T::button },
          [this] (int d, float v) { if (v > 0.5f && hooks.padPage) hooks.padPage (d); });
 
@@ -358,9 +371,10 @@ void Actions::build()
          [this] (int, float v)
          {
              if (v < 0.5f) return;
-             const bool toB = engine.channel (0).pfl.load() && ! engine.channel (1).pfl.load();
-             engine.channel (0).pfl = ! toB;
-             engine.channel (1).pfl = toB;
+             const int a = engine.visibleDeck (0), b = engine.visibleDeck (1);
+             const bool toB = engine.channel (a).pfl.load() && ! engine.channel (b).pfl.load();
+             engine.channel (a).pfl = ! toB;
+             engine.channel (b).pfl = toB;
          });
     add ({ "crossfader_left", "Crossfader a la izquierda", "Mixer", T::button, false },
          [this] (int, float v) { if (v > 0.5f) { engine.autoXfPerSecond = 0.0f; engine.crossfader = juce::jmax (-1.0f, engine.crossfader.load() - 0.1f); } });
@@ -370,22 +384,24 @@ void Actions::build()
          [this] (int, float v)
          {
              if (v < 0.5f) return;
-             const bool p0 = engine.deck (0).isPlaying(), p1 = engine.deck (1).isPlaying();
+             const int a = engine.visibleDeck (0), b = engine.visibleDeck (1);   // the two decks on screen
+             const bool p0 = engine.deck (a).isPlaying(), p1 = engine.deck (b).isPlaying();
              if (p0 == p1) return;                                    // needs exactly one deck on air
-             const int out = p0 ? 0 : 1, in = 1 - out;
+             const int out = p0 ? a : b, in = p0 ? b : a;
              auto& next = engine.deck (in);
              if (next.getTrack() == nullptr) return;
              next.setSync (true);
              next.setPlaying (true);
              const double bpm = engine.deck (out).getEffectiveBpm();
-             engine.startAutoCrossfade (in == 0 ? -1.0f : 1.0f, bpm > 1.0 ? 8.0 * 60.0 / bpm : 6.0);
+             engine.startAutoCrossfade (in % 2 == 0 ? -1.0f : 1.0f, bpm > 1.0 ? 8.0 * 60.0 / bpm : 6.0);
          });
     add ({ "emergency_play", "Play de emergencia (si no suena nada)", "Transporte", T::button, false },
          [this] (int, float v)
          {
-             if (v < 0.5f || engine.deck (0).isPlaying() || engine.deck (1).isPlaying()) return;
-             int d = engine.crossfader.load() > 0.0f ? 1 : 0;
-             if (engine.deck (d).getTrack() == nullptr) d = 1 - d;
+             if (v < 0.5f) return;
+             for (int k = 0; k < AudioEngine::numDecks; ++k) if (engine.deck (k).isPlaying()) return;
+             int d = engine.visibleDeck (engine.crossfader.load() > 0.0f ? 1 : 0);
+             if (engine.deck (d).getTrack() == nullptr) d = engine.otherDeck (d);
              if (engine.deck (d).getTrack() != nullptr) engine.deck (d).setPlaying (true);
          });
 
@@ -466,7 +482,7 @@ void Actions::build()
     add ({ "beat_fx_channel_next", "BEAT FX: siguiente canal (CH SELECT)", "Efectos", T::button },
          [this] (int, float v) { if (v > 0.5f) { auto& b = engine.beatFx(); b.target = (b.target.load() + 1) % BX::numTargets; } });
     add ({ "beat_fx_channel", "BEAT FX: canal de este deck (CH SELECT)", "Efectos", T::button },
-         [this] (int d, float v) { if (v > 0.5f) engine.beatFx().target = d; });
+         [this] (int d, float v) { if (v > 0.5f) engine.beatFx().target = d % 2; });   // CH 1 / CH 2 = its side
     add ({ "beat_fx_master", "BEAT FX: MASTER (CH SELECT)", "Efectos", T::button },
          [this] (int, float v) { if (v > 0.5f) engine.beatFx().target = BX::master; });
     add ({ "color_fx_next", "SOUND COLOR FX: siguiente", "Efectos", T::button },
@@ -474,10 +490,19 @@ void Actions::build()
          {
              if (v < 0.5f) return;
              const int next = engine.channel (0).colorOn.load() ? (engine.channel (0).colorType.load() + 1) % (int) ChannelStrip::Color::numColors : 0;
-             for (int c = 0; c < 2; ++c) { engine.channel (c).colorType = next; engine.channel (c).colorOn = true; }
+             for (int c = 0; c < AudioEngine::numDecks; ++c) { engine.channel (c).colorType = next; engine.channel (c).colorOn = true; }
          });
+    // Decks 3 and 4 ------------------------------------------------------------
+    add ({ "deck_swap", "Cambiar de deck en este lado (1 ⇄ 3, 2 ⇄ 4)"_u, "Decks", T::button },
+         [this] (int d, float v) { if (v > 0.5f) engine.swapSide (d % 2); },
+         [this] (int d) { return engine.visibleDeck (d % 2) >= 2; });
+    for (int k = 0; k < AudioEngine::numDecks; ++k)
+        add ({ "deck_select_" + juce::String (k + 1), "Mostrar el deck " + juce::String (k + 1) + " en su lado", "Decks", T::button, false },
+             [this, k] (int, float v) { if (v > 0.5f) engine.showDeck (k); },
+             [this, k] (int) { return engine.isVisible (k); });
+
     add ({ "instant_doubles", "Instant doubles (copiar el otro deck)", "Transporte", T::button },
-         [=] (int d, float v) { if (pressed (v)) deck (d).cloneFrom (deck (1 - d)); });
+         [=] (int d, float v) { if (pressed (v)) deck (d).cloneFrom (deck (engine.otherDeck (d))); });
     add ({ "master", "Deck maestro", "Transporte", T::button },
          [this] (int d, float v) { if (v > 0.5f) engine.masterDeck = engine.masterDeck.load() == d ? -1 : d; },
          [this] (int d) { return engine.masterDeck.load() == d; });

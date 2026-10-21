@@ -311,8 +311,16 @@ void AudioEngine::applySync()
     for (int i = 0; i < numDecks; ++i)
     {
         auto& d = *decks[(size_t) i];
-        auto& o = *decks[(size_t) (1 - i)];
-        const bool dPlays = audibleNow[(size_t) i], oPlays = audibleNow[(size_t) (1 - i)];
+        // The deck to follow: the chosen master; else the one playing longest; else the other side's.
+        const int masterSel = masterDeck.load();
+        int oi = -1;
+        if (masterSel >= 0 && masterSel != i && decks[(size_t) masterSel]->hasTrack()) oi = masterSel;
+        else
+            for (int j = 0; j < numDecks; ++j)
+                if (j != i && audibleNow[(size_t) j] && (oi < 0 || playingSince[(size_t) j] < playingSince[(size_t) oi])) oi = j;
+        if (oi < 0) oi = otherDeck (i) == i ? (i + 1) % numDecks : otherDeck (i);
+        auto& o = *decks[(size_t) oi];
+        const bool dPlays = audibleNow[(size_t) i], oPlays = audibleNow[(size_t) oi];
         // PLAY was just pressed and nothing has sounded yet: align before the first sample.
         const bool starting = d.isPlaying() && ! dPlays && ! wasAudible[(size_t) i];
         const bool justStarted = dPlays && ! wasAudible[(size_t) i];
@@ -331,7 +339,7 @@ void AudioEngine::applySync()
         if (masterIdx >= 0)          dLeads = masterIdx == i;
         else if (dPlays && ! oPlays) dLeads = true;
         else if (oPlays && ! dPlays) dLeads = false;
-        else if (dPlays && oPlays)   dLeads = playingSince[(size_t) i] < playingSince[(size_t) (1 - i)];
+        else if (dPlays && oPlays)   dLeads = playingSince[(size_t) i] < playingSince[(size_t) oi];
         else                         dLeads = o.isSyncOn() && o.getSyncStamp() > d.getSyncStamp();   // both stopped
 
         if (dLeads)
@@ -367,7 +375,7 @@ void AudioEngine::applySync()
                 d.consumeJustLoaded();
                 // A jump of the leader realigns this deck only while it is still silent; once it is
                 // heard, moving its playhead because the other track jumped would cut it.
-                const bool leaderJumped = moved[(size_t) (1 - i)];
+                const bool leaderJumped = moved[(size_t) oi];
                 const bool engaged = d.consumeSyncEngaged() || moved[(size_t) i] || (leaderJumped && ! dPlays);
                 if (! oPlays || ! d.isPlaying() || ! (dPlays || starting))   // a stopped deck is never moved
                 {
@@ -492,7 +500,8 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
         for (int i = 0; i < numDecks; ++i)
         {
             const auto side = (ChannelStrip::XfAssign) channels[(size_t) i].xfAssign.load();
-            drive (fxSlots[(size_t) i][0], target == i
+            drive (fxSlots[(size_t) i][0], (target == BeatFxSection::ch1 && i == visibleDeck (0))
+                                             || (target == BeatFxSection::ch2 && i == visibleDeck (1))
                                              || (target == BeatFxSection::xfA && side == ChannelStrip::XfAssign::a)
                                              || (target == BeatFxSection::xfB && side == ChannelStrip::XfAssign::b));
         }
@@ -603,7 +612,11 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
     if (mode == separateDecks)
     {
         for (int i = 0; i < numDecks; ++i)
-            putStereo (deckChannel[(size_t) i].load(), sepBuf.getReadPointer (2 * i), sepBuf.getReadPointer (2 * i + 1));
+        {
+            int ch = deckChannel[(size_t) i].load();
+            if (i >= 2 && ch + 1 >= numOutputChannels) ch = deckChannel[(size_t) (i % 2)].load();   // shares its side's channel
+            putStereo (ch, sepBuf.getReadPointer (2 * i), sepBuf.getReadPointer (2 * i + 1));
+        }
         if (pc >= 0) putStereo (pc, pL, pR);
     }
     else if (mode == speakersPhones && splitMono.load())

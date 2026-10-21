@@ -67,7 +67,9 @@ private:
     void showTargetMenu();
 
     AudioEngine& engine;
-    std::array<std::unique_ptr<Strip>, 2> strips;
+    std::array<std::unique_ptr<Strip>, AudioEngine::numDecks> strips;   // one per deck; the two on screen are shown
+    Strip& side (int s)                                 { return *strips[(size_t) engine.visibleDeck (s)]; }
+    std::pair<int, int> shown { 0, 1 };                 // decks laid out last time
 
     // Master / headphones
     Knob masterKnob { "MASTER", false };

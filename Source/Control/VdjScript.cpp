@@ -276,14 +276,16 @@ namespace
         return v;
     }
 
-    int deckOf (const juce::String& spec, int current, int master)
+    int deckOf (const juce::String& spec, int current, const AudioEngine& engine)
     {
         if (spec.isEmpty() || spec == "active" || spec == "default" || spec == "current" || spec == "this") return current;
-        if (spec == "left" || spec == "1" || spec == "leftdeck") return 0;
-        if (spec == "right" || spec == "2" || spec == "rightdeck") return 1;
-        if (spec == "master") return master >= 0 ? master : current;
-        if (spec == "other") return 1 - current;
-        return -1;                                          // decks 3–4 (and anything else): not in OpenMix
+        if (spec == "left" || spec == "leftdeck") return engine.visibleDeck (0);
+        if (spec == "right" || spec == "rightdeck") return engine.visibleDeck (1);
+        if (spec == "master") { const int m = engine.masterDeck.load(); return m >= 0 ? m : current; }
+        if (spec == "other") return engine.otherDeck (current);
+        const int n = spec.getIntValue();
+        if (n >= 1 && n <= AudioEngine::numDecks) return n - 1;
+        return -1;
     }
 
     double nowMs() { return juce::Time::getMillisecondCounterHiRes(); }
@@ -400,7 +402,7 @@ bool VdjScript::exec (const Node& n, Context& ctx, bool asQuery)
         }
         case Node::Kind::cmd:
         {
-            const int d = deckOf (n.deck, ctx.deck, actions.getEngine().masterDeck.load());
+            const int d = deckOf (n.deck, ctx.deck, actions.getEngine());
             if (d < 0) return false;
             if (n.deck.isEmpty()) return verb (n.verb, n.args, ctx, asQuery);
             auto c = ctx;
@@ -484,11 +486,17 @@ bool VdjScript::verb (const juce::String& name, const juce::StringArray& args, C
     }
 
     // Decks -------------------------------------------------------------------------
-    if (name == "leftdeck")  return d == 0;
-    if (name == "rightdeck") return d == 1;
+    if (name == "leftdeck" || name == "rightdeck")
+    {
+        const int side = name == "leftdeck" ? 0 : 1;
+        if (! args.isEmpty() && ! asQuery)                                   // "leftdeck 3": show deck 3 on the left
+            return onPress ([&] { const int n = (int) arg (0) - 1; if (n % 2 == side) engine.showDeck (n); });
+        return d % 2 == side;
+    }
     if (name == "action_deck") return (int) arg (0) - 1 == d;
     if (name == "device_side") { const auto s = args.isEmpty() ? juce::String() : args[0].unquoted().toLowerCase(); return s == "left" ? d == 0 : s == "right" ? d == 1 : false; }
-    if (name == "set_deck" || name == "select") return true;                  // OpenMix: each side is its deck
+    if (name == "select")    { if (asQuery) return engine.isVisible (d); return onPress ([&] { engine.showDeck (d); }); }
+    if (name == "set_deck")  return true;
     if (name == "masterdeck_auto") { if (! asQuery) onPress ([&] { engine.masterDeck = -1; }); return engine.masterDeck.load() < 0; }
     if (name == "loaded")    return deck.hasTrack();
     if (name == "is_audible") return deck.isAudiblyPlaying();

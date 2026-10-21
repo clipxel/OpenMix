@@ -133,7 +133,7 @@ private:
     bool showSidebar = true;
     bool browseSidebar = false;      // the browse knob moves through the sidebar instead of the tracks
     juce::String lastStatus;
-    std::array<juce::String, 2> deckPaths;
+    std::array<juce::String, 4> deckPaths;      // AudioEngine::numDecks
     juce::StringArray playedThisSession;
 
     juce::Rectangle<int> sidebarArea, toolbarArea, statusArea;

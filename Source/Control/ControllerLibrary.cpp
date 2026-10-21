@@ -157,6 +157,15 @@ bool ControllerLibrary::hasHardwareMixer (const juce::String& profileName)
     return false;
 }
 
+bool ControllerLibrary::hasOwnSoundcard (const juce::String& profileName)
+{
+    if (auto* arr = bundledLibrary()["mappings"].getArray())
+        for (auto& m : *arr)
+            if (m["name"].toString() == profileName)
+                return (bool) m["soundcard"];
+    return false;
+}
+
 std::optional<std::pair<juce::String, std::vector<MidiBinding>>> ControllerLibrary::findBundled (const juce::String& deviceName)
 {
     if (auto* arr = bundledLibrary()["mappings"].getArray())

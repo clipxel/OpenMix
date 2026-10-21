@@ -78,7 +78,11 @@ public:
     juce::StringArray connectedInputs() const;
 
     std::vector<MidiBinding>& bindings() noexcept { return map; }
-    void setBindings (std::vector<MidiBinding> b)   { map = std::move (b); takeover.clear(); }
+    void setBindings (std::vector<MidiBinding> b)   { map = std::move (b); takeover.clear(); sideCache.clear(); }
+
+    /** The deck a binding drives now. Controllers with their own deck buttons (bindings for decks 3–4)
+        drive the deck they name; 2-deck controllers drive the deck their side shows (1 or 3, 2 or 4). */
+    int deckFor (const MidiBinding&);
     void load();
     void save() const;
 
@@ -128,6 +132,7 @@ private:
     Actions& actions;
     VdjScript vdj { actions };
     juce::String currentDevice;                            // the device whose message is being processed
+    std::map<juce::String, bool> sideCache;                // device → has bindings for decks 3–4
     std::vector<MidiBinding> map;
 
     std::vector<std::unique_ptr<juce::MidiInput>> inputs;

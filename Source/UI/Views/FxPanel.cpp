@@ -80,6 +80,7 @@ void FxPanel::refresh()
         state |= (fx.enabled.load() ? 1 : 0) << bit++;
     }
     if (state != lastState) { lastState = state; repaint(); }
+    if (shown != std::pair { engine.visibleDeck (0), engine.visibleDeck (1) }) { resized(); repaint(); }
 }
 
 void FxPanel::resized()
@@ -90,9 +91,15 @@ void FxPanel::resized()
     r.removeFromLeft (Space::xl);
     deckAreas[1] = r;
 
-    for (int d = 0; d < 2; ++d)
+    // One row of slots per side, for the deck that side shows.
+    shown = { engine.visibleDeck (0), engine.visibleDeck (1) };
+    for (auto& sp : slots)
+        for (auto* c : std::initializer_list<juce::Component*> { &sp->type, &sp->on, &sp->wet, &sp->param })
+            c->setVisible (engine.isVisible (sp->deck));
+    for (int side = 0; side < 2; ++side)
     {
-        auto a = deckAreas[(size_t) d];
+        const int d = engine.visibleDeck (side);
+        auto a = deckAreas[(size_t) side];
         a.removeFromLeft (44);                                    // deck label
         const int w = (a.getWidth() - 2 * Space::md) / 3;
         for (int i = 0; i < AudioEngine::numDeckFx; ++i)
@@ -118,9 +125,10 @@ void FxPanel::paint (juce::Graphics& g)
     g.fillRect (getLocalBounds().removeFromBottom (1));
     g.fillRect (getWidth() / 2, Space::sm, 1, getHeight() - Space::sm * 2);
 
-    for (int d = 0; d < 2; ++d)
+    for (int side = 0; side < 2; ++side)
     {
-        auto label = deckAreas[(size_t) d].withWidth (40).toFloat();
+        const int d = engine.visibleDeck (side);
+        auto label = deckAreas[(size_t) side].withWidth (40).toFloat();
         bool any = false;
         for (int i = 0; i < AudioEngine::numDeckFx; ++i) any = any || engine.deckFx (d, i).enabled.load();
         Icons::draw (g, Icon::fx, label.removeFromTop (label.getHeight() * 0.55f).withSizeKeepingCentre (16, 16).translated (0, 4),

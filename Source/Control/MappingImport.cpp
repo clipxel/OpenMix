@@ -246,7 +246,7 @@ Result fromCsv (const juce::String& text)
             continue;
 
         auto f = juce::StringArray::fromTokens (line, ",", "\"");
-        while (f.size() < 11) f.add ({});
+        while (f.size() < 13) f.add ({});
         const auto name = f[0].trim(), function = f[1].trim(), type = f[2].trim(), input = f[3].trim();
         if (type.isEmpty() || (function.isEmpty() && name.isEmpty()))
             continue;
@@ -255,6 +255,7 @@ Result fromCsv (const juce::String& text)
         // 9–10), or 9–10 hold one full code per deck. −1: the control has no light.
         auto outCode = [&f] (int deck)
         {
+            if (deck >= 2 && f[9 + deck].trim().isEmpty()) return -1;   // decks 3–4: only when the table names them
             const auto out = f[8].trim();
             if (out.isNotEmpty())
                 return deck >= 0 && f[9 + deck].trim().isNotEmpty() ? hex (out) + (f[9 + deck].trim().getIntValue() << 8) : hex (out);
@@ -276,7 +277,7 @@ Result fromCsv (const juce::String& text)
                                      : name == "GetLoopActive" ? "loop" : name == "EndWarningIndicator" ? "end_warning" : "";
             if (light.isEmpty())
                 continue;
-            for (int d = 0; d < 2; ++d)
+            for (int d = 0; d < 4; ++d)
             {
                 const int code = outCode (d);
                 if (code < 0 || (((code >> 8) & 0xF0) != 0x90 && ((code >> 8) & 0xF0) != 0xB0))
@@ -325,19 +326,17 @@ Result fromCsv (const juce::String& text)
         {
             const int code = hex (input);
             bool anyDeck = false;
-            for (int d = 0; d < 2; ++d)
+            for (int d = 0; d < 4; ++d)
                 if (f[4 + d].trim().isNotEmpty())
                 {
                     anyDeck = true;
                     codes.push_back ({ d, code + (f[4 + d].trim().getIntValue() << 8) });
                 }
             if (! anyDeck) codes.push_back ({ -1, code });
-            if (f[6].trim().isNotEmpty() || f[7].trim().isNotEmpty())
-                r.untranslated.addIfNotAlreadyThere (functionOrName + juce::String::fromUTF8 (" (decks 3–4)"));
         }
         else
         {
-            for (int d = 0; d < 2; ++d)
+            for (int d = 0; d < 4; ++d)
                 if (f[4 + d].trim().isNotEmpty())
                     codes.push_back ({ d, hex (f[4 + d]) });
         }
@@ -565,7 +564,7 @@ Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml
             for (auto [it, end] = controls.equal_range (key); it != end; ++it)
             {
                 auto b = it->second;
-                if (b.deck > 1) continue;                       // decks 3–4: not in OpenMix
+                if (b.deck > 3) continue;
                 if (b.deck < 0) b.deck = 0;
                 if (script.equalsIgnoreCase ("shift")) b.action = "shift";
                 else { b.action = "vdj"; b.script = script; }
@@ -607,7 +606,7 @@ Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml
                 b.action = action;
                 b.shift = layers[v] == "1";
                 if (deck >= 0) b.deck = deck;
-                if (b.deck > 1) continue;                       // decks 3–4: not in OpenMix
+                if (b.deck > 3) continue;
                 if (b.deck < 0) b.deck = 0;
                 if (action == "jog" && b.encoding == MidiBinding::Encoding::button) b.action = "jog_touch";
                 r.bindings.push_back (b);
@@ -630,54 +629,49 @@ Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml
 /** Which OpenMix action a control name usually stands for ("PLAY", "PAD3", "HOTCUE_5", "LOOP_IN"…). */
 static juce::String roleOf (const juce::String& controlName, bool& shifted)
 {
-    // "SHIFT_CUE", "PLAY_SHIFT", "SHIFT+PAD3": that control with SHIFT held. Only "SHIFT" itself is the
-    // SHIFT button (a key that merely contains the word must never take over the SHIFT button).
+    // Only exact, well-known control names. A name is never guessed from a part of it: "PLAYLIST" is
+    // not PLAY, "MASTER_VOLUME" is not a channel fader. Unknown names keep OpenMix's own mapping.
+    // "SHIFT_CUE", "PLAY_SHIFT": that control with SHIFT held; only "SHIFT" itself is the SHIFT button.
     auto k = controlName.toUpperCase().retainCharacters ("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
     shifted = false;
-    if (k != "SHIFT" && k.contains ("SHIFT"))
+    if (k != "SHIFT" && (k.startsWith ("SHIFT") || k.endsWith ("SHIFT")))
     {
         shifted = true;
-        k = k.replace ("SHIFT", "");
+        k = k.startsWith ("SHIFT") ? k.substring (5) : k.dropLastCharacters (5);
     }
-    if (k == "SHIFT") return "shift";
-    const int n = k.getTrailingIntValue();
-    const auto word = n > 0 ? k.dropLastCharacters (juce::String (n).length()) : k;
-    const auto padNo = juce::String (juce::jlimit (1, 8, n));
-    auto has = [&word] (const char* w) { return word.contains (w); };
+    static const std::map<juce::String, juce::String> exact {
+        { "SHIFT", "shift" },
+        { "PLAY", "play_pause" }, { "PLAYPAUSE", "play_pause" }, { "CUE", "cue_button" }, { "SYNC", "sync" },
+        { "LOAD", "load" }, { "PFL", "pfl" }, { "HEADPHONES", "pfl" }, { "HEADPHONE", "pfl" }, { "LISTEN", "pfl" },
+        { "VOLUME", "volume" }, { "LEVEL", "volume" }, { "FADER", "volume" }, { "CHANNELFADER", "volume" }, { "VOLUMESLIDER", "volume" },
+        { "EQHIGH", "eq_high" }, { "EQHI", "eq_high" }, { "HIGH", "eq_high" }, { "TREBLE", "eq_high" },
+        { "EQMID", "eq_mid" }, { "MID", "eq_mid" }, { "EQLOW", "eq_low" }, { "LOW", "eq_low" }, { "BASS", "eq_low" },
+        { "GAIN", "gain" }, { "TRIM", "gain" }, { "FILTER", "filter" },
+        { "PITCH", "pitch" }, { "PITCHSLIDER", "pitch" }, { "PITCHFADER", "pitch" }, { "TEMPO", "pitch" },
+        { "JOG", "jog" }, { "JOGWHEEL", "jog" }, { "WHEEL", "jog" }, { "PLATTER", "jog" },
+        { "JOGTOUCH", "jog_touch" }, { "TOUCH", "jog_touch" }, { "WHEELTOUCH", "jog_touch" }, { "TOUCHWHEEL", "jog_touch" },
+        { "CROSSFADER", "crossfader" }, { "XFADER", "crossfader" },
+        { "LOOPIN", "loop_in" }, { "LOOPOUT", "loop_out" }, { "LOOP", "loop" }, { "LOOPPUSH", "loop" }, { "LOOPBUTTON", "loop" },
+        { "LOOPKNOBPUSH", "loop" }, { "LOOPENCODERPUSH", "loop" },
+        { "VINYL", "vinyl_mode" }, { "SLIP", "slip_mode" }, { "Q", "quantize" }, { "QUANTIZE", "quantize" },
+        { "KEYLOCK", "key_lock" }, { "MASTERTEMPO", "key_lock" },
+        { "BROWSE", "browser_scroll" }, { "BROWSER", "browser_scroll" }, { "BROWSERKNOB", "browser_scroll" },
+        { "BROWSEPUSH", "browser_focus" }, { "BROWSEBUTTON", "browser_focus" }, { "BROWSERPUSH", "browser_focus" }, { "BROWSERBUTTON", "browser_focus" },
+    };
+    if (auto it = exact.find (k); it != exact.end()) return it->second;
 
+    // Pads: "PAD3", "HOTCUE3", "LOOP3", "ROLL3"…
+    const int n = k.getTrailingIntValue();
     if (n >= 1 && n <= 8)
     {
-        if (has ("HOTCUE") || word == "PAD" || word == "PADS" || word == "CUE" || word == "HOT")  return "hot_cue_" + padNo;
-        if (has ("ROLL"))                   return "pad_roll_" + padNo;
-        if (has ("JUMP"))                   return "pad_jump_" + padNo;
-        if (has ("SAVEDLOOP") || has ("SLICER")) return "saved_loop_" + padNo;
-        if (has ("LOOP"))                   return "pad_loop_" + padNo;
-        if (has ("FX") || has ("EFFECT"))   return n <= 3 ? "effect_active_" + padNo : juce::String();
+        const auto word = k.dropLastCharacters (juce::String (n).length());
+        const auto pad = juce::String (n);
+        if (word == "PAD" || word == "PADS" || word == "HOTCUE" || word == "CUE" || word == "HOT") return "hot_cue_" + pad;
+        if (word == "LOOP" || word == "LOOPPAD")                                                return "pad_loop_" + pad;
+        if (word == "ROLL" || word == "LOOPROLL")                                               return "pad_roll_" + pad;
+        if (word == "SLICER" || word == "SAVEDLOOP")                                            return "saved_loop_" + pad;
+        if (word == "JUMP" || word == "BEATJUMP")                                               return "pad_jump_" + pad;
     }
-    if (has ("CROSSFADER") || has ("XFADER")) return "crossfader";
-    if (has ("JOG") || has ("WHEEL") || has ("PLATTER"))
-        return has ("TOUCH") ? "jog_touch" : "jog";
-    if (has ("PLAY"))                      return "play_pause";
-    if (has ("SYNC"))                      return "sync";
-    if (has ("LOAD"))                      return "load";
-    if (has ("PFL") || has ("HEADPHONE") || has ("LISTEN")) return "pfl";
-    if (has ("CUE"))                       return "cue_button";
-    if (has ("LOOPIN"))                    return "loop_in";
-    if (has ("LOOPOUT"))                   return "loop_out";
-    if (has ("VINYL") || has ("SCRATCH"))  return "vinyl_mode";
-    if (has ("SLIP"))                      return "slip_mode";
-    if (has ("QUANT") || word == "Q")      return "quantize";
-    if (has ("KEYLOCK") || has ("MASTERTEMPO")) return "key_lock";
-    if (has ("PITCH") || has ("TEMPO"))    return "pitch";
-    if (has ("VOLUME") || has ("FADER") || word == "LEVEL") return "volume";
-    if (has ("HIGH") || has ("TREBLE") || word == "EQHI") return "eq_high";
-    if (has ("MID"))                       return "eq_mid";
-    if (has ("LOW") || has ("BASS"))       return "eq_low";
-    if (has ("GAIN") || has ("TRIM"))      return "gain";
-    if (has ("FILTER"))                    return "filter";
-    if (has ("BROWSE") && (has ("PUSH") || has ("PRESS") || has ("BUTTON") || has ("ENTER") || has ("CLICK"))) return "browser_focus";
-    if (has ("BROWSE"))                    return "browser_scroll";
-    if (has ("LOOP"))                      return "loop";
     return {};
 }
 
@@ -904,7 +898,7 @@ Result fromPreset (const juce::String& xmlText)
         if (raw.lsb) continue;                                 // paired with its MSB below
         auto action = presetAction (raw.group, raw.key, raw.script);
         const int deck = presetDeck (raw.group, raw.key, raw.status);
-        if (action.isEmpty() || deck < -1 || deck > 1)
+        if (action.isEmpty() || deck < -1 || deck > 3)
         {
             if (raw.key.isNotEmpty()) r.untranslated.addIfNotAlreadyThere (raw.key);
             continue;
@@ -1002,7 +996,7 @@ Result fromPreset (const juce::String& xmlText)
             }
             const int deck = presetDeck (group, k, status);
             const int kind = status & 0xF0;
-            if (action.isEmpty() || deck < -1 || deck > 1 || (kind != 0x90 && kind != 0xB0))
+            if (action.isEmpty() || deck < -1 || deck > 3 || (kind != 0x90 && kind != 0xB0))
                 continue;
 
             const auto lightKind = kind == 0xB0 ? MidiBinding::Kind::cc : MidiBinding::Kind::note;

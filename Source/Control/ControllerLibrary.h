@@ -66,6 +66,9 @@ public:
 
     /** True when this bundled mapping's unit mixes the decks itself (each deck needs its own output pair). */
     static bool hasHardwareMixer (const juce::String& profileName);
+    /** True when the controller has its own sound card whose MASTER and headphone knobs work on its
+        outputs (no MIDI): OpenMix must play the master on its outputs 1–2 and the headphones on 3–4. */
+    static bool hasOwnSoundcard (const juce::String& profileName);
     /** Puts back the mapping that ships with OpenMix for this connected controller (undoes edits / imports). */
     bool restoreLibraryMapping (const juce::String& deviceName);
     /** The mapping that ships inside OpenMix for this controller name, if any: (its name, bindings). */

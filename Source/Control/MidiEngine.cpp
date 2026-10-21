@@ -170,6 +170,7 @@ juce::StringArray MidiEngine::connectedInputs() const { return inputNames; }
 void MidiEngine::load()
 {
     map.clear();
+    sideCache.clear();
     const auto json = juce::JSON::parse (Library::dataFolder().getChildFile ("midi.json"));
     if (auto* arr = json["bindings"].getArray())
         for (auto& v : *arr)
@@ -194,6 +195,7 @@ bool MidiEngine::hasBindingsFor (const juce::String& device) const
 void MidiEngine::installMapping (const juce::String& device, const std::vector<MidiBinding>& mapping)
 {
     map.erase (std::remove_if (map.begin(), map.end(), [&device] (const MidiBinding& b) { return b.device == device; }), map.end());
+    sideCache.clear();
     for (auto b : mapping)
     {
         b.device = device;
@@ -307,6 +309,7 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
         }), map.end());
         map.push_back (b);
         takeover.clear();
+        sideCache.clear();
         save();
 
         auto done = std::move (learning->done);
@@ -337,14 +340,27 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
         }
     }
 
-    // Faders and jogs keep working while SHIFT is held unless a shift binding exists.
+    // While SHIFT is held, a control without a SHIFT function of its own keeps its normal one. Many
+    // controllers send another message with SHIFT held (Hercules, Pioneer…): that message only has a
+    // normal binding, and it must work.
     if (! handled && shifted)
         for (size_t i = 0; i < map.size(); ++i)
         {
             const auto& b = map[i];
-            if (b.shift || b.action == "shift" || b.encoding == MidiBinding::Encoding::button) continue;
-            if (matches (b, device, m, false)) apply (b, i, m);
+            if (b.shift || b.action == "shift") continue;
+            const bool isLsb = b.encoding == MidiBinding::Encoding::absolute14 && b.lsbNumber >= 0 && matches (b, device, m, true);
+            if (isLsb || matches (b, device, m, false)) apply (b, i, m);
         }
+}
+
+int MidiEngine::deckFor (const MidiBinding& b)
+{
+    if (! juce::isPositiveAndBelow (b.deck, 2)) return b.deck;
+    auto it = sideCache.find (b.device);
+    if (it == sideCache.end())
+        it = sideCache.emplace (b.device, std::any_of (map.begin(), map.end(), [&b] (const MidiBinding& o)
+                                    { return o.device == b.device && o.deck >= 2; })).first;
+    return it->second ? b.deck : actions.getEngine().visibleDeck (b.deck);
 }
 
 void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMessage& m)
@@ -354,7 +370,7 @@ void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMess
         // VirtualDJ script, run as written: the value as the control gives it.
         const int raw = m.isController() ? m.getControllerValue() : m.isNoteOn() ? m.getVelocity() : m.isPitchWheel() ? m.getPitchWheelValue() : 0;
         VdjScript::Context ctx;
-        ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, b.deck);
+        ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, deckFor (b));
         ctx.shift = shiftHeld[currentDevice];
         ctx.control = b.describeControl();
         using E = MidiBinding::Encoding;
@@ -417,7 +433,11 @@ void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMess
     if (info->type == ControlType::relative) value *= b.scale;
     if (b.invert) value = info->type == ControlType::absolute ? 1.0f - value : -value;
 
-    const int deck = info->perDeck ? b.deck : -1;
+    const int deck = info->perDeck ? deckFor (b) : -1;
+    // A controller with its own deck buttons moved to a deck that is not on screen: show it.
+    if (info->perDeck && deck >= 0 && deck == b.deck && ! actions.getEngine().isVisible (deck)
+        && sideCache[b.device] && (m.isController() || (m.isNoteOn() && m.getVelocity() > 0)))
+        actions.getEngine().showDeck (deck);
 
     // Soft takeover: a fader only grabs the parameter once it reaches its current value,
     // so the engine (and the on-screen control) never jumps.
@@ -494,7 +514,8 @@ void MidiEngine::tick()
     // One value per light per frame: the first binding that drives a light wins (a pad can be
     // bound to several actions; without this its light would flicker between them).
     std::map<juce::String, Light> frame;
-    std::array<float, 3> meters { -1.0f, -1.0f, -1.0f };     // deck 1, deck 2, master: read once
+    std::array<float, AudioEngine::numDecks + 1> meters;     // decks, then master: read once
+    meters.fill (-1.0f);
 
     for (const auto& b : map)
     {
@@ -504,9 +525,9 @@ void MidiEngine::tick()
         int value;
         if (Actions::isMeter (b.action))
         {
-            const auto slot = (size_t) (b.action == "vu_master" ? 2 : juce::jlimit (0, 1, b.deck));
+            const auto slot = (size_t) (b.action == "vu_master" ? AudioEngine::numDecks : juce::jlimit (0, AudioEngine::numDecks - 1, deckFor (b)));
             if (meters[slot] < 0.0f)
-                meters[slot] = actions.meterLevel (slot == 2 ? -1 : (int) slot);
+                meters[slot] = actions.meterLevel (slot == (size_t) AudioEngine::numDecks ? -1 : (int) slot);
             value = b.offValue + juce::roundToInt (meters[slot] * (float) (b.onValue - b.offValue));
         }
         else
@@ -521,7 +542,7 @@ void MidiEngine::tick()
             if (isScript)
             {
                 VdjScript::Context ctx;
-                ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, b.deck);
+                ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, deckFor (b));
                 ctx.shift = shiftHeld[b.device];
                 const auto l = vdj.light (b.script, ctx);
                 level = l.level;
@@ -529,9 +550,10 @@ void MidiEngine::tick()
             }
             else
             {
-                level = actions.ledLevel (b.action, b.deck);
+                const int ld = deckFor (b);
+                level = actions.ledLevel (b.action, ld);
                 // RGB pad: the action's own colour, full when on, darker when dim.
-                if (b.rgb != MidiBinding::Rgb::none) colour = actions.ledColour (b.action, b.deck);
+                if (b.rgb != MidiBinding::Rgb::none) colour = actions.ledColour (b.action, ld);
             }
             const int full = MidiBinding::encodeColour (b.rgb, colour, 1.0f);
             const int dim = MidiBinding::encodeColour (b.rgb, colour, 0.3f);
@@ -540,7 +562,7 @@ void MidiEngine::tick()
             {
                 case L::on:    value = on; break;
                 case L::dim:   value = dim >= 0 ? dim : b.dimValue >= 0 ? b.dimValue : b.offValue; break;
-                case L::blink: value = actions.blinkPhase (b.deck) ? on : (dim >= 0 ? dim : b.offValue); break;
+                case L::blink: value = actions.blinkPhase (deckFor (b)) ? on : (dim >= 0 ? dim : b.offValue); break;
                 case L::off:
                 default:       value = b.offValue; break;
             }

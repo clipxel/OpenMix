@@ -95,7 +95,7 @@ void XPad::paint (juce::Graphics& g)
 
 MixerView::MixerView (AudioEngine& e) : engine (e)
 {
-    for (int i = 0; i < 2; ++i)
+    for (int i = 0; i < AudioEngine::numDecks; ++i)
     {
         strips[(size_t) i] = std::make_unique<Strip> (i);
         bindStrip (*strips[(size_t) i]);
@@ -154,7 +154,7 @@ MixerView::MixerView (AudioEngine& e) : engine (e)
     colorParam.formatter = [] (double v) { return juce::String ((int) std::round (v * 100)) + "%"; };
     colorParam.setTooltip ("PARAMETER: ajusta el SOUND COLOR FX encendido"_u);
     colorParam.bind ({ [this] { return (double) engine.channel (0).colorParam.load(); },
-                       [this] (double v) { for (int d = 0; d < 2; ++d) engine.channel (d).colorParam = (float) v; } });
+                       [this] (double v) { for (int d = 0; d < AudioEngine::numDecks; ++d) engine.channel (d).colorParam = (float) v; } });
     colorSelected = engine.channel (0).colorOn.load() ? engine.channel (0).colorType.load() : -1;
 
     // BEAT FX
@@ -237,7 +237,7 @@ void MixerView::setShowBeatFx (bool s)
 void MixerView::selectColor (int c)
 {
     colorSelected = c;
-    for (int d = 0; d < 2; ++d)
+    for (int d = 0; d < AudioEngine::numDecks; ++d)
     {
         auto& ch = engine.channel (d);
         if (c >= 0) ch.colorType = c;
@@ -324,6 +324,11 @@ void MixerView::bindStrip (Strip& s)
 void MixerView::refresh()
 {
     const bool phonesOk = engine.hasHeadphoneOutput();
+    if (shown != std::pair { engine.visibleDeck (0), engine.visibleDeck (1) })
+    {
+        resized();                                     // a side switched to deck 3 / 4 (or back)
+        repaint();
+    }
 
     for (auto& sp : strips)
     {
@@ -423,9 +428,16 @@ void MixerView::resized()
     const int stripW = (r.getWidth() - Space::xs) / 2;
     const int knobCount = 5;
 
+    shown = { engine.visibleDeck (0), engine.visibleDeck (1) };
+    for (auto& sp : strips)
+    {
+        const bool on = engine.isVisible (sp->index);
+        for (auto* c : std::initializer_list<juce::Component*> { &sp->trim, &sp->hi, &sp->mid, &sp->low, &sp->color, &sp->cue, &sp->fader, &sp->meter, &sp->assign })
+            c->setVisible (on);
+    }
     for (int i = 0; i < 2; ++i)
     {
-        auto& s = *strips[(size_t) i];
+        auto& s = side (i);
         auto col = i == 0 ? r.removeFromLeft (stripW) : r.removeFromRight (stripW);
 
         col.removeFromTop (16); // channel title painted
@@ -451,10 +463,10 @@ void MixerView::resized()
 
     // The free space above the faders, between the channels: the OpenMix mark.
     {
-        const auto& f0 = strips[0]->fader;
-        const auto& f1 = strips[1]->fader;
+        const auto& f0 = side (0).fader;
+        const auto& f1 = side (1).fader;
         const int left = f0.getX() - 6, right = f1.getRight() + 6;
-        logoArea = juce::Rectangle<int> (left, strips[0]->trim.getY(), right - left, juce::jmin (f0.getY(), f1.getY()) - strips[0]->trim.getY() - Space::sm);
+        logoArea = juce::Rectangle<int> (left, side (0).trim.getY(), right - left, juce::jmin (f0.getY(), f1.getY()) - side (0).trim.getY() - Space::sm);
     }
 
     // SOUND COLOR FX: six buttons (two rows) and PARAMETER
@@ -540,8 +552,8 @@ void MixerView::resized()
         auto x = xfBlock;
         auto assignRow = x.removeFromTop (20);
         const int aw = juce::jmin (110, assignRow.getWidth() / 2 - Space::xs);
-        strips[0]->assign.setBounds (assignRow.removeFromLeft (assignRow.getWidth() / 2).withSizeKeepingCentre (aw, 20));
-        strips[1]->assign.setBounds (assignRow.withSizeKeepingCentre (aw, 20));
+        side (0).assign.setBounds (assignRow.removeFromLeft (assignRow.getWidth() / 2).withSizeKeepingCentre (aw, 20));
+        side (1).assign.setBounds (assignRow.withSizeKeepingCentre (aw, 20));
         x.removeFromTop (Space::xs);
         crossfader.setBounds (x.removeFromTop (24).reduced (Space::md, 0));
         curve.setBounds (x.withSizeKeepingCentre (juce::jmin (190, x.getWidth()), 16));
@@ -555,6 +567,7 @@ void MixerView::paint (juce::Graphics& g)
 
     for (auto& sp : strips)
     {
+        if (! engine.isVisible (sp->index)) continue;
         const auto b = sp->trim.getBounds();
         auto title = juce::Rectangle<int> (b.getCentreX() - 30, r.getY(), 60, 14).toFloat();
         Text::draw (g, juce::String ("CH ") + juce::String (sp->index + 1), title, font (Type::caption, Weight::bold),

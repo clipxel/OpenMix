@@ -335,8 +335,8 @@ DeckView::DeckView (AudioEngine& e, int i)
         m.addItem ("Deck maestro", true, isMaster, [this, isMaster] { engine.masterDeck = isMaster ? -1 : index; });
         m.addItem ("Maestro automático", true, engine.masterDeck.load() < 0, [this] { engine.masterDeck = -1; });
         m.addSeparator();
-        m.addItem (juce::String::fromUTF8 ("Instant doubles: copiar el deck ") + juce::String (2 - index), ! deck.isPlaying() && engine.deck (1 - index).hasTrack(),
-                   false, [this] { deck.cloneFrom (engine.deck (1 - index)); });
+        m.addItem (juce::String::fromUTF8 ("Instant doubles: copiar el deck ") + juce::String (engine.otherDeck (index) + 1), ! deck.isPlaying() && engine.deck (engine.otherDeck (index)).hasTrack(),
+                   false, [this] { deck.cloneFrom (engine.deck (engine.otherDeck (index))); });
         m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&sync));
     };
 
@@ -392,6 +392,17 @@ DeckView::DeckView (AudioEngine& e, int i)
     pitchRange.setTextType (Type::caption, Weight::semibold);
     pitchRange.setTooltip ("Rango de pitch (clic para cambiar)");
     pitchRange.onClick = [this] { cyclePitchRange(); };
+
+    // Decks 3 and 4 (as on a 4-deck controller): this side swaps between its two decks.
+    {
+        const int partner = index < 2 ? index + 2 : index - 2;
+        deckSwap.setButtonText (juce::String::fromUTF8 ("⇄ ") + juce::String (partner + 1));
+        deckSwap.setTextType (Type::micro, Weight::bold);
+        deckSwap.setTooltip ("Mostrar el deck " + juce::String (partner + 1) + " en este lado (el deck "
+                             + juce::String (index + 1) + juce::String::fromUTF8 (" sigue sonando si está en play)"));
+        deckSwap.onClick = [this] { engine.swapSide (index % 2); };
+        addAndMakeVisible (deckSwap);
+    }
 
     pitchZero.setTooltip ("Pitch a 0 %: un toque vuelve de a poco, dos toques vuelve de una"_u);
     pitchZero.onClick = [this] { deck.pitchResetPressed(); };
@@ -642,8 +653,8 @@ void DeckView::mouseDown (const juce::MouseEvent& e)
     m.addItem ("Bajar un semitono", [this] { deck.setKeyShift (deck.getKeyShift() - 1); });
     m.addItem ("Tonalidad original", deck.getKeyShift() != 0, false, [this] { deck.setKeyShift (0); });
     m.addSeparator();
-    const auto other = engine.deck (1 - index).getEffectiveKey();
-    m.addItem ("Igualar con el deck " + juce::String (2 - index) + (other.isNotEmpty() ? " (" + other + ")" : juce::String()),
+    const auto other = engine.deck (engine.otherDeck (index)).getEffectiveKey();
+    m.addItem ("Igualar con el deck " + juce::String (engine.otherDeck (index) + 1) + (other.isNotEmpty() ? " (" + other + ")" : juce::String()),
                other.isNotEmpty() && deck.getTrack()->meta.key.isNotEmpty(), false, [this, other]
     {
         deck.setKeyShift (Analysis::semitonesToMatch (deck.getTrack()->meta.key, other));
@@ -725,6 +736,8 @@ void DeckView::resized()
     const int gap = Space::sm;
 
     headerArea = r.removeFromTop (dense ? 40 : 46);
+    // 1 ⇄ 3 / 2 ⇄ 4: next to the DECK label.
+    deckSwap.setBounds (headerArea.getX() + 48, headerArea.getY() - 1, 40, 16);
     r.removeFromTop (Space::xs);
     overview.setBounds (r.removeFromTop (dense ? 22 : 28));
     r.removeFromTop (gap);
@@ -930,7 +943,7 @@ void DeckView::paint (juce::Graphics& g)
     // Left block: deck label, title, artist
     h.removeFromRight (12.0f);
     auto label = h.removeFromTop (14.0f);
-    Text::draw (g, juce::String ("DECK ") + (index == 0 ? "1" : "2"), label, font (Type::caption, Weight::bold), deckCol);
+    Text::draw (g, juce::String ("DECK ") + juce::String (index + 1), label, font (Type::caption, Weight::bold), deckCol);
 
     if (engine.isLoading (index))
     {

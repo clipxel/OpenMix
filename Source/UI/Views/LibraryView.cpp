@@ -776,7 +776,7 @@ void LibraryView::rebuildRows()
 void LibraryView::refresh()
 {
     bool changed = false;
-    for (int i = 0; i < 2; ++i)
+    for (int i = 0; i < AudioEngine::numDecks; ++i)
     {
         const auto t = engine.deck (i).getTrack();
         const auto p = t != nullptr ? t->file.getFullPathName() : juce::String();
@@ -831,7 +831,7 @@ void LibraryView::paintCell (juce::Graphics& g, int row, int col, int w, int h, 
         case colStatus:
         {
             // Loaded-on-deck marker takes priority, then missing file, then analysis state.
-            for (int d = 0; d < 2; ++d)
+            for (int d = 0; d < AudioEngine::numDecks; ++d)
                 if (deckPaths[(size_t) d] == t->path())
                 {
                     auto b = juce::Rectangle<float> (14.0f, 14.0f).withCentre ({ (float) w * 0.5f, (float) h * 0.5f });
