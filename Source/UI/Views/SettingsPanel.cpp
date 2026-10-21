@@ -24,8 +24,9 @@ public:
 
         const auto* info = panel.actions != nullptr ? panel.actions->find (b.action) : nullptr;
         Text::draw (g, b.describeControl(), r.removeFromLeft (150), font (Type::label), colour (Col::textSecondary));
-        Text::draw (g, info != nullptr ? info->label : b.action + " (desconocida)", r.removeFromLeft (210),
-                    font (Type::body, Weight::medium), info != nullptr ? colour (Col::textPrimary) : colour (Col::error));
+        const bool script = b.action == "vdj";
+        Text::draw (g, script ? juce::String ("VDJ: ") + b.script : info != nullptr ? info->label : b.action + " (desconocida)", r.removeFromLeft (210),
+                    font (Type::body, Weight::medium), script || info != nullptr ? colour (Col::textPrimary) : colour (Col::error));
         Text::draw (g, b.deck >= 0 ? "Deck " + juce::String (b.deck + 1) : juce::String ("Global"), r.removeFromLeft (70),
                     font (Type::label), b.deck >= 0 ? Theme::get().deckColour (b.deck) : colour (Col::textTertiary));
         Text::draw (g, b.device == "*" ? juce::String ("Cualquier dispositivo") : b.device, r, font (Type::label), colour (Col::textTertiary));
@@ -239,8 +240,26 @@ void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* 
             menu.addItem ((int) i + 1, found[i].controller);
         menu.addSeparator();
         menu.addItem (100000, juce::String::fromUTF8 ("Elegir archivo (VirtualDJ, Mixxx, rekordbox: .xml o .csv)…"));
-        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (importBtn), [this, found] (int r)
+        // Undo an import or edits: back to the mapping that ships with OpenMix.
+        juce::StringArray restorable;
+        if (midi != nullptr)
+            for (auto& d : midi->connectedInputs())
+                if (auto b = ControllerLibrary::findBundled (d)) restorable.add (d);
+        if (! restorable.isEmpty()) menu.addSeparator();
+        for (int i = 0; i < restorable.size(); ++i)
+            menu.addItem (200000 + i, juce::String::fromUTF8 ("Volver al mapeo de OpenMix: ") + restorable[i]);
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (importBtn), [this, found, restorable] (int r)
         {
+            if (r >= 200000 && r - 200000 < restorable.size())
+            {
+                const auto device = restorable[r - 200000];
+                const bool ok = controllerLib != nullptr && controllerLib->restoreLibraryMapping (device);
+                learnStatus = ok ? juce::String::fromUTF8 ("Mapeo de OpenMix restaurado: ") + device
+                                 : juce::String::fromUTF8 ("No se pudo restaurar el mapeo");
+                bindingBox.updateContent();
+                repaint();
+                return;
+            }
             if (r == 100000)
             {
                 importChooser = std::make_unique<juce::FileChooser> (juce::String::fromUTF8 ("Mapeo de otro programa"), juce::File(), "*.csv;*.xml");
@@ -408,6 +427,8 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     learnShift.setBounds (row.removeFromLeft (120));
     row.removeFromLeft (Space::md);
     cancelLearnBtn.setBounds (row.removeFromLeft (90));
+    c.removeFromTop (Space::xs);
+    ctrlStatusArea = c.removeFromTop (18);
     c.removeFromTop (Space::xl + 2);
     ctrlListArea = c;
     bindingBox.setBounds (c);
@@ -665,8 +686,7 @@ void SettingsPanel::paint (juce::Graphics& g)
                         mon.removeFromTop (18.0f), font (Type::label), recent ? colour (Col::play) : colour (Col::textTertiary));
 
             if (learnStatus.isNotEmpty())
-                Text::draw (g, learnStatus, learnBtn.getBounds().toFloat().withX ((float) cancelLearnBtn.getRight() + 12.0f)
-                                                .withRight ((float) content.getRight()),
+                Text::draw (g, learnStatus, ctrlStatusArea.toFloat(),
                             font (Type::label, Weight::medium), midi->isLearning() ? colour (Col::warning) : colour (Col::play));
 
             Text::draw (g, juce::String ((int) midi->bindings().size()) + juce::String::fromUTF8 (" mapeos · clic derecho o ⌫ para borrar"),

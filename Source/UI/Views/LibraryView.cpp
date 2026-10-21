@@ -338,6 +338,38 @@ public:
 
     void repaintAll() { tree.repaint(); }
 
+    /** Controller browse knob on the sidebar: the next / previous list (playlists, folders…). */
+    void step (int delta)
+    {
+        std::vector<Item*> items;
+        int cur = -1;
+        for (int i = 0; i < tree.getNumRowsInTree(); ++i)
+            if (auto* it = dynamic_cast<Item*> (tree.getItemOnRow (i)); it != nullptr && (it->source.has_value() || it->folderStyle))
+            {
+                if (it->source.has_value() && *it->source == view.source) cur = (int) items.size();
+                items.push_back (it);
+            }
+        if (items.empty()) return;
+        auto* next = items[(size_t) juce::jlimit (0, (int) items.size() - 1, cur < 0 ? 0 : cur + delta)];
+        focused = next;
+        if (next->source.has_value()) view.selectSource (*next->source);
+        tree.scrollToKeepItemVisible (next);
+        repaintAll();
+    }
+
+    /** Knob pushed on the sidebar: opens a closed list holder (device, folder); true if it did. */
+    bool openFocused()
+    {
+        Item* it = focused;
+        if (it == nullptr)
+            for (int i = 0; i < tree.getNumRowsInTree(); ++i)
+                if (auto* x = dynamic_cast<Item*> (tree.getItemOnRow (i)); x != nullptr && x->source.has_value() && *x->source == view.source) it = x;
+        if (it == nullptr || it->isOpen() || ! it->mightContainSubItems()) return false;
+        it->setOpen (true);
+        return true;
+    }
+
+    Item* focused = nullptr;
     LibraryView& view;
     juce::TreeView tree;
     std::unique_ptr<Item> rootItem;
@@ -878,8 +910,18 @@ void LibraryView::cellDoubleClicked (int row, int, const juce::MouseEvent&)
         onLoadToDeck (rows[(size_t) row], -1);
 }
 
+void LibraryView::browseFocusToggle()
+{
+    if (! showSidebar) { browseSidebar = false; return; }
+    if (browseSidebar && tree->openFocused()) return;     // a closed device / folder: open it first
+    browseSidebar = ! browseSidebar;
+    if (! browseSidebar) tree->focused = nullptr;
+    repaint();
+}
+
 void LibraryView::moveSelection (int delta)
 {
+    if (browseSidebar && showSidebar) { tree->step (delta); return; }
     if (rows.empty()) return;
     const int cur = table.getSelectedRow();
     const int next = juce::jlimit (0, (int) rows.size() - 1, cur < 0 ? 0 : cur + delta);
@@ -1020,6 +1062,13 @@ void LibraryView::paint (juce::Graphics& g)
 
 void LibraryView::paintOverChildren (juce::Graphics& g)
 {
+    // The controller's browse knob moves through the sidebar: an accent frame around it.
+    if (showSidebar && browseSidebar)
+    {
+        g.setColour (accent().withAlpha (0.8f));
+        g.drawRoundedRectangle (sidebarArea.toFloat().reduced (1.0f), 4.0f, 1.5f);
+    }
+
     auto emptyArea = table.getBounds().toFloat().withTrimmedTop ((float) Size::panelHeader);
     if (source.kind == Source::Kind::computer || source.kind == Source::Kind::explorer)
     {

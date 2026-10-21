@@ -66,6 +66,8 @@ public:
 
     /** True when this bundled mapping's unit mixes the decks itself (each deck needs its own output pair). */
     static bool hasHardwareMixer (const juce::String& profileName);
+    /** Puts back the mapping that ships with OpenMix for this connected controller (undoes edits / imports). */
+    bool restoreLibraryMapping (const juce::String& deviceName);
     /** The mapping that ships inside OpenMix for this controller name, if any: (its name, bindings). */
     static std::optional<std::pair<juce::String, std::vector<MidiBinding>>> findBundled (const juce::String& deviceName);
 

@@ -41,6 +41,7 @@ juce::var MidiBinding::toVar() const
     if (lsbNumber >= 0) o->setProperty ("lsb", lsbNumber);
     o->setProperty ("encoding", encodingName (encoding));
     o->setProperty ("action", action);
+    if (script.isNotEmpty()) o->setProperty ("vdj", script);
     o->setProperty ("deck", deck);
     o->setProperty ("shift", shift);
     if (std::abs (scale - 1.0f) > 1e-6f) o->setProperty ("scale", scale);
@@ -91,6 +92,8 @@ MidiBinding MidiBinding::fromVar (const juce::var& v)
                : e == "rel_offset" ? Encoding::relativeOffset : e == "rel_twos" ? Encoding::relativeTwos
                : e == "rel_sign" ? Encoding::relativeSign : Encoding::button;
     b.action = v["action"].toString();
+    b.script = v["vdj"].toString();
+    if (b.script.isNotEmpty()) b.action = "vdj";
     b.deck = (int) v.getProperty ("deck", 0);
     b.shift = (bool) v.getProperty ("shift", false);
     b.scale = (float) (double) v.getProperty ("scale", 1.0);
@@ -312,6 +315,8 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
         return;
     }
 
+    currentDevice = device;
+
     // Shift buttons first.
     for (auto& b : map)
         if (b.action == "shift" && matches (b, device, m, false))
@@ -323,7 +328,7 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
     for (size_t i = 0; i < map.size(); ++i)
     {
         const auto& b = map[i];
-        if (b.action == "shift" || b.shift != shifted) continue;
+        if (b.action == "shift" || (b.shift != shifted && b.action != "vdj")) continue;   // scripts read SHIFT themselves
         const bool isLsb = b.encoding == MidiBinding::Encoding::absolute14 && b.lsbNumber >= 0 && matches (b, device, m, true);
         if (isLsb || matches (b, device, m, false))
         {
@@ -344,6 +349,39 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
 
 void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMessage& m)
 {
+    if (b.action == "vdj")
+    {
+        // VirtualDJ script, run as written: the value as the control gives it.
+        const int raw = m.isController() ? m.getControllerValue() : m.isNoteOn() ? m.getVelocity() : m.isPitchWheel() ? m.getPitchWheelValue() : 0;
+        VdjScript::Context ctx;
+        ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, b.deck);
+        ctx.shift = shiftHeld[currentDevice];
+        using E = MidiBinding::Encoding;
+        switch (b.encoding)
+        {
+            case E::button:
+                ctx.input = VdjScript::Input::button;
+                ctx.value = m.isNoteOff() ? 0.0f : m.isNoteOn() ? (m.getVelocity() > 0 ? 1.0f : 0.0f) : (raw >= 64 ? 1.0f : 0.0f);
+                break;
+            case E::absolute7:
+                ctx.input = VdjScript::Input::position;
+                ctx.value = m.isPitchWheel() ? (float) raw / 16383.0f : (float) raw / 127.0f;
+                break;
+            case E::absolute14:
+                ctx.input = VdjScript::Input::position;
+                if (m.isController() && m.getControllerNumber() == b.lsbNumber) ctx.value = (float) (msbValues[index] * 128 + raw) / 16383.0f;
+                else { msbValues[index] = raw; ctx.value = (float) (raw * 128) / 16383.0f; }
+                break;
+            case E::relativeOffset: ctx.input = VdjScript::Input::turn; ctx.value = (float) (raw - 64) * b.scale; break;
+            case E::relativeTwos:   ctx.input = VdjScript::Input::turn; ctx.value = (float) (raw < 64 ? raw : raw - 128) * b.scale; break;
+            case E::relativeSign:   ctx.input = VdjScript::Input::turn; ctx.value = (float) ((raw & 64) ? -(raw & 63) : (raw & 63)) * b.scale; break;
+        }
+        if (b.invert) ctx.value = ctx.input == VdjScript::Input::position ? 1.0f - ctx.value : -ctx.value;
+        if (onDispatch) onDispatch (b, ctx.deck, ctx.value);
+        vdj.run (b.script, ctx);
+        return;
+    }
+
     const auto* info = actions.find (b.action);
     if (info == nullptr)
         return;
@@ -472,12 +510,23 @@ void MidiEngine::tick()
         }
         else
         {
-            if (b.encoding != MidiBinding::Encoding::button || b.shift != shiftHeld[b.device])
+            if (b.encoding != MidiBinding::Encoding::button || (b.shift != shiftHeld[b.device] && b.action != "vdj"))
                 continue;
             using L = Actions::Led;
-            const auto level = actions.ledLevel (b.action, b.deck);
+            // A script's light: the script read as a condition ("play_pause" → playing…).
+            const bool isScript = b.action == "vdj";
+            const auto lightAction = isScript ? vdj.mainAction (b.script, b.deck) : b.action;
+            Actions::Led level;
+            if (isScript)
+            {
+                VdjScript::Context ctx;
+                ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, b.deck);
+                ctx.shift = shiftHeld[b.device];
+                level = vdj.query (b.script, ctx) ? L::on : L::off;
+            }
+            else level = actions.ledLevel (b.action, b.deck);
             // RGB pad: the action's own colour, full when on, darker when dim.
-            const auto colour = b.rgb != MidiBinding::Rgb::none ? actions.ledColour (b.action, b.deck) : juce::Colour();
+            const auto colour = b.rgb != MidiBinding::Rgb::none ? actions.ledColour (lightAction, b.deck) : juce::Colour();
             const int full = MidiBinding::encodeColour (b.rgb, colour, 1.0f);
             const int dim = MidiBinding::encodeColour (b.rgb, colour, 0.3f);
             const int on = full >= 0 ? full : b.onValue;

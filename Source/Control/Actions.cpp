@@ -78,6 +78,15 @@ void Actions::setLevel (const juce::String& id, std::function<Led (int)> fn)
         it->second.level = std::move (fn);
 }
 
+bool Actions::isActive (const juce::String& id, int deck) const
+{
+    auto it = entries.find (id);
+    if (it == entries.end()) return false;
+    if (it->second.info.perDeck && ! juce::isPositiveAndBelow (deck, AudioEngine::numDecks)) return false;
+    if (it->second.led) return it->second.led (deck);
+    return it->second.level && it->second.level (deck) == Led::on;
+}
+
 void Actions::setColour (const juce::String& id, std::function<juce::Colour (int)> fn)
 {
     auto it = entries.find (id);
@@ -492,6 +501,9 @@ void Actions::build()
     // Browser & global -------------------------------------------------------
     add ({ "browser_scroll", "Navegar biblioteca", "Biblioteca", T::relative, false },
          [this] (int, float v) { if (hooks.browse && std::abs (v) > 0.0f) hooks.browse (v > 0 ? juce::jmax (1, (int) v) : juce::jmin (-1, (int) v)); });
+
+    add ({ "browser_focus", "Biblioteca: pasar de los temas a las playlists (y volver)", "Biblioteca", T::button, false },
+         [this] (int, float v) { if (v > 0.5f && hooks.browseFocus) hooks.browseFocus(); });
 
     add ({ "record", "Grabar", "Global", T::button, false },
          [this] (int, float v) { if (v > 0.5f && hooks.toggleRecord) hooks.toggleRecord(); },

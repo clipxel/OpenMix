@@ -99,7 +99,8 @@ private:
                                     [this] (int d, int pad, bool down) { (d == 0 ? deckA : deckB).externalPad (pad, down); },
                                     [this] (int d) { (d == 0 ? deckA : deckB).nextPadPage(); },
                                     [this] (int d, int pad) { return (d == 0 ? deckA : deckB).padLed (pad); },
-                                    [this] { automix.setRunning (! automix.isRunning()); } } };
+                                    [this] { automix.setRunning (! automix.isRunning()); },
+                                    [this] { libraryView.browseFocusToggle(); } } };
     om::KeyboardControl keyboard { actions };
     om::AutoMix automix { engine, { [this] (const om::TrackPtr& t, int d) { loadToDeck (t, d); } } };
     om::AutoMixPanel automixPanel { automix, engine,

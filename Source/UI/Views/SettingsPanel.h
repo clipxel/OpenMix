@@ -99,7 +99,7 @@ private:
     std::unique_ptr<BindingList> bindingList;
     std::unique_ptr<KeyboardMapView> keyMap;
     juce::ListBox bindingBox;
-    juce::Rectangle<int> monitorArea, ctrlListArea;
+    juce::Rectangle<int> monitorArea, ctrlStatusArea, ctrlListArea;
     juce::String learnStatus;
 };
 

@@ -313,6 +313,18 @@ void ControllerLibrary::refreshFromLibrary (const juce::String& deviceName)
     rememberInstalled (deviceName, profile, found->second);
 }
 
+bool ControllerLibrary::restoreLibraryMapping (const juce::String& deviceName)
+{
+    auto found = findBundled (deviceName);
+    if (! found) return false;
+    midi.installMapping (deviceName, found->second);
+    rememberInstalled (deviceName, found->first, found->second);
+    for (auto& d : list)
+        if (d.name == deviceName) { d.status = Status::mapped; d.profileName = found->first; }
+    sendChangeMessage();
+    return true;
+}
+
 void ControllerLibrary::install (const juce::String& deviceName, Result r)
 {
     if (r.status == Status::mapped && ! r.bindings.empty())

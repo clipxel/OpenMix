@@ -22,7 +22,10 @@ public:
     void setShowSidebar (bool);
     bool isShowingSidebar() const noexcept        { return showSidebar; }
     void focusSearch()                             { search.grabKeyboardFocus(); }
-    void moveSelection (int delta);
+    void moveSelection (int delta);                 // controller browse knob: in the list it is on
+    /** Browse knob pushed: switches between the track list and the sidebar (playlists, folders…). */
+    void browseFocusToggle();
+    bool isBrowsingSidebar() const noexcept        { return browseSidebar; }
     TrackPtr selectedTrack() const;
     std::vector<TrackPtr> selectedTracks() const;
     const std::vector<TrackPtr>& visibleTracks() const noexcept { return rows; }
@@ -128,6 +131,7 @@ private:
     bool sortForwards = true;
     juce::uint64 seenRevision = 0;
     bool showSidebar = true;
+    bool browseSidebar = false;      // the browse knob moves through the sidebar instead of the tracks
     juce::String lastStatus;
     std::array<juce::String, 2> deckPaths;
     juce::StringArray playedThisSession;

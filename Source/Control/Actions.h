@@ -37,6 +37,7 @@ public:
         std::function<void (int deck)> padPage;                        // next pad page (HOT CUE, ROLL, …)
         std::function<int (int deck, int pad)> padLed;                 // Led of PAD 1–8 in the current page
         std::function<void()> toggleAutoMix;
+        std::function<void()> browseFocus;                             // browse knob pushed: tracks ↔ playlists
     };
 
     Actions (AudioEngine&, Hooks);
@@ -46,6 +47,9 @@ public:
 
     void trigger (const juce::String& id, int deck, float value);
     bool ledState (const juce::String& id, int deck) const   { return ledLevel (id, deck) != Led::off; }
+    /** Whether the function is on right now (playing, loop active, hot cue set…), for scripts' conditions. */
+    bool isActive (const juce::String& id, int deck) const;
+    AudioEngine& getEngine() noexcept                         { return engine; }
 
     /** What a controller light shows for an action: off, dim (available but not active, for
         controllers that have a dim level), on, or blinking (play while paused, cue away from the

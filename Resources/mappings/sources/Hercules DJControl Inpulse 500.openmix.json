@@ -137,7 +137,7 @@
    "kind": "note",
    "number": 44,
    "encoding": "button",
-   "action": "reloop",
+   "action": "loop",
    "deck": 0,
    "shift": false,
    "led": false
@@ -1732,7 +1732,7 @@
    "kind": "note",
    "number": 44,
    "encoding": "button",
-   "action": "reloop",
+   "action": "loop",
    "deck": 1,
    "shift": false,
    "led": false
@@ -3239,6 +3239,28 @@
    "action": "automix",
    "deck": 0,
    "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "browser_focus",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "browser_focus",
+   "deck": 0,
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",

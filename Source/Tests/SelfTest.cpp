@@ -1522,7 +1522,22 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         c.setTrack (quiet);
         rep.check (std::abs (c.getCuePoint() - 1.5) < 0.02, "Auto cue en el primer sonido", juce::String (c.getCuePoint(), 3) + " s");
 
-        // Gate cue: paused, hold hot cue → plays; release → back to the cue, paused.
+        // Hot cue while paused: jumps there and keeps playing after the pad is released.
+        c.seek (10.0);
+        run (c, 0.01);
+        c.hotCue (2);                       // set at 10 s
+        c.seek (3.0);
+        run (c, 0.01);
+        c.hotCue (2);
+        c.hotCueRelease (2);
+        run (c, 0.5);
+        rep.check (c.isPlaying() && c.audioPositionSeconds() > c.getHotCue (2) + 0.4,
+                   "Hot cue en pausa: salta a la marca y sigue sonando al soltar el pad"_u);
+        c.setPlaying (false);
+        c.clearHotCue (2);
+
+        // Gate cue (option): paused, hold hot cue → plays; release → back to the cue, paused.
+        c.setGateCue (true);
         c.seek (10.0);
         run (c, 0.01);
         c.hotCue (2);                       // set at 10 s
@@ -1535,6 +1550,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         run (c, 0.05);
         rep.check (playedWhileHeld && ! c.isPlaying() && std::abs (c.audioPositionSeconds() - c.getHotCue (2)) < 0.001,
                    "Gate cue: suena mientras se mantiene y vuelve al soltar");
+        c.setGateCue (false);
 
         // Instant doubles: the other deck lands in the same place, tempo and play state.
         Deck other (1);
@@ -2154,6 +2170,57 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
 
     {
+        // VirtualDJ scripts, run as written.
+        d2.setReverse (false);
+        auto vb = [] (int ch, MidiBinding::Kind k, int num, MidiBinding::Encoding e, const char* script)
+        {
+            MidiBinding x; x.device = "Test"; x.channel = ch; x.kind = k; x.number = num; x.encoding = e; x.action = "vdj"; x.script = script; x.deck = 1;
+            return x;
+        };
+        using K = MidiBinding::Kind; using E = MidiBinding::Encoding;
+        auto sj = vb (3, K::cc, 2, E::relativeOffset, "jogwheel"); sj.scale = 1.0f / 512.0f;
+        midi.setBindings ({ shift, vb (3, K::note, 1, E::button, "shift ? reverse : play_pause"), sj,
+                            vb (3, K::note, 3, E::button, "hot_cue 3"), vb (3, K::note, 4, E::button, "loop 4"),
+                            vb (3, K::cc, 5, E::absolute7, "volume"), vb (3, K::note, 6, E::button, "play ? nothing : goto_start & key +2") });
+        auto tap = [&midi] (int ch, int n) { midi.inject ("Test", juce::MidiMessage::noteOn (ch, n, (juce::uint8) 127)); midi.inject ("Test", juce::MidiMessage::noteOff (ch, n)); };
+        d2.setPlaying (false);
+        tap (3, 1);
+        const bool played = d2.isPlaying();
+        midi.inject ("Test", juce::MidiMessage::noteOn (1, 63, (juce::uint8) 127));
+        tap (3, 1);
+        midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
+        rep.check (played && d2.isReverse(), "Script de VirtualDJ «shift ? reverse : play_pause» tal cual"_u);
+        d2.setReverse (false);
+        d2.setPlaying (false);
+        run (d2, 0.05);
+        const double p0 = d2.getPosition();
+        for (int i = 0; i < 64; ++i) midi.inject ("Test", juce::MidiMessage::controllerEvent (3, 2, 65));
+        rep.check (std::abs (d2.getPosition() - (p0 + 1.8 / 8.0)) < 0.02, "Script «jogwheel»: el jog mueve el tema en pausa"_u, juce::String (d2.getPosition() - p0, 3));
+        d2.clearHotCue (2);
+        tap (3, 3);
+        tap (3, 4);
+        run (d2, 0.02);                                     // the loop is laid down by the audio thread
+        const bool looped = d2.isLoopActive() && std::abs (d2.getLoopBeats() - 4.0) < 0.01;
+        tap (3, 4);
+        run (d2, 0.02);
+        midi.inject ("Test", juce::MidiMessage::controllerEvent (3, 5, 64));
+        d2.setKeyShift (0);
+        tap (3, 6);
+        rep.check (d2.getHotCue (2) >= 0.0 && looped && ! d2.isLoopActive() && std::abs (engine.channel (1).fader.load() - 64.0f / 127.0f) < 0.01f
+                   && d2.getKeyShift() == 2,
+                   "Scripts «hot_cue 3», «loop 4» (entra y sale), «volume» y «play ? nothing : goto_start & key +2»"_u,
+                   juce::String (d2.getHotCue (2), 2) + " " + juce::String ((int) looped) + " " + juce::String ((int) d2.isLoopActive())
+                   + " " + juce::String (engine.channel (1).fader.load(), 3) + " " + juce::String (d2.getKeyShift()));
+        rep.check (VdjScript::unknownVerbs ("shift ? hot_cue 1 : sampler_play 2 & video_fx").joinIntoString (",") == "sampler_play,video_fx"
+                   && VdjScript::isContinuous ("shift ? jogwheel : jogwheel") && ! VdjScript::isContinuous ("play_pause"),
+                   "Scripts de VirtualDJ: se detectan los verbos sin equivalente y los controles continuos"_u);
+        d2.setPlaying (false);
+        d2.setKeyShift (0);
+        d2.clearHotCue (2);
+        midi.setBindings (b);
+    }
+
+    {
         // Pitch fader: down (low values) = faster, like the screen and club players.
         MidiBinding pf; pf.device = "Test"; pf.channel = 1; pf.kind = MidiBinding::Kind::cc; pf.number = 0;
         pf.encoding = MidiBinding::Encoding::absolute7; pf.action = "pitch"; pf.deck = 1;
@@ -2572,17 +2639,26 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         const auto lone = MappingImport::fromMapperOnly (R"(<mapper device="Hercules DJControl Inpulse 500" version="800">
               <map value="PLAY" action="play_pause"/><map value="CUE" action="cue_stop"/>
               <map value="PAD1" action="hot_cue 2"/><map value="SYNC" action="shift ? key_match : sync"/>
-              <map value="MYSTERY_BUTTON" action="play_pause"/></mapper>)");
-        auto hasL = [&lone] (const char* act, int dk, int chn, int nm, bool sh)
+              <map value="MYSTERY_BUTTON" action="play_pause"/><map value="SHIFT_CUE" action="goto_start"/>
+              <map value="SHIFT" action="shift"/><map value="JOG" action="play_pause"/><map value="SHIFT_PAD3" action="delete_cue 3"/></mapper>)");
+        auto scrL = [&lone] (const char* script, int dk, int chn, int nm)
         {
             return std::any_of (lone.bindings.begin(), lone.bindings.end(), [=] (const MidiBinding& mb)
-                { return mb.action == act && mb.deck == dk && mb.channel == chn && mb.number == nm && mb.shift == sh; });
+                { return mb.action == "vdj" && mb.script == script && mb.deck == dk && mb.channel == chn && mb.number == nm; });
         };
-        rep.check (lone.basedOn == "Hercules DJControl Inpulse 500" && hasL ("play_pause", 0, 2, 0x07, false)
-                   && hasL ("goto_cue_stop", 1, 3, 0x06, false) && ! hasL ("cue_button", 1, 3, 0x06, false)
-                   && hasL ("hot_cue_2", 0, 7, 0x00, false) && hasL ("key_match", 0, 2, 0x05, true) && hasL ("sync", 0, 2, 0x05, false)
-                   && hasL ("pad_roll_4", 0, 7, 0x53, false) && lone.untranslated.contains ("MYSTERY_BUTTON"),
-                   "Mapper de VirtualDJ sin definición: se aplica sobre el mapeo de OpenMix de ese controlador"_u);
+        auto hasL = [&lone] (const char* act, int dk, int chn, int nm)
+        {
+            return std::any_of (lone.bindings.begin(), lone.bindings.end(), [=] (const MidiBinding& mb)
+                { return mb.action == act && mb.deck == dk && mb.channel == chn && mb.number == nm; });
+        };
+        rep.check (lone.basedOn == "Hercules DJControl Inpulse 500" && scrL ("play_pause", 0, 2, 0x07) && scrL ("cue_stop", 1, 3, 0x06)
+                   && scrL ("hot_cue 2", 0, 7, 0x00) && scrL ("shift ? key_match : sync", 0, 2, 0x05)
+                   && hasL ("pad_roll_4", 0, 7, 0x53) && lone.untranslated.contains ("MYSTERY_BUTTON"),
+                   "Mapper de VirtualDJ sin definición: cada script tal cual sobre el mapeo de OpenMix de ese controlador"_u);
+        rep.check (hasL ("shift", 0, 2, 0x04) && ! scrL ("goto_start", 0, 2, 0x04) && scrL ("goto_start", 0, 5, 0x06)
+                   && hasL ("jog", 0, 2, 0x0A) && ! scrL ("play_pause", 0, 2, 0x0A) && scrL ("delete_cue 3", 0, 7, 0x0A)
+                   && hasL ("loop", 0, 2, 0x2C),
+                   "Mapper de VirtualDJ: «SHIFT_…» va al mensaje con SHIFT y no pisa el botón SHIFT, el jog no se vuelve botón, la perilla de loop entra / sale"_u);
         const auto unknown = MappingImport::fromMapperOnly (R"(<mapper device="Nobody Knows This 9000"><map value="PLAY" action="play_pause"/></mapper>)");
         rep.check (unknown.bindings.empty() && unknown.missingDefinition, "Mapper sin definición de un controlador desconocido: se avisa que falta la definición"_u);
 
@@ -2601,13 +2677,18 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
             return std::any_of (x.bindings.begin(), x.bindings.end(), [=] (const MidiBinding& mb)
                 { return mb.action == act && mb.deck == dk && mb.channel == chn && mb.shift == sh; });
         };
-        const auto volRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "volume"; });
-        const auto jogRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "jog"; });
-        rep.check (x.controller == "Test Board 3" && hasX ("play_pause", 0, 1, false) && hasX ("play_pause", 1, 2, false)
-                   && hasX ("reverse", 0, 1, true) && hasX ("shift", 0, 1, false)
+        auto scr = [&x] (const char* script, int dk, int chn)
+        {
+            return std::any_of (x.bindings.begin(), x.bindings.end(), [=] (const MidiBinding& mb)
+                { return mb.action == "vdj" && mb.script == script && mb.deck == dk && mb.channel == chn && ! mb.shift; });
+        };
+        const auto volRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.script == "volume"; });
+        const auto jogRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.script == "jogwheel"; });
+        rep.check (x.controller == "Test Board 3" && scr ("shift ? reverse : play_pause", 0, 1) && scr ("shift ? reverse : play_pause", 1, 2)
+                   && hasX ("shift", 0, 1, false)
                    && volRow != x.bindings.end() && volRow->encoding == MidiBinding::Encoding::absolute14 && volRow->number == 0x13 && volRow->lsbNumber == 0x33
                    && jogRow != x.bindings.end() && jogRow->encoding == MidiBinding::Encoding::relativeOffset,
-                   "Definición + mapeo XML: decks, capa SHIFT, fader de 14 bits y jog"_u);
+                   "Definición + mapper de VirtualDJ: cada control con su script tal cual, decks, SHIFT, fader de 14 bits y jog"_u);
 
         // One-file XML preset, with script-driven controls named by their path.
         const juce::String preset = R"(<SomeControllerPreset schemaVersion="1"><info><name>Test Board 4</name></info>

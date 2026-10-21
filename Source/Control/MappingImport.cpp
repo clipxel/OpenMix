@@ -434,7 +434,7 @@ static std::pair<juce::String, int> scriptAction (juce::String script, bool& shi
         { "automix", "automix" }, { "loop_move", "loop_move_fwd" }, { "loop_roll", "loop_roll_3" }, { "reloop", "reloop" },
         { "loop_button", "loop" }, { "loop_select", "loop_resize" }, { "loop_halve", "loop_half" }, { "instant_doubles", "instant_doubles" },
         { "clone_deck", "instant_doubles" }, { "master_deck", "master" }, { "backspin", "backspin" }, { "pad_page", "pad_page" },
-        { "load_track", "load" }, { "unload", "" }, { "browser_enter", "" }, { "dump", "brake" },
+        { "load_track", "load" }, { "unload", "" }, { "browser_enter", "" }, { "browser_switch", "browser_focus" }, { "dump", "brake" },
     };
 
     const auto verb = words[0].toLowerCase();
@@ -552,14 +552,33 @@ Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml
         controls.insert ({ name, b });
     }
 
-    // Control name → action. Without a mapper, the control names themselves are tried.
-    std::vector<std::pair<juce::String, juce::String>> maps;
+    // With a mapper: each control runs its VirtualDJ script word for word (VdjScript), so it does
+    // exactly what it did there. The SHIFT button stays OpenMix's SHIFT (scripts ask "shift ? …").
     if (auto mapper = juce::XmlDocument::parse (mapperXml); mapper != nullptr && mapper->hasTagName ("mapper"))
+    {
         for (auto* m : mapper->getChildWithTagNameIterator ("map"))
-            maps.push_back ({ m->getStringAttribute ("value"), m->getStringAttribute ("action") });
-    else
-        for (auto& [name, b] : controls)
-            maps.push_back ({ name, name.toLowerCase() });
+        {
+            const auto key = m->getStringAttribute ("value");
+            const auto script = m->getStringAttribute ("action").trim();
+            if (script.isEmpty() || controls.count (key) == 0) continue;
+            for (auto& v : VdjScript::unknownVerbs (script)) r.untranslated.addIfNotAlreadyThere (v);
+            for (auto [it, end] = controls.equal_range (key); it != end; ++it)
+            {
+                auto b = it->second;
+                if (b.deck > 1) continue;                       // decks 3–4: not in OpenMix
+                if (b.deck < 0) b.deck = 0;
+                if (script.equalsIgnoreCase ("shift")) b.action = "shift";
+                else { b.action = "vdj"; b.script = script; }
+                r.bindings.push_back (b);
+            }
+        }
+        return r;
+    }
+
+    // Without a mapper, the control names themselves are tried.
+    std::vector<std::pair<juce::String, juce::String>> maps;
+    for (auto& [name, b] : controls)
+        maps.push_back ({ name, name.toLowerCase() });
 
     for (auto& [value, script] : maps)
     {
@@ -609,9 +628,18 @@ Result fromXml (const juce::String& definitionXml, const juce::String& mapperXml
 // user's action. Controls the mapper does not mention keep OpenMix's mapping.
 
 /** Which OpenMix action a control name usually stands for ("PLAY", "PAD3", "HOTCUE_5", "LOOP_IN"…). */
-static juce::String roleOf (const juce::String& controlName)
+static juce::String roleOf (const juce::String& controlName, bool& shifted)
 {
+    // "SHIFT_CUE", "PLAY_SHIFT", "SHIFT+PAD3": that control with SHIFT held. Only "SHIFT" itself is the
+    // SHIFT button (a key that merely contains the word must never take over the SHIFT button).
     auto k = controlName.toUpperCase().retainCharacters ("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+    shifted = false;
+    if (k != "SHIFT" && k.contains ("SHIFT"))
+    {
+        shifted = true;
+        k = k.replace ("SHIFT", "");
+    }
+    if (k == "SHIFT") return "shift";
     const int n = k.getTrailingIntValue();
     const auto word = n > 0 ? k.dropLastCharacters (juce::String (n).length()) : k;
     const auto padNo = juce::String (juce::jlimit (1, 8, n));
@@ -619,7 +647,6 @@ static juce::String roleOf (const juce::String& controlName)
 
     if (n >= 1 && n <= 8)
     {
-        if (has ("SHIFT") && (has ("HOTCUE") || word == "PAD" || has ("CUE"))) return "delete_hot_cue_" + padNo;
         if (has ("HOTCUE") || word == "PAD" || word == "PADS" || word == "CUE" || word == "HOT")  return "hot_cue_" + padNo;
         if (has ("ROLL"))                   return "pad_roll_" + padNo;
         if (has ("JUMP"))                   return "pad_jump_" + padNo;
@@ -628,7 +655,6 @@ static juce::String roleOf (const juce::String& controlName)
         if (has ("FX") || has ("EFFECT"))   return n <= 3 ? "effect_active_" + padNo : juce::String();
     }
     if (has ("CROSSFADER") || has ("XFADER")) return "crossfader";
-    if (has ("SHIFT"))                     return "shift";
     if (has ("JOG") || has ("WHEEL") || has ("PLATTER"))
         return has ("TOUCH") ? "jog_touch" : "jog";
     if (has ("PLAY"))                      return "play_pause";
@@ -649,6 +675,7 @@ static juce::String roleOf (const juce::String& controlName)
     if (has ("LOW") || has ("BASS"))       return "eq_low";
     if (has ("GAIN") || has ("TRIM"))      return "gain";
     if (has ("FILTER"))                    return "filter";
+    if (has ("BROWSE") && (has ("PUSH") || has ("PRESS") || has ("BUTTON") || has ("ENTER") || has ("CLICK"))) return "browser_focus";
     if (has ("BROWSE"))                    return "browser_scroll";
     if (has ("LOOP"))                      return "loop";
     return {};
@@ -670,55 +697,55 @@ Result fromMapperOnly (const juce::String& mapperXml, const juce::String& fallba
     }
     r.basedOn = base->first;
 
-    std::vector<MidiBinding> out = base->second;
-    std::set<size_t> replaced;
-    std::vector<MidiBinding> added;
+    const auto& from = base->second;
+    std::vector<MidiBinding> out = from;
+    auto same = [] (const MidiBinding& a, const MidiBinding& b) { return a.kind == b.kind && a.number == b.number && a.channel == b.channel && a.deck == b.deck; };
     for (auto* m : mapper->getChildWithTagNameIterator ("map"))
     {
-        auto key = m->getStringAttribute ("value");
-        const auto script = m->getStringAttribute ("action");
-        bool shiftHeld = false;
-        if (key.startsWithIgnoreCase ("SHIFT+")) { shiftHeld = true; key = key.substring (6); }
-        const auto role = roleOf (key);
-        if (role.isEmpty()) { r.untranslated.addIfNotAlreadyThere (key); continue; }
+        const auto key = m->getStringAttribute ("value");
+        const auto script = m->getStringAttribute ("action").trim();
+        bool shiftKey = false;
+        auto role = roleOf (key, shiftKey);
+        if (role.isEmpty() || script.isEmpty() || (role == "shift" && shiftKey)) { r.untranslated.addIfNotAlreadyThere (key); continue; }
+        if (role == "shift") continue;                          // SHIFT stays OpenMix's SHIFT
+        // SHIFT + pad: pads send their own note with SHIFT, which is OpenMix's "delete hot cue" binding.
+        if (shiftKey && role.startsWith ("hot_cue_")) { role = "delete_hot_cue_" + role.fromLastOccurrenceOf ("_", false, false); shiftKey = false; }
 
-        juce::StringArray variants { script }, layers { shiftHeld ? "1" : "0" };
-        if (script.contains ("?") && script.trimStart().startsWithIgnoreCase ("shift"))
+        // The controls of OpenMix's mapping that do this job. A "SHIFT_…" key is the message that
+        // control sends with SHIFT held: on controllers that send it on their own channel (Hercules:
+        // channel + 3) that is the binding with the same number there.
+        std::vector<size_t> targets;
+        for (size_t i = 0; i < from.size(); ++i)
         {
-            const auto rest = script.fromFirstOccurrenceOf ("?", false, false);
-            variants = { rest.upToFirstOccurrenceOf (":", false, false), rest.fromFirstOccurrenceOf (":", false, false) };
-            layers = { "1", "0" };
+            const auto& b = from[i];
+            if (b.action != role || b.outputOnly || b.shift) continue;
+            if (! shiftKey) { targets.push_back (i); continue; }
+            for (size_t j = 0; j < from.size(); ++j)
+                if (! from[j].outputOnly && from[j].kind == b.kind && from[j].number == b.number && from[j].deck == b.deck
+                    && from[j].channel == b.channel + 3)
+                    targets.push_back (j);
         }
 
         bool any = false;
-        for (size_t i = 0; i < base->second.size(); ++i)
+        for (auto i : targets)
         {
-            const auto& b = base->second[i];
-            if (b.action != role || b.outputOnly || b.shift) continue;
-            for (int v = 0; v < variants.size(); ++v)
-            {
-                bool unused = false;
-                auto [action, deck] = scriptAction (variants[v], unused);
-                if (action.isEmpty() || ! juce::isPositiveAndBelow (deck < 0 ? b.deck : deck, 2)) continue;
-                auto c = b;
-                c.action = action;
-                c.shift = layers[v] == "1";
-                if (deck >= 0) c.deck = deck;
-                if (action == "jog" && c.encoding == MidiBinding::Encoding::button) c.action = "jog_touch";
-                // Only touch OpenMix's binding when the user's action is really different.
-                if (c.action == b.action && c.shift == b.shift && c.deck == b.deck) { any = true; continue; }
-                if (! c.shift) replaced.insert (i);
-                added.push_back (c);
-                any = true;
-            }
+            // A script must fit the control: a turning / sliding function on a jog or fader, a button
+            // function on a button (else that control would just stop working).
+            const bool continuous = from[i].encoding != MidiBinding::Encoding::button;
+            if (continuous != VdjScript::isContinuous (script)) continue;
+            for (auto& o : out)
+                if (same (o, from[i]) && ! o.outputOnly && o.action != "shift")
+                {
+                    o.action = "vdj";
+                    o.script = script;
+                }
+            ++r.changed;
+            any = true;
         }
         if (! any) r.untranslated.addIfNotAlreadyThere (key);
+        else for (auto& v : VdjScript::unknownVerbs (script)) r.untranslated.addIfNotAlreadyThere (v);
     }
-    for (size_t i = out.size(); i-- > 0;)
-        if (replaced.count (i) > 0) out.erase (out.begin() + (long) i);
-    out.insert (out.end(), added.begin(), added.end());
     r.bindings = std::move (out);
-    r.changed = (int) added.size();
     return r;
 }
 

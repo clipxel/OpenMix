@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Actions.h"
+#include "VdjScript.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 
 namespace om
@@ -27,7 +28,8 @@ struct MidiBinding
     int number = 0;
     int lsbNumber = -1;
     Encoding encoding = Encoding::button;
-    juce::String action;
+    juce::String action;           // "vdj": runs `script` (VirtualDJ mapper language) instead
+    juce::String script;
     int deck = 0;                  // −1 for global actions
     bool shift = false;
     float scale = 1.0f;            // relative: units per tick (jog: revolutions per tick)
@@ -124,6 +126,8 @@ private:
     void send (const juce::String& device, const juce::MidiMessage&);
 
     Actions& actions;
+    VdjScript vdj { actions };
+    juce::String currentDevice;                            // the device whose message is being processed
     std::vector<MidiBinding> map;
 
     std::vector<std::unique_ptr<juce::MidiInput>> inputs;
