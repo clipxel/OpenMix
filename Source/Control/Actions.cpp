@@ -448,44 +448,60 @@ void Actions::build()
 
     // BEAT FX of the mixer (controllers with a single effect section, club mixer style).
     using BX = AudioEngine::BeatFxSection;
-    add ({ "beat_fx_on", "BEAT FX ON/OFF", "Efectos", T::button },
+    add ({ "beat_fx_on", "BEAT FX ON/OFF", "Efectos", T::button, false },
          [this] (int, float v) { if (v > 0.5f) engine.beatFx().on = ! engine.beatFx().on.load(); },
          [this] (int) { return engine.beatFx().on.load(); });
-    add ({ "beat_fx_level", "BEAT FX LEVEL/DEPTH", "Efectos", T::absolute },
+    add ({ "beat_fx_level", "BEAT FX LEVEL/DEPTH", "Efectos", T::absolute, false },
          [this] (int, float v) { engine.beatFx().level = v; }, {},
          [this] (int) { return engine.beatFx().level.load(); });
-    add ({ "beat_fx_select", "BEAT FX: siguiente efecto", "Efectos", T::button },
+    add ({ "beat_fx_select", "BEAT FX: siguiente efecto", "Efectos", T::button, false },
          [this] (int, float v)
          {
              if (v < 0.5f) return;
              auto& b = engine.beatFx();
              b.select (BeatFx::clubStep ((BeatFx::Type) b.type.load(), +1));
          });
-    add ({ "beat_fx_select_back", "BEAT FX: efecto anterior", "Efectos", T::button },
+    add ({ "beat_fx_select_back", "BEAT FX: efecto anterior", "Efectos", T::button, false },
          [this] (int, float v)
          {
              if (v < 0.5f) return;
              auto& b = engine.beatFx();
              b.select (BeatFx::clubStep ((BeatFx::Type) b.type.load(), -1));
          });
-    add ({ "beat_fx_tap", "BEAT FX: TAP (marcar el BPM)", "Efectos", T::button },
+    add ({ "beat_fx_tap", "BEAT FX: TAP (marcar el BPM)", "Efectos", T::button, false },
          [this] (int, float v) { if (v > 0.5f) engine.beatFx().tap(); });
-    add ({ "beat_fx_auto", "BEAT FX: AUTO (BPM del tema)", "Efectos", T::button },
+    add ({ "beat_fx_auto", "BEAT FX: AUTO (BPM del tema)", "Efectos", T::button, false },
          [this] (int, float v) { if (v > 0.5f) engine.beatFx().tapBpm = 0.0f; },
          [this] (int) { return engine.beatFx().tapBpm.load() <= 0.0f; });
-    add ({ "beat_fx_time", "BEAT FX: TIME", "Efectos", T::absolute },
+    add ({ "beat_fx_time", "BEAT FX: TIME", "Efectos", T::absolute, false },
          [this] (int, float v) { engine.beatFx().timeMs = v < 0.02f ? 0.0f : (float) (10.0 * std::pow (1600.0, (double) v)); });
-    add ({ "beat_fx_beat_down", "BEAT FX: BEAT ◀"_u, "Efectos", T::button },
+    add ({ "beat_fx_beat_down", "BEAT FX: BEAT ◀"_u, "Efectos", T::button, false },
          [this] (int, float v) { if (v > 0.5f) engine.beatFx().stepBeat (-1); });
-    add ({ "beat_fx_beat_up", "BEAT FX: BEAT ▶"_u, "Efectos", T::button },
+    add ({ "beat_fx_beat_up", "BEAT FX: BEAT ▶"_u, "Efectos", T::button, false },
          [this] (int, float v) { if (v > 0.5f) engine.beatFx().stepBeat (+1); });
-    add ({ "beat_fx_channel_next", "BEAT FX: siguiente canal (CH SELECT)", "Efectos", T::button },
+    add ({ "beat_fx_channel_next", "BEAT FX: siguiente canal (CH SELECT)", "Efectos", T::button, false },
          [this] (int, float v) { if (v > 0.5f) { auto& b = engine.beatFx(); b.target = (b.target.load() + 1) % BX::numTargets; } });
+    // The BEAT FX used from a deck's own controls (a 2-deck controller with an FX button and knob on
+    // each side): ON sends the effect to that deck's channel; its knob moves the level only while the
+    // effect is on that deck, so the two knobs never fight over it.
+    add ({ "beat_fx_on_deck", "BEAT FX en este deck: on/off", "Efectos", T::button },
+         [this] (int d, float v)
+         {
+             if (v < 0.5f) return;
+             auto& b = engine.beatFx();
+             const int side = d % 2;
+             if (b.on.load() && b.target.load() == side) b.on = false;
+             else { b.target = side; b.on = true; }
+         },
+         [this] (int d) { return engine.beatFx().on.load() && engine.beatFx().target.load() == d % 2; });
+    add ({ "beat_fx_level_deck", "BEAT FX en este deck: nivel", "Efectos", T::absolute },
+         [this] (int d, float v) { if (engine.beatFx().target.load() == d % 2) engine.beatFx().level = v; }, {},
+         [this] (int d) { return engine.beatFx().target.load() == d % 2 ? engine.beatFx().level.load() : -1.0f; });
     add ({ "beat_fx_channel", "BEAT FX: canal de este deck (CH SELECT)", "Efectos", T::button },
          [this] (int d, float v) { if (v > 0.5f) engine.beatFx().target = d % 2; });   // CH 1 / CH 2 = its side
-    add ({ "beat_fx_master", "BEAT FX: MASTER (CH SELECT)", "Efectos", T::button },
+    add ({ "beat_fx_master", "BEAT FX: MASTER (CH SELECT)", "Efectos", T::button, false },
          [this] (int, float v) { if (v > 0.5f) engine.beatFx().target = BX::master; });
-    add ({ "color_fx_next", "SOUND COLOR FX: siguiente", "Efectos", T::button },
+    add ({ "color_fx_next", "SOUND COLOR FX: siguiente", "Efectos", T::button, false },
          [this] (int, float v)
          {
              if (v < 0.5f) return;

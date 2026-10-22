@@ -2187,6 +2187,46 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     rep.check (d2.isReverse() && ! d2.isPlaying(), "SHIFT + botón dispara la capa shift"_u);
     midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
 
+    {
+        // MIDI learn of a high-resolution knob (coarse CC 2 + fine CC 34 per move): one 14-bit control,
+        // not the fine half alone (which would make it jump from end to end).
+        midi.setBindings ({});
+        bool learnt = false;
+        MidiBinding got;
+        midi.startLearn ("effect_wet_1", 0, false, [&] (const MidiBinding& x) { learnt = true; got = x; });
+        midi.inject ("Learn", juce::MidiMessage::controllerEvent (2, 34, 90));
+        midi.inject ("Learn", juce::MidiMessage::controllerEvent (2, 2, 64));
+        midi.inject ("Learn", juce::MidiMessage::controllerEvent (2, 34, 10));
+        midi.finishLearnNow();
+        rep.check (learnt && got.number == 2 && got.lsbNumber == 34 && got.encoding == MidiBinding::Encoding::absolute14,
+                   "Aprender control: una perilla de alta resolución (CC grueso + fino) queda como un solo control de 14 bits"_u,
+                   juce::String (got.number) + "/" + juce::String (got.lsbNumber));
+        bool learnt7 = false;
+        MidiBinding got7;
+        midi.startLearn ("effect_wet_1", 1, false, [&] (const MidiBinding& x) { learnt7 = true; got7 = x; });
+        midi.inject ("Learn", juce::MidiMessage::controllerEvent (2, 40, 90));
+        midi.finishLearnNow();
+        rep.check (learnt7 && got7.number == 40 && got7.lsbNumber < 0 && got7.encoding == MidiBinding::Encoding::absolute7,
+                   "Aprender control: una perilla común (un solo CC) queda de 7 bits"_u);
+
+        // BEAT FX from each deck's own controls: ON sends it to that deck; each knob only moves the level
+        // while the effect is on its deck (two knobs never fight).
+        auto& bx = engine.beatFx();
+        bx.on = false;
+        bx.target = AudioEngine::BeatFxSection::master;
+        actions.trigger ("beat_fx_on_deck", 0, 1.0f);
+        const bool onLeft = bx.on.load() && bx.target.load() == AudioEngine::BeatFxSection::ch1;
+        actions.trigger ("beat_fx_level_deck", 0, 0.8f);
+        actions.trigger ("beat_fx_level_deck", 1, 0.1f);                     // the other deck's knob: ignored
+        const bool levelLeft = std::abs (bx.level.load() - 0.8f) < 1e-6f;
+        actions.trigger ("beat_fx_on_deck", 1, 1.0f);                        // now on the right deck
+        const bool movedRight = bx.on.load() && bx.target.load() == AudioEngine::BeatFxSection::ch2;
+        actions.trigger ("beat_fx_on_deck", 1, 1.0f);                        // again: off
+        rep.check (onLeft && levelLeft && movedRight && ! bx.on.load() && actions.find ("beat_fx_on") != nullptr && ! actions.find ("beat_fx_on")->perDeck,
+                   "BEAT FX por deck: ON lo manda a ese deck, la perilla de cada deck solo mueve el nivel cuando el efecto está en su deck"_u);
+        midi.setBindings (b);
+    }
+
     if (auto inp = ControllerLibrary::findBundled ("DJControl Inpulse 500"))
     {
         // The Inpulse sends another message while its SHIFT is held (deck 2: channel 6). Those

@@ -138,6 +138,7 @@ MidiEngine::MidiEngine (Actions& a) : actions (a)
 
 MidiEngine::~MidiEngine()
 {
+    *alive = false;
     allLightsOff();
     cancelPendingUpdate();
     for (auto& in : inputs) in->stop();
@@ -298,23 +299,32 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
                 b.encoding = (v > 32 && v < 96) ? MidiBinding::Encoding::relativeOffset : MidiBinding::Encoding::relativeTwos;
                 if (info->id == "jog") b.scale = 1.0f / 512.0f;
             }
-            else if (info->type == ControlType::absolute) b.encoding = MidiBinding::Encoding::absolute7;
+            else if (info->type == ControlType::absolute)
+            {
+                // Watch the knob for a moment: coarse + fine messages make a 14-bit control.
+                b.encoding = MidiBinding::Encoding::absolute7;
+                if (! learning->collecting)
+                {
+                    learning->collecting = true;
+                    learning->device = device;
+                    learning->channel = b.channel;
+                    learning->seen = { b.number };
+                    learning->pending = b;
+                    juce::Timer::callAfterDelay (300, [this, flag = alive]
+                    {
+                        if (! *flag || ! learning.has_value() || ! learning->collecting) return;
+                        finishLearn (learning->pending);
+                    });
+                }
+                else if (device == learning->device && b.channel == learning->channel
+                         && std::find (learning->seen.begin(), learning->seen.end(), b.number) == learning->seen.end())
+                    learning->seen.push_back (b.number);
+                return;
+            }
             else                                          b.encoding = MidiBinding::Encoding::button;
         }
 
-        // Replace whatever was on this control/layer before.
-        map.erase (std::remove_if (map.begin(), map.end(), [&] (const MidiBinding& o)
-        {
-            return o.device == b.device && o.channel == b.channel && o.kind == b.kind && o.number == b.number && o.shift == b.shift;
-        }), map.end());
-        map.push_back (b);
-        takeover.clear();
-        sideCache.clear();
-        save();
-
-        auto done = std::move (learning->done);
-        learning.reset();
-        if (done) done (b);
+        finishLearn (b);
         return;
     }
 
@@ -351,6 +361,40 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
             const bool isLsb = b.encoding == MidiBinding::Encoding::absolute14 && b.lsbNumber >= 0 && matches (b, device, m, true);
             if (isLsb || matches (b, device, m, false)) apply (b, i, m);
         }
+}
+
+void MidiEngine::finishLearn (MidiBinding b)
+{
+    if (! learning.has_value()) return;
+    if (learning->collecting)
+    {
+        // CC n with CC n + 32 for the same move: n is the coarse part (MSB), n + 32 the fine one (LSB).
+        const auto& s = learning->seen;
+        for (int n : s)
+            if (n < 32 && std::find (s.begin(), s.end(), n + 32) != s.end())
+            {
+                b.number = n;
+                b.lsbNumber = n + 32;
+                b.encoding = MidiBinding::Encoding::absolute14;
+                break;
+            }
+    }
+
+    // Replace whatever was on this control/layer before (both halves of a 14-bit control).
+    map.erase (std::remove_if (map.begin(), map.end(), [&] (const MidiBinding& o)
+    {
+        const bool sameCtl = o.device == b.device && o.channel == b.channel && o.kind == b.kind && o.shift == b.shift
+                          && (o.number == b.number || (b.lsbNumber >= 0 && o.number == b.lsbNumber));
+        return sameCtl;
+    }), map.end());
+    map.push_back (b);
+    takeover.clear();
+    sideCache.clear();
+    save();
+
+    auto done = std::move (learning->done);
+    learning.reset();
+    if (done) done (b);
 }
 
 int MidiEngine::deckFor (const MidiBinding& b)

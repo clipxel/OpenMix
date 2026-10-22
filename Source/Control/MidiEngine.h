@@ -99,6 +99,8 @@ public:
     /** MIDI Learn: the next control moved on any device is bound to this action. */
     void startLearn (const juce::String& action, int deck, bool shift, std::function<void (const MidiBinding&)> done);
     void cancelLearn();
+    /** Tests: end the short watch of a knob being learnt now, instead of after its delay. */
+    void finishLearnNow()                         { if (learning.has_value() && learning->collecting) finishLearn (learning->pending); }
     bool isLearning() const noexcept { return learning.has_value(); }
 
     /** Per-frame: lights (on / dim / blinking in time / VU meters). The full state is sent again
@@ -151,8 +153,20 @@ private:
     std::map<juce::String, Light> ledSent;                 // device|ch|kind|num → last value sent
 
     std::function<void (const juce::String&, const juce::MidiMessage&)> capture;
-    struct Learn { juce::String action; int deck; bool shift; std::function<void (const MidiBinding&)> done; };
+    struct Learn
+    {
+        juce::String action; int deck; bool shift; std::function<void (const MidiBinding&)> done;
+        // A fader / knob: its messages are watched for a moment, to notice a high-resolution control
+        // that sends a coarse (CC n) and a fine (CC n + 32) message for every move.
+        bool collecting = false;
+        juce::String device;
+        int channel = 0;
+        std::vector<int> seen;
+        MidiBinding pending;
+    };
     std::optional<Learn> learning;
+    void finishLearn (MidiBinding);
+    std::shared_ptr<bool> alive = std::make_shared<bool> (true);
 
     juce::String lastText;
     juce::uint32 lastTime = 0;
