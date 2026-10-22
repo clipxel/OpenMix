@@ -233,8 +233,7 @@ namespace
             { "jogwheel_touch", { "jog_touch", Kind::momentary } }, { "hold", { "jog_touch", Kind::momentary } },
             { "scratch_hold", { "jog_touch", Kind::momentary } },
             // browser
-            { "browser_scroll", { "browser_scroll", Kind::turn } }, { "browser_folder", { "browser_focus", Kind::press } },
-            { "browser_window", { "browser_focus", Kind::press } }, { "browser_switch", { "browser_focus", Kind::press } },
+            { "browser_scroll", { "browser_scroll", Kind::turn } }, { "browser_switch", { "browser_focus", Kind::press } },
             { "load", { "load", Kind::press } },
             // pads
             { "pad_page", { "pad_page", Kind::press } },          { "pad_pages", { "pad_page", Kind::press } },
@@ -264,6 +263,9 @@ namespace
             "effect_button", "effect_beats", "pad", "pad_button_color", "pad_color", "pad_pushed",
             "load_next", "load_previous", "set_firstbeat", "edit_bpm", "reanalyze",
             "fake_mixer", "fake_eq", "fake_gain", "fake_hp", "fake_hpmix", "fake_pfl", "fake_master", "fake_filter", "mixermode",
+            "pioneer_play", "pioneer_cue", "pad_pages", "padshift", "padshift_button_color", "filter_activate", "crossfader_curve",
+            "crossfader_disable", "browser_window", "browser_folder", "browser_enter", "goto_last_folder", "sideview", "browser_geniusdj",
+            "unload", "get_slip_active", "loop_adjust", "setting", "is_using", "pad_param", "pad_param2",
             "get_level", "get_vu_meter", "get_level_left", "get_level_right", "get_vu_meter_left", "get_vu_meter_right",
         };
         return v;
@@ -278,7 +280,7 @@ namespace
 
     int deckOf (const juce::String& spec, int current, const AudioEngine& engine)
     {
-        if (spec.isEmpty() || spec == "active" || spec == "default" || spec == "current" || spec == "this") return current;
+        if (spec.isEmpty() || spec == "active" || spec == "default" || spec == "current" || spec == "this" || spec == "all") return current;
         if (spec == "left" || spec == "leftdeck") return engine.visibleDeck (0);
         if (spec == "right" || spec == "rightdeck") return engine.visibleDeck (1);
         if (spec == "master") { const int m = engine.masterDeck.load(); return m >= 0 ? m : current; }
@@ -806,25 +808,125 @@ bool VdjScript::verb (const juce::String& name, const juce::StringArray& args, C
         return press ("effect_select_" + n);
     }
 
-    // Pads -------------------------------------------------------------------------------------
-    if (name == "pad")
+    // Pioneer-style PLAY / CUE (their lights blink like a club player's) --------------------
+    if (name == "pioneer_play")
+    {
+        if (asQuery)
+        {
+            if (deck.isPlaying()) return true;
+            if (! deck.hasTrack()) return false;
+            hint.level = actions.blinkPhase (d) ? Actions::Led::on : Actions::Led::off;
+            return true;
+        }
+        return press ("play_pause");
+    }
+    if (name == "pioneer_cue")
+    {
+        if (asQuery)
+        {
+            const auto l = actions.ledLevel ("cue_button", d);
+            if (l == Actions::Led::blink) hint.level = actions.blinkPhase (d) ? Actions::Led::on : Actions::Led::off;
+            return l != Actions::Led::off;
+        }
+        return momentary ("cue_button");
+    }
+
+    // Pad pages ("pad_pages 2") and the pads of the page chosen -----------------------------
+    if (name == "pad_pages" || (name == "pad_page" && ! args.isEmpty()))
+    {
+        bool has = false;
+        const int page = (int) arg (0, &has);
+        if (! has) return false;                                         // a page by name ('INP FX'…): not in OpenMix
+        if (asQuery) return vdjPage[(size_t) d] == page;
+        return onPress ([&]
+        {
+            vdjPage[(size_t) d] = page;
+            static const std::map<int, const char*> pages { { 1, "pad_mode_hot_cue" }, { 2, "pad_mode_loop" }, { 3, "pad_mode_saved_loop" },
+                                                            { 4, "pad_mode_sampler" }, { 5, "pad_mode_key" }, { 6, "pad_mode_roll" },
+                                                            { 7, "pad_mode_fx" }, { 8, "pad_mode_jump" }, { 10, "pad_mode_roll" } };
+            if (auto it = pages.find (page); it != pages.end()) fire (it->second, 1.0f);
+        });
+    }
+    if (name == "pad" || name == "padshift")
     {
         const int s = slot();
         if (s < 0) return false;
-        if (asQuery) return actions.isActive ("pad_" + juce::String (s + 1), d);
-        fire ("pad_" + juce::String (s + 1), isButton ? (pressed ? 1.0f : 0.0f) : 1.0f);
+        const auto id = vdjPage[(size_t) d] > 0 ? padAction (d, s, name == "padshift") : juce::String ("pad_" + juce::String (s + 1));
+        if (id.isEmpty()) return false;
+        if (asQuery) return actions.isActive (id, d);
+        const bool held = id.startsWith ("hot_cue_") || id.startsWith ("pad_roll_") || id.startsWith ("pad_") && ! id.startsWith ("pad_loop_") && ! id.startsWith ("pad_jump");
+        if (held) fire (id, isButton ? (pressed ? 1.0f : 0.0f) : 1.0f);
+        else onPress ([&] { fire (id, 1.0f); });
         return true;
     }
-    if (name == "pad_button_color" || name == "pad_color")
+    if (name == "pad_button_color" || name == "pad_color" || name == "padshift_button_color")
     {
         const int s = slot();
         if (s < 0) return false;
-        const auto level = actions.ledLevel ("pad_" + juce::String (s + 1), d);
-        hint.level = level;
-        hint.colour = deck.getHotCue (s) >= 0.0 ? actions.ledColour ("hot_cue_" + juce::String (s + 1), d) : actions.ledColour ("pad_loop_1", d);
+        const auto id = vdjPage[(size_t) d] > 0 ? padAction (d, s, name == "padshift_button_color") : juce::String ("pad_" + juce::String (s + 1));
+        if (id.isEmpty()) return false;
+        const auto level = actions.ledLevel (id, d);
+        hint.level = level == Actions::Led::blink ? (actions.blinkPhase (d) ? Actions::Led::on : Actions::Led::dim) : level;
+        hint.colour = actions.ledColour (id, d);
+        if (hint.colour.isTransparent() && deck.getHotCue (s) >= 0.0) hint.colour = actions.ledColour ("hot_cue_" + juce::String (s + 1), d);
         return level != Actions::Led::off;
     }
+
+    // Mixer FX buttons that choose what the filter knob does -----------------------------------
+    if (name == "filter_activate")
+    {
+        const auto fx = args.isEmpty() ? juce::String() : args[0].unquoted().toLowerCase();
+        const juce::String id = fx.contains ("echo") ? "color_fx_echo" : fx.contains ("noise") ? "color_fx_noise"
+                              : fx.contains ("pitch") || fx.contains ("sweep") ? "color_fx_sweep" : fx.contains ("space") || fx.contains ("reverb") ? "color_fx_space"
+                              : fx.contains ("crush") ? "color_fx_crush" : "color_fx_filter";
+        if (asQuery) return actions.isActive (id, d) && id != "color_fx_filter";
+        return press (id);
+    }
+    if (name == "crossfader_curve")
+    {
+        if (asQuery) return false;
+        const auto c = args.isEmpty() ? juce::String() : args[0].unquoted().toLowerCase();
+        return onPress ([&] { engine.crossfaderCurve = c.contains ("scratch") || c.contains ("cut") ? 1 : c.contains ("power") ? 2 : 0; });
+    }
+    if (name == "crossfader_disable" || name == "loop_adjust" || name == "goto_last_folder" || name == "sideview"
+        || name == "browser_geniusdj" || name == "setting" || name == "is_using")
+        return false;                                                    // nothing like it in OpenMix (yet)
+
+    // Browser zones ------------------------------------------------------------------------------
+    if (name == "browser_window")
+    {
+        const auto zone = args.isEmpty() ? juce::String() : args[0].unquoted().toLowerCase();
+        const bool folders = zone.contains ("folder");
+        if (! folders && ! zone.contains ("song")) return false;        // sideview…: not in OpenMix
+        if (asQuery) return actions.isActive (folders ? "browser_show_folders" : "browser_show_songs", d);
+        return press (folders ? "browser_show_folders" : "browser_show_songs");
+    }
+    if (name == "browser_folder" || name == "browser_enter")
+    {
+        if (asQuery) return false;
+        if (name == "browser_enter" && ! actions.isActive ("browser_show_folders", d)) return press ("load");
+        return press (actions.isActive ("browser_show_folders", d) ? "browser_show_songs" : "browser_show_folders");
+    }
+    if (name == "unload")          { if (asQuery) return ! deck.hasTrack(); return press ("unload"); }
+    if (name == "pad_param" || name == "pad_param2")                       // the pads' size: smaller / bigger
+    {
+        if (asQuery) return false;
+        const bool up = ctx.input == Input::turn ? ctx.value > 0 : (args.isEmpty() || ! args[0].trim().startsWithChar ('-'));
+        return press (up ? "loop_double" : "loop_half");
+    }
+    if (name == "get_slip_active") return deck.getSlipPosition() >= 0.0;
+
+    // Pads -------------------------------------------------------------------------------------
     if (name == "pad_pushed") return isButton && pressed;
+
+    if ((name == "touchwheel" || name == "jogwheel" || name == "jog") && ! args.isEmpty() && args[0].unquoted().containsIgnoreCase ("search"))
+    {
+        if (asQuery) return false;
+        if (! isButton) fire ("jog_search", ctx.value);
+        return true;
+    }
+    if (name == "touchwheel_touch" && ! args.isEmpty() && args[0].unquoted().containsIgnoreCase ("search"))
+        return true;                                                     // searching needs no hold
 
     // Plain verbs: one OpenMix function each ----------------------------------------------
     auto it = verbs().find (name);
@@ -862,6 +964,33 @@ bool VdjScript::verb (const juce::String& name, const juce::StringArray& args, C
         }
     }
     return false;
+}
+
+/** The OpenMix function of pad `pad` (0–7) in the pad page chosen with "pad_pages N" — VirtualDJ's
+    usual pages: 1 HOT CUE, 2 LOOP, 3 SLICER, 4 SAMPLER, 5 KEY, 6 / 10 ROLL, 7 FX, 8 BEAT JUMP. */
+juce::String VdjScript::padAction (int deck, int pad, bool shifted) const
+{
+    const auto n = juce::String (pad + 1);
+    switch (vdjPage[(size_t) juce::jlimit (0, AudioEngine::numDecks - 1, deck)])
+    {
+        case 1:  return (shifted ? "delete_hot_cue_" : "hot_cue_") + n;
+        case 2:  return shifted ? "saved_loop_" + n : "pad_loop_" + n;
+        case 3:  return "saved_loop_" + n;
+        case 5:
+        {
+            static const char* keys[] = { "key_tone_down", "key_down", "key_up", "key_tone_up", "key_reset", "pitch_range", "pitch_range", "key_match" };
+            return keys[pad & 7];
+        }
+        case 6: case 10: return "pad_roll_" + n;
+        case 7:
+        {
+            static const char* fx[]      = { "effect_active_1", "effect_active_2", "effect_active_3", "reverse", "censor", "brake", "backspin", "slip_mode" };
+            static const char* fxShift[] = { "effect_select_1", "effect_select_2", "effect_select_3", "reverse", "censor", "brake", "backspin", "slip_mode" };
+            return (shifted ? fxShift : fx)[pad & 7];
+        }
+        case 8:  return (shifted ? "pad_jump_long_" : "pad_jump_") + n;
+        default: return {};                                              // sampler, or a page OpenMix does not have
+    }
 }
 
 juce::String VdjScript::mainAction (const juce::String& script, int)

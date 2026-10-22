@@ -5,7 +5,7 @@ if(NOT CMAKE_OSX_ARCHITECTURES)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Universal macOS build" FORCE)
 endif()
 
-project(OpenMix VERSION 2.4.0 LANGUAGES C CXX)
+project(OpenMix VERSION 2.4.1 LANGUAGES C CXX)
 if(APPLE)
     enable_language(OBJCXX)
 endif()

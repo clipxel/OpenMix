@@ -26,6 +26,7 @@ public:
     /** Browse knob pushed: switches between the track list and the sidebar (playlists, folders…). */
     void browseFocusToggle();
     bool isBrowsingSidebar() const noexcept        { return browseSidebar; }
+    void setBrowsingSidebar (bool s)               { browseSidebar = s && showSidebar; repaint(); }
     TrackPtr selectedTrack() const;
     std::vector<TrackPtr> selectedTracks() const;
     const std::vector<TrackPtr>& visibleTracks() const noexcept { return rows; }

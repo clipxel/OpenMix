@@ -157,6 +157,19 @@ bool ControllerLibrary::hasHardwareMixer (const juce::String& profileName)
     return false;
 }
 
+std::optional<std::pair<juce::String, juce::var>> ControllerLibrary::findVdjTable (const juce::String& vdjDevice)
+{
+    const auto want = normalise (vdjDevice);
+    if (want.isEmpty()) return std::nullopt;
+    if (auto* arr = bundledLibrary()["mappings"].getArray())
+        for (auto& m : *arr)
+            if (auto* ids = m["vdj"]["device"].getArray())
+                for (auto& id : *ids)
+                    if (normalise (id.toString()) == want || normalise (m["name"].toString()) == want)
+                        return std::pair { m["name"].toString(), m["vdj"]["keys"] };
+    return std::nullopt;
+}
+
 bool ControllerLibrary::hasOwnSoundcard (const juce::String& profileName)
 {
     if (auto* arr = bundledLibrary()["mappings"].getArray())

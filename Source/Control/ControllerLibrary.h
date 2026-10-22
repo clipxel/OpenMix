@@ -69,6 +69,9 @@ public:
     /** True when the controller has its own sound card whose MASTER and headphone knobs work on its
         outputs (no MIDI): OpenMix must play the master on its outputs 1–2 and the headphones on 3–4. */
     static bool hasOwnSoundcard (const juce::String& profileName);
+    /** For a VirtualDJ device id ("HCINP500"): the bundled mapping that knows its control names exactly —
+        (mapping name, { control name → [messages] }). */
+    static std::optional<std::pair<juce::String, juce::var>> findVdjTable (const juce::String& vdjDevice);
     /** Puts back the mapping that ships with OpenMix for this connected controller (undoes edits / imports). */
     bool restoreLibraryMapping (const juce::String& deviceName);
     /** The mapping that ships inside OpenMix for this controller name, if any: (its name, bindings). */

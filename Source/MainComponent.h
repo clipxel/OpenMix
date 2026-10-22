@@ -109,7 +109,9 @@ private:
                                     {
                                         if (page >= 0) viewFor (d).showPadPage (page);
                                         if (note.isNotEmpty()) viewFor (d).showMessage (note, false);
-                                    } } };
+                                    },
+                                    [this] { return libraryView.isBrowsingSidebar(); },
+                                    [this] (bool folders) { libraryView.setBrowsingSidebar (folders); } } };
     om::KeyboardControl keyboard { actions };
     om::AutoMix automix { engine, { [this] (const om::TrackPtr& t, int d) { loadToDeck (t, d); } } };
     om::AutoMixPanel automixPanel { automix, engine,

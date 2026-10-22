@@ -41,6 +41,8 @@ public:
         /** A controller's pad-mode button: show that pad page on screen (0 HOT CUE, 1 ROLL, 2 LOOP,
             3 S.LOOP, 4 JUMP), or −1 with a note for a mode OpenMix has no page for. */
         std::function<void (int deck, int page, const juce::String& note)> padMode;
+        std::function<bool()> browsingFolders;                         // the browse knob is on the sidebar (playlists)
+        std::function<void (bool folders)> browseFolders;              // put it on the sidebar / on the tracks
     };
 
     Actions (AudioEngine&, Hooks);

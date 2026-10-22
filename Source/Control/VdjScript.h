@@ -72,6 +72,8 @@ private:
     std::map<juce::String, double> lastTap;      // control → time of the press before (doubleclick)
     std::map<int, std::array<float, 3>> killed;  // deck → EQ before "eq_kill_*" (high, mid, low)
     Light hint;                                  // set by "dim", "blink", "color" while reading a light
+    std::array<int, AudioEngine::numDecks> vdjPage {};   // pad page chosen with "pad_pages N" (0: none yet)
+    juce::String padAction (int deck, int pad, bool shifted) const;
     std::shared_ptr<bool> alive = std::make_shared<bool> (true);   // long-press timers outliving the engine
 };
 

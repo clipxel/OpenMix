@@ -142,7 +142,10 @@ public:
             const auto r = om::MappingImport::fromFile (juce::File (args[args.indexOf ("--dump-mapping") + 1].unquoted()));
             for (auto& b : r.bindings)
                 std::cout << (b.action + "|" + juce::String (b.deck) + "|" + (b.shift ? "S" : "-") + "|" + juce::String ((int) b.kind)
-                              + "|" + juce::String (b.channel) + "|" + juce::String (b.number) + "|" + juce::String ((int) b.encoding)).toRawUTF8() << std::endl;
+                              + "|" + juce::String (b.channel) + "|" + juce::String (b.number) + "|" + juce::String ((int) b.encoding)
+                              + (b.outputOnly ? "|luz" : "") + (b.script.isNotEmpty() ? "|" + b.script : juce::String())).toRawUTF8() << std::endl;
+            std::cout << "base: " << r.basedOn.toRawUTF8() << " · cambiados: " << r.changed
+                      << " · sin equivalente: " << r.untranslated.joinIntoString (", ").toRawUTF8() << std::endl;
             quit();
             return;
         }

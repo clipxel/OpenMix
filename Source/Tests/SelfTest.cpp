@@ -2763,7 +2763,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
 
         // A VirtualDJ mapper of a natively supported controller: no definition on disk, so the messages
         // come from OpenMix's own mapping for that model and the user's functions go on top.
-        const auto lone = MappingImport::fromMapperOnly (R"(<mapper device="Hercules DJControl Inpulse 500" version="800">
+        const auto lone = MappingImport::fromMapperOnly (R"(<mapper device="DJControl Inpulse 500" version="800">
               <map value="PLAY" action="play_pause"/><map value="CUE" action="cue_stop"/>
               <map value="PAD1" action="hot_cue 2"/><map value="SYNC" action="shift ? key_match : sync"/>
               <map value="MYSTERY_BUTTON" action="play_pause"/><map value="SHIFT_CUE" action="goto_start"/>
@@ -2790,6 +2790,44 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    && hasL ("volume", 0, 2, 0x00) && ! scrL ("pad_page 1", 0, 2, 0x06) && ! scrL ("loop_half", 0, 2, 0x2C)
                    && lone.untranslated.contains ("PLAYLIST") && lone.untranslated.contains ("MASTER_VOLUME"),
                    "Mapper de VirtualDJ: «SHIFT_…» va al mensaje con SHIFT y no pisa el botón SHIFT, el jog no se vuelve botón, la perilla de loop entra / sale"_u);
+        // A mapper of a controller whose VirtualDJ control names OpenMix knows exactly (Inpulse 500:
+        // "HCINP500"): every control and every light gets its script, nothing guessed.
+        {
+            const auto exact = MappingImport::fromMapperOnly (R"(<mapper device="HCINP500" version="850">
+                  <map value="ONINIT" action="fake_master on"/><map value="SHIFT" action="shift"/>
+                  <map value="PLAY_PAUSE" action="pioneer_play"/><map value="SYNC" action="sync"/>
+                  <map value="LED_SYNC" action="loaded ? is_sync"/><map value="PADMODE_LOOP" action="pad_pages 2"/>
+                  <map value="PAD_LOOP_1" action="pad 1"/><map value="LOOP_IN" action="loop_in"/><map value="LOOP_IN_HELD" action="loop 4"/>
+                  <map value="MASTER_VOLUME" action="master_volume"/><map value="MIXER_FX2" action="deck all filter_activate 'Echo'"/></mapper>)");
+            auto has = [&exact] (const char* script, int ch, int num, bool light)
+            {
+                return std::any_of (exact.bindings.begin(), exact.bindings.end(), [=] (const MidiBinding& mb)
+                    { return mb.action == "vdj" && mb.script == script && mb.channel == ch && mb.number == num && mb.outputOnly == light; });
+            };
+            rep.check (exact.basedOn == "Hercules DJControl Inpulse 500" && has ("pioneer_play", 2, 0x07, false) && has ("pioneer_play", 3, 0x07, false)
+                       && has ("loaded ? is_sync", 2, 0x05, true) && has ("pad 1", 8, 0x10, false) && has ("pad_pages 2", 3, 0x10, false)
+                       && has ("holding ? (loop 4) : (loop_in)", 2, 0x09, false) && has ("deck all filter_activate 'Echo'", 1, 0x15, false)
+                       && exact.untranslated.contains ("MASTER_VOLUME") && ! exact.untranslated.contains ("ONINIT"),
+                       "Mapper de VirtualDJ del Inpulse 500 (HCINP500): cada control y cada luz con su script exacto, sin adivinar"_u);
+
+            // And it plays: LOOP pad mode, then pad 1 = loop of ¼ beat; PLAY plays (deck 2).
+            MidiEngine m2 (actions);
+            m2.setBindings (exact.bindings);
+            auto& dk = engine.deck (1);
+            dk.setPlaying (false);
+            dk.exitLoop();
+            run (dk, 0.02);
+            auto tap = [&m2] (int ch, int n) { m2.inject ("Test", juce::MidiMessage::noteOn (ch, n, (juce::uint8) 127)); m2.inject ("Test", juce::MidiMessage::noteOff (ch, n)); };
+            tap (3, 0x10);                                       // PADMODE_LOOP (deck 2)
+            tap (8, 0x10);                                       // PAD_LOOP_1
+            run (dk, 0.02);
+            const bool looped = dk.isLoopActive() && std::abs (dk.getLoopBeats() - 0.25) < 0.01;
+            dk.exitLoop();
+            tap (3, 0x07);                                       // PLAY_PAUSE
+            rep.check (looped && dk.isPlaying(), "Mapper de VirtualDJ del Inpulse 500: «pad_pages 2» + «pad 1» hace el loop del pad, «pioneer_play» reproduce"_u);
+            dk.setPlaying (false);
+        }
+
         const auto unknown = MappingImport::fromMapperOnly (R"(<mapper device="Nobody Knows This 9000"><map value="PLAY" action="play_pause"/></mapper>)");
         rep.check (unknown.bindings.empty() && unknown.missingDefinition, "Mapper sin definición de un controlador desconocido: se avisa que falta la definición"_u);
 
@@ -3158,6 +3196,7 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
         o->setProperty ("bindings", v["bindings"]);
         if ((bool) v["hardwareMixer"]) o->setProperty ("hardwareMixer", true);
         if ((bool) v["soundcard"]) o->setProperty ("soundcard", true);
+        if (v["vdj"].isObject()) o->setProperty ("vdj", v["vdj"]);
         native.insert (ControllerLibrary::normalise (name));
         entries.add (juce::var (o.release()));
         notices.add ("- " + name + (v["author"].toString().isNotEmpty() ? juce::String::fromUTF8 (" — ") + v["author"].toString() : juce::String()));

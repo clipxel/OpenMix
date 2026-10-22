@@ -66,7 +66,7 @@ static void addXmlPair (const juce::File& base, std::vector<Source>& out)
         if (mx == nullptr || ! mx->hasTagName ("mapper")) continue;
         const auto id = mx->getStringAttribute ("device");
         if (std::any_of (out.begin(), out.end(), [&m] (const Source& s) { return s.file == m.getFile(); })) continue;
-        if (ControllerLibrary::findBundled (id))
+        if (ControllerLibrary::findBundled (id) || ControllerLibrary::findVdjTable (id))
             out.push_back ({ id, m.getFile(), {} });
     }
 }
@@ -675,12 +675,93 @@ static juce::String roleOf (const juce::String& controlName, bool& shifted)
     return {};
 }
 
+/** A mapper of a controller whose control names OpenMix knows exactly (the bundled mapping carries
+    VirtualDJ's names → MIDI messages): every control gets its script, and every light ("LED_…") its
+    light script, word for word. Nothing is guessed. */
+static Result fromMapperExact (const juce::XmlElement& mapper, const juce::String& profile, const juce::var& keys)
+{
+    Result r;
+    r.controller = profile;
+    auto base = ControllerLibrary::findBundled (profile);
+    if (! base) return r;
+    r.basedOn = base->first;
+
+    std::map<juce::String, juce::String> scripts;
+    for (auto* m : mapper.getChildWithTagNameIterator ("map"))
+        scripts[m->getStringAttribute ("value").toUpperCase()] = m->getStringAttribute ("action").trim();
+    // A long press that the unit reports as its own control ("LOOP_IN_HELD"): one script with "holding".
+    for (auto& [key, held] : std::map<juce::String, juce::String> (scripts))
+        if (key.endsWith ("_HELD"))
+        {
+            const auto plain = key.dropLastCharacters (5);
+            if (scripts.count (plain) > 0 && held.isNotEmpty())
+                scripts[plain] = "holding ? (" + held + ") : (" + scripts[plain] + ")";
+            scripts.erase (key);
+        }
+
+    auto messageOf = [] (const juce::var& v)
+    {
+        MidiBinding b;
+        b.channel = juce::jlimit (1, 16, (int) v["channel"]);
+        b.kind = v["kind"].toString() == "cc" ? MidiBinding::Kind::cc : MidiBinding::Kind::note;
+        b.number = (int) v["number"];
+        b.deck = (int) v["deck"];
+        const auto e = v["encoding"].toString();
+        b.encoding = e == "abs7" ? MidiBinding::Encoding::absolute7 : e == "abs14" ? MidiBinding::Encoding::absolute14
+                   : e == "rel_twos" ? MidiBinding::Encoding::relativeTwos : e == "rel_offset" ? MidiBinding::Encoding::relativeOffset
+                   : MidiBinding::Encoding::button;
+        b.lsbNumber = (int) v.getProperty ("lsb", -1);
+        b.scale = (float) (double) v.getProperty ("scale", 1.0);
+        b.rgb = v["rgb"].toString() == "hercules" ? MidiBinding::Rgb::hercules : MidiBinding::Rgb::none;
+        b.outputOnly = (bool) v["light"];
+        return b;
+    };
+    auto same = [] (const MidiBinding& a, const MidiBinding& b) { return a.kind == b.kind && a.channel == b.channel && a.number == b.number; };
+
+    std::vector<MidiBinding> lights, inputs;
+    std::vector<MidiBinding> out = base->second;
+    for (auto& [key, script] : scripts)
+    {
+        const auto msgs = keys[key.toRawUTF8()];
+        if (! msgs.isArray())
+        {
+            if (! key.startsWith ("ON") && ! key.startsWith ("DNC_")) r.untranslated.addIfNotAlreadyThere (key);   // ONINIT…: settings of the other program
+            continue;
+        }
+        if (script.isEmpty()) continue;
+        for (auto& v : *msgs.getArray())
+        {
+            auto b = messageOf (v);
+            if (b.outputOnly)
+            {
+                // The light now follows the mapper: OpenMix's own light on that message goes.
+                out.erase (std::remove_if (out.begin(), out.end(), [&] (const MidiBinding& o) { return o.outputOnly && same (o, b); }), out.end());
+                for (auto& o : out) if (same (o, b) && ! o.outputOnly) o.ledOut = false;
+            }
+            else
+                out.erase (std::remove_if (out.begin(), out.end(), [&] (const MidiBinding& o) { return ! o.outputOnly && same (o, b); }), out.end());
+            if (script.equalsIgnoreCase ("shift")) b.action = "shift";
+            else { b.action = "vdj"; b.script = script; }
+            (b.outputOnly ? lights : inputs).push_back (b);
+            ++r.changed;
+        }
+        for (auto& u : VdjScript::unknownVerbs (script)) r.untranslated.addIfNotAlreadyThere (u);
+    }
+    // Lights first: on a message that is both a button and a light, the mapper's light wins.
+    lights.insert (lights.end(), inputs.begin(), inputs.end());
+    lights.insert (lights.end(), out.begin(), out.end());
+    r.bindings = std::move (lights);
+    return r;
+}
+
 Result fromMapperOnly (const juce::String& mapperXml, const juce::String& fallbackName)
 {
     Result r;
     auto mapper = juce::XmlDocument::parse (mapperXml);
     if (mapper == nullptr || ! mapper->hasTagName ("mapper"))
         return r;
+    if (auto table = ControllerLibrary::findVdjTable (mapper->getStringAttribute ("device")))
+        return fromMapperExact (*mapper, table->first, table->second);
     r.controller = mapper->getStringAttribute ("device", fallbackName);
     auto base = ControllerLibrary::findBundled (r.controller);
     if (! base && fallbackName.isNotEmpty()) base = ControllerLibrary::findBundled (fallbackName);
@@ -837,6 +918,38 @@ static int presetDeck (const juce::String& group, const juce::String& key, int s
     return ch <= 1 ? ch : -1;
 }
 
+/** What a button does with SHIFT held, from the mapping's own description of that control. Only
+    clear phrases are used; anything else keeps the function the converter found. */
+static juce::String shiftedFunction (const juce::String& action, const juce::String& description)
+{
+    const auto d = description.toLowerCase();
+    if (! d.contains ("shift")) return action;
+    static const std::set<juce::String> continuous { "jog", "jog_touch", "browser_scroll", "pitch", "volume", "gain", "crossfader",
+                                                     "eq_high", "eq_mid", "eq_low", "filter", "headphone_mix", "headphone_volume", "master_volume" };
+    if (continuous.count (action) > 0) return action;
+    auto says = [&d] (const char* w) { return d.contains (w); };
+    const auto n = action.fromLastOccurrenceOf ("_", false, false);
+    if (action.startsWith ("hot_cue_") && (says ("clear") || says ("delete") || says ("remove"))) return "delete_hot_cue_" + n;
+    if (says ("stutter"))                                        return "stutter";
+    if (says ("reverse"))                                        return "reverse";
+    if (says ("censor"))                                         return "censor";
+    if (says ("brake") || says ("break "))                       return "brake";
+    if (says ("back to start") || says ("to the start") || says ("beginning") || says ("rewind")) return "start_play";
+    if (says ("keylock") || says ("key lock") || says ("master tempo")) return "key_lock";
+    if (says ("quantize"))                                       return "quantize";
+    if (says ("match key") || says ("sync key") || says ("key sync") || says ("key match")) return "key_match";
+    if (says ("loop move back"))                                 return "loop_move_back";
+    if (says ("loop move forward"))                              return "loop_move_fwd";
+    if (says ("loop exit"))                                      return "loop_exit";
+    if (says ("reloop"))                                         return "reloop";
+    if (says ("loop halve") || says ("halve loop") || says ("loop half")) return "loop_half";
+    if (says ("loop double") || says ("double loop"))            return "loop_double";
+    if (says ("instant double") || says ("clone"))               return "instant_doubles";
+    if (says ("master deck") || says ("sync leader") || says ("sync master")) return "master";
+    if (says ("pitch range") || says ("tempo range"))            return "pitch_range";
+    return action;
+}
+
 Result fromPreset (const juce::String& xmlText)
 {
     Result r;
@@ -849,13 +962,14 @@ Result fromPreset (const juce::String& xmlText)
     auto* controls = controller != nullptr ? controller->getChildByName ("controls") : nullptr;
     if (controls == nullptr) return r;
 
-    struct Raw { juce::String group, key; int status, number; bool script, invert, msb, lsb, spread64, diff; };
+    struct Raw { juce::String group, key, description; int status, number; bool script, invert, msb, lsb, spread64, diff; };
     std::vector<Raw> raws;
     for (auto* c : controls->getChildWithTagNameIterator ("control"))
     {
         Raw raw;
         raw.group = c->getChildElementAllSubText ("group", {}).trim();
         raw.key = c->getChildElementAllSubText ("key", {}).trim();
+        raw.description = c->getChildElementAllSubText ("description", {}).trim();
         auto parseNum = [] (juce::String v) { v = v.trim(); return v.startsWithIgnoreCase ("0x") ? v.substring (2).getHexValue32() : v.getIntValue(); };
         raw.status = parseNum (c->getChildElementAllSubText ("status", {}));
         raw.number = parseNum (c->getChildElementAllSubText ("midino", {})) & 0x7F;
@@ -910,6 +1024,9 @@ Result fromPreset (const juce::String& xmlText)
             if (n < 1 || n > 8) continue;
             action = action.replace ("_*", "_" + juce::String (n));
         }
+        // The message a button sends with SHIFT held ("SHIFT + Play: Play Stutter"): its SHIFT
+        // function, not the normal one again.
+        action = shiftedFunction (action, raw.description);
 
         MidiBinding b;
         const int kind = raw.status & 0xF0;

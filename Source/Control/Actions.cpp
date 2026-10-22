@@ -527,6 +527,37 @@ void Actions::build()
     add ({ "browser_scroll", "Navegar biblioteca", "Biblioteca", T::relative, false },
          [this] (int, float v) { if (hooks.browse && std::abs (v) > 0.0f) hooks.browse (v > 0 ? juce::jmax (1, (int) v) : juce::jmin (-1, (int) v)); });
 
+    // SOUND COLOR FX chosen by a button (controllers with FX buttons for the filter knob: Hercules FX 1–4).
+    // Pressing the one that is on goes back to the plain filter.
+    for (auto [id, label, type] : { std::tuple { "color_fx_filter", "Perilla de filtro: FILTER", ChannelStrip::Color::filter },
+                                    std::tuple { "color_fx_space", "Perilla de filtro: SPACE", ChannelStrip::Color::space },
+                                    std::tuple { "color_fx_echo", "Perilla de filtro: DUB ECHO", ChannelStrip::Color::dubEcho },
+                                    std::tuple { "color_fx_sweep", "Perilla de filtro: SWEEP", ChannelStrip::Color::sweep },
+                                    std::tuple { "color_fx_noise", "Perilla de filtro: NOISE", ChannelStrip::Color::noise },
+                                    std::tuple { "color_fx_crush", "Perilla de filtro: CRUSH", ChannelStrip::Color::crush } })
+        add ({ id, label, "Efectos", T::button, false },
+             [this, type] (int, float v)
+             {
+                 if (v < 0.5f) return;
+                 const bool already = engine.channel (0).colorOn.load() && engine.channel (0).colorType.load() == (int) type;
+                 for (int c = 0; c < AudioEngine::numDecks; ++c)
+                 {
+                     engine.channel (c).colorType = (int) (already ? ChannelStrip::Color::filter : type);
+                     engine.channel (c).colorOn = true;
+                 }
+             },
+             [this, type] (int) { return engine.channel (0).colorOn.load() && engine.channel (0).colorType.load() == (int) type; });
+
+    add ({ "unload", "Expulsar el tema del deck", "Transporte", T::button },
+         [=] (int d, float v) { if (pressed (v) && ! deck (d).isPlaying()) deck (d).setTrack (nullptr); });
+
+    add ({ "browser_show_folders", "Biblioteca: ir a las playlists / carpetas", "Biblioteca", T::button, false },
+         [this] (int, float v) { if (v > 0.5f && hooks.browseFolders) hooks.browseFolders (true); },
+         [this] (int) { return hooks.browsingFolders && hooks.browsingFolders(); });
+    add ({ "browser_show_songs", "Biblioteca: ir a los temas", "Biblioteca", T::button, false },
+         [this] (int, float v) { if (v > 0.5f && hooks.browseFolders) hooks.browseFolders (false); },
+         [this] (int) { return ! (hooks.browsingFolders && hooks.browsingFolders()); });
+
     add ({ "browser_focus", "Biblioteca: pasar de los temas a las playlists (y volver)", "Biblioteca", T::button, false },
          [this] (int, float v) { if (v > 0.5f && hooks.browseFocus) hooks.browseFocus(); });
 
