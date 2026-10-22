@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../../Engine/AudioEngine.h"
+
 #include "../Components/Controls.h"
 #include "../../Engine/Deck.h"
 
@@ -49,7 +51,7 @@ private:
 class WaveformStrip : public juce::Component
 {
 public:
-    WaveformStrip (Deck& a, Deck& b);
+    explicit WaveformStrip (AudioEngine&);       // the two decks on screen (1 or 3 on top, 2 or 4 below)
 
     void refresh();
     void setLaneHeight (int h)                    { laneHeight = h; }
@@ -61,11 +63,13 @@ public:
     void zoomBy (double factor);
 
 private:
-    Deck& deckA;
-    Deck& deckB;
+    AudioEngine& engine;
+    Deck& top()                                   { return engine.deck (engine.visibleDeck (0)); }
+    Deck& bottom()                                { return engine.deck (engine.visibleDeck (1)); }
     juce::Rectangle<int> phaseArea;
     double lastDelta = 9.0;
-    ScrollingWaveform laneA, laneB;
+    std::array<std::unique_ptr<ScrollingWaveform>, AudioEngine::numDecks> lanes;
+    std::pair<int, int> shown { -1, -1 };
     Button zoomIn { {}, Icon::plus, Button::Style::ghost }, zoomOut { {}, Icon::minus, Button::Style::ghost };
     double secondsVisible = 8.0;
     int laneHeight = 76;

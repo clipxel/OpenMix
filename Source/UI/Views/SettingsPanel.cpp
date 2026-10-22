@@ -24,8 +24,9 @@ public:
 
         const auto* info = panel.actions != nullptr ? panel.actions->find (b.action) : nullptr;
         Text::draw (g, b.describeControl(), r.removeFromLeft (150), font (Type::label), colour (Col::textSecondary));
-        Text::draw (g, info != nullptr ? info->label : b.action + " (desconocida)", r.removeFromLeft (210),
-                    font (Type::body, Weight::medium), info != nullptr ? colour (Col::textPrimary) : colour (Col::error));
+        const bool script = b.action == "vdj";
+        Text::draw (g, script ? juce::String ("VDJ: ") + b.script : info != nullptr ? info->label : b.action + " (desconocida)", r.removeFromLeft (210),
+                    font (Type::body, Weight::medium), script || info != nullptr ? colour (Col::textPrimary) : colour (Col::error));
         Text::draw (g, b.deck >= 0 ? "Deck " + juce::String (b.deck + 1) : juce::String ("Global"), r.removeFromLeft (70),
                     font (Type::label), b.deck >= 0 ? Theme::get().deckColour (b.deck) : colour (Col::textTertiary));
         Text::draw (g, b.device == "*" ? juce::String ("Cualquier dispositivo") : b.device, r, font (Type::label), colour (Col::textTertiary));
@@ -174,12 +175,12 @@ void SettingsPanel::setControllerLibrary (ControllerLibrary* lib)
     };
 }
 
-void SettingsPanel::importMapping (const juce::File& file, const juce::String& controllerHint)
+void SettingsPanel::importMapping (const juce::Array<juce::File>& files, const juce::String& controllerHint)
 {
     if (midi == nullptr) return;
     MappingImport::Result r;
-    if (file != juce::File())
-        r = MappingImport::fromFile (file);
+    if (! files.isEmpty())
+        r = MappingImport::fromFiles (files);
     else
         for (auto& s : MappingImport::findInstalled())
             if (s.controller == controllerHint) { r = MappingImport::convert (s); break; }
@@ -187,7 +188,10 @@ void SettingsPanel::importMapping (const juce::File& file, const juce::String& c
 
     if (r.bindings.empty())
     {
-        learnStatus = juce::String::fromUTF8 ("No se pudo leer ningún control de ese archivo");
+        learnStatus = r.missingDefinition
+            ? juce::String::fromUTF8 ("Ese archivo es solo el \"mapper\" de ") + r.controller
+              + juce::String::fromUTF8 (": falta la definición del controlador (archivo de la carpeta Devices). Elegí los dos archivos juntos")
+            : juce::String::fromUTF8 ("No se pudo leer ningún control de ese archivo (formatos: VirtualDJ .xml, Mixxx .midi.xml, rekordbox .csv)");
         repaint();
         return;
     }
@@ -200,8 +204,11 @@ void SettingsPanel::importMapping (const juce::File& file, const juce::String& c
         if (ControllerLibrary::nameMatches (d, r.controller)) target = d;
     if (target == "*" && connected.size() == 1) target = connected[0];
     midi->installMapping (target, r.bindings);
-    learnStatus = juce::String::fromUTF8 ("Importado: ") + juce::String ((int) r.bindings.size())
-                + juce::String::fromUTF8 (" asignaciones") + (r.untranslated.isEmpty() ? juce::String()
+    learnStatus = (r.basedOn.isNotEmpty()
+                     ? juce::String::fromUTF8 ("Importado sobre el mapeo de OpenMix para ") + r.basedOn + ": "
+                       + juce::String (r.changed) + juce::String::fromUTF8 (" controles con tus funciones")
+                     : juce::String::fromUTF8 ("Importado: ") + juce::String ((int) r.bindings.size())
+                       + juce::String::fromUTF8 (" asignaciones")) + (r.untranslated.isEmpty() ? juce::String()
                 : juce::String::fromUTF8 (" · ") + juce::String (r.untranslated.size()) + juce::String::fromUTF8 (" funciones sin equivalente en OpenMix"));
     bindingBox.updateContent();
     repaint();
@@ -232,20 +239,39 @@ void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* 
         for (size_t i = 0; i < found.size(); ++i)
             menu.addItem ((int) i + 1, found[i].controller);
         menu.addSeparator();
-        menu.addItem (100000, juce::String::fromUTF8 ("Elegir archivo (.csv o .xml)…"));
-        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (importBtn), [this, found] (int r)
+        menu.addItem (100000, juce::String::fromUTF8 ("Elegir archivo (VirtualDJ, Mixxx, rekordbox: .xml o .csv)…"));
+        // Undo an import or edits: back to the mapping that ships with OpenMix.
+        juce::StringArray restorable;
+        if (midi != nullptr)
+            for (auto& d : midi->connectedInputs())
+                if (auto b = ControllerLibrary::findBundled (d)) restorable.add (d);
+        if (! restorable.isEmpty()) menu.addSeparator();
+        for (int i = 0; i < restorable.size(); ++i)
+            menu.addItem (200000 + i, juce::String::fromUTF8 ("Volver al mapeo de OpenMix: ") + restorable[i]);
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (importBtn), [this, found, restorable] (int r)
         {
+            if (r >= 200000 && r - 200000 < restorable.size())
+            {
+                const auto device = restorable[r - 200000];
+                const bool ok = controllerLib != nullptr && controllerLib->restoreLibraryMapping (device);
+                learnStatus = ok ? juce::String::fromUTF8 ("Mapeo de OpenMix restaurado: ") + device
+                                 : juce::String::fromUTF8 ("No se pudo restaurar el mapeo");
+                bindingBox.updateContent();
+                repaint();
+                return;
+            }
             if (r == 100000)
             {
                 importChooser = std::make_unique<juce::FileChooser> (juce::String::fromUTF8 ("Mapeo de otro programa"), juce::File(), "*.csv;*.xml");
-                importChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                                            [this] (const juce::FileChooser& fc) { if (fc.getResult().existsAsFile()) importMapping (fc.getResult(), {}); });
+                importChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
+                                              | juce::FileBrowserComponent::canSelectMultipleItems,
+                                            [this] (const juce::FileChooser& fc) { if (! fc.getResults().isEmpty()) importMapping (fc.getResults(), {}); });
             }
             else if (juce::isPositiveAndBelow (r - 1, (int) found.size()))
             {
                 const auto& s = found[(size_t) (r - 1)];
                 auto res = MappingImport::convert (s);
-                importMapping ({}, s.controller);
+                importMapping (juce::Array<juce::File>(), s.controller);
                 juce::ignoreUnused (res);
             }
         });
@@ -401,6 +427,8 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     learnShift.setBounds (row.removeFromLeft (120));
     row.removeFromLeft (Space::md);
     cancelLearnBtn.setBounds (row.removeFromLeft (90));
+    c.removeFromTop (Space::xs);
+    ctrlStatusArea = c.removeFromTop (18);
     c.removeFromTop (Space::xl + 2);
     ctrlListArea = c;
     bindingBox.setBounds (c);
@@ -658,8 +686,7 @@ void SettingsPanel::paint (juce::Graphics& g)
                         mon.removeFromTop (18.0f), font (Type::label), recent ? colour (Col::play) : colour (Col::textTertiary));
 
             if (learnStatus.isNotEmpty())
-                Text::draw (g, learnStatus, learnBtn.getBounds().toFloat().withX ((float) cancelLearnBtn.getRight() + 12.0f)
-                                                .withRight ((float) content.getRight()),
+                Text::draw (g, learnStatus, ctrlStatusArea.toFloat(),
                             font (Type::label, Weight::medium), midi->isLearning() ? colour (Col::warning) : colour (Col::play));
 
             Text::draw (g, juce::String ((int) midi->bindings().size()) + juce::String::fromUTF8 (" mapeos · clic derecho o ⌫ para borrar"),

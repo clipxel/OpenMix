@@ -6,7 +6,6 @@
 #include "BeatFx.h"
 #include "Recorder.h"
 #include "MasterLimiter.h"
-#include "Rmx.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 
@@ -22,8 +21,46 @@ class AudioEngine : public juce::AudioIODeviceCallback,
                     private juce::Timer
 {
 public:
-    static constexpr int numDecks = 2;
-    static constexpr int numFxSlots = 3;   // per deck
+    static constexpr int numDecks = 4;
+
+    /** Two decks are on screen at a time, as on a 2-deck controller: the left side shows deck 1 or 3,
+        the right side deck 2 or 4 (a button swaps them). Controllers without their own deck buttons
+        drive the deck their side shows. */
+    int  visibleDeck (int side) const noexcept    { return visible[(size_t) juce::jlimit (0, 1, side)].load(); }
+    bool isVisible (int deck) const noexcept      { return visibleDeck (deck % 2) == deck; }
+    void showDeck (int deck) noexcept             { if (juce::isPositiveAndBelow (deck, numDecks)) visible[(size_t) (deck % 2)] = deck; }
+    void swapSide (int side) noexcept             { const int s = juce::jlimit (0, 1, side); showDeck (visibleDeck (s) == s ? s + 2 : s); }
+    /** The deck this one mixes against: the one on screen on the other side. */
+    int  otherDeck (int deck) const noexcept      { return visibleDeck (1 - deck % 2); }
+    static constexpr int numFxSlots = 1;   // per channel: the processor the BEAT FX section drives
+    static constexpr int numDeckFx = 3;    // per deck: the effect units of controllers that have FX on each side
+
+    /** BEAT FX section of a club mixer (one effect for the whole mixer): pick the effect, the channel it
+        goes on (CH1, CH2, crossfader side A or B, or the master), the beat, LEVEL/DEPTH, and ON/OFF.
+        FX FREQUENCY chooses which bands (LOW / MID / HI) go through the effect; the rest stays dry.
+        UI / MIDI write these; the audio thread copies them onto the processors every block. */
+    struct BeatFxSection
+    {
+        enum Target { ch1 = 0, ch2, xfA, xfB, master, numTargets };
+        std::atomic<int>   type { (int) BeatFx::Type::echo };
+        std::atomic<float> param { BeatFx::defaultParam (BeatFx::Type::echo) };
+        std::atomic<float> level { BeatFx::defaultLevel (BeatFx::Type::echo) };
+        std::atomic<bool>  on { false };
+        std::atomic<int>   target { master };
+        std::array<std::atomic<bool>, 3> bands { true, true, true };   // LOW · MID · HI
+        std::atomic<float> timeMs { 0.0f };       // TIME knob (0 = follow BEAT)
+        std::atomic<float> tapBpm { 0.0f };       // TAP (0 = AUTO: the tempo of the track)
+        /** BEAT ◀ ▶: back to beat sync, one step. */
+        void stepBeat (int dir) { timeMs = 0.0f; param = BeatFx::stepBeat ((BeatFx::Type) type.load(), param.load(), dir); }
+        /** TAP: three or more taps in time set the BPM the effect runs on. */
+        void tap();
+        double lastTap = 0.0;
+        std::array<double, 8> tapGaps {};
+        int tapCount = 0;
+        /** Pick another effect: switches off (as on the mixer) and loads its usual beat and level. */
+        void select (BeatFx::Type t) { on = false; type = (int) t; param = BeatFx::defaultParam (t); level = BeatFx::defaultLevel (t); timeMs = 0.0f; }
+        static juce::String targetName (int t);
+    };
 
     enum class DeviceStatus { initialising, running, error, disconnected, unavailable };
 
@@ -37,8 +74,11 @@ public:
 
     Deck&         deck (int i)       { return *decks[(size_t) i]; }
     ChannelStrip& channel (int i)    { return channels[(size_t) i]; }
-    BeatFx&       fx (int deckIndex, int slot) { return fxSlots[(size_t) deckIndex][(size_t) slot]; }
-    RmxUnit&      rmx (int deckIndex)  { return rmxUnits[(size_t) deckIndex]; }
+    BeatFxSection& beatFx()          { return beatFxSection; }
+    /** A deck's own effects (controllers with FX1 / FX2 units, one per side): post-fader, after BEAT FX. */
+    BeatFx&       deckFx (int deckIndex, int slot) { return deckFxSlots[(size_t) deckIndex][(size_t) slot]; }
+    /** AUTOMIX drives the section itself while it mixes (the DJ's settings come back afterwards). */
+    BeatFx&       fx (int deckIndex, int) { return fxSlots[(size_t) deckIndex][0]; }
     Recorder&     recorder()         { return rec; }
     MeterState&   masterMeter()      { return master; }
 
@@ -52,6 +92,7 @@ public:
         autoXfPerSecond = (float) (2.0 / juce::jmax (0.1, seconds));
     }
     std::atomic<float> autoXfTarget { 0.0f }, autoXfPerSecond { 0.0f };
+    std::atomic<bool>  autoMixFx { false };        // AUTOMIX is driving the channel FX itself
     std::atomic<int>   crossfaderCurve { 0 };     // 0 dipless, 1 sharp, 2 constant power
     std::atomic<float> cueMix { 0.0f };           // 0 cue … 1 master (headphones)
     std::atomic<float> phonesDb { 0.0f };
@@ -72,12 +113,9 @@ public:
         (message thread). Refuses if the deck is playing. */
     void loadTrack (int deckIndex, const juce::File&, TrackMeta, LoadCallback);
     bool isLoading (int deckIndex) const noexcept { return loading[(size_t) deckIndex].load(); }
+    /** The track being loaded has no analysis yet: its beat grid is being detected now. */
+    bool isAnalysingOnLoad (int deckIndex) const noexcept { return analysingOnLoad[(size_t) deckIndex].load(); }
 
-    /** Loads a user sound onto an RMX X-pad (decoded and resampled on a worker thread).
-        An empty file restores the built-in sound. */
-    void loadRmxSample (int deckIndex, int pad, const juce::File&, LoadCallback);
-    /** X-PAD TONE (semitones) and SPEED (ratio) for a deck; the sounds are re-rendered in the background. */
-    void setRmxToneSpeed (int deckIndex, float semitones, float speed);
     /** Opens every output channel of the current card (routing picks the pairs). */
     void enableAllOutputs();
     std::function<void (int deck, const juce::File&)> onTrackLoaded;
@@ -97,10 +135,11 @@ public:
     /** Output routing (Settings ▸ Audio): what goes to which channel pair of the card.
         `…Channel` = first channel of a stereo pair (0 = chan 1 & 2). With splitMono ("Y" splitter) a
         stereo output carries the master in mono on the left and the headphones in mono on the right. */
+    int outputChannelCount() const noexcept { return numOutputs.load(); }
     enum OutputMode { speakersOnly = 0, speakersPhones = 1, separateDecks = 2 };
     std::atomic<int>  outputMode { speakersPhones };
     std::atomic<int>  masterChannel { 0 }, phonesChannel { 2 };
-    std::array<std::atomic<int>, numDecks> deckChannel { 0, 2 };
+    std::array<std::atomic<int>, numDecks> deckChannel { 0, 2, 4, 6 };   // decks 3–4: their side's pair if the card has fewer
     std::atomic<bool> splitMono { false };
     double getSampleRate() const noexcept         { return currentRate.load(); }
     int    getBufferSize() const noexcept         { return currentBlock.load(); }
@@ -127,20 +166,33 @@ private:
     juce::AudioDeviceManager deviceManager;
     juce::AudioFormatManager formatManager;
 
+    std::array<std::atomic<int>, 2> visible { 0, 1 };
     std::array<std::unique_ptr<Deck>, numDecks> decks;
     std::array<ChannelStrip, numDecks> channels;
     std::array<std::array<BeatFx, numFxSlots>, numDecks> fxSlots;
-    std::array<RmxUnit, numDecks> rmxUnits;
+    BeatFxSection beatFxSection;
+    std::array<std::array<BeatFx, numDeckFx>, numDecks> deckFxSlots;
+    BeatFx masterFx;
+    /** FX FREQUENCY: splits a signal into LOW / MID / HI so only the chosen bands feed the effect. */
+    struct BandSplit
+    {
+        juce::dsp::LinkwitzRileyFilter<float> lowSplit, highSplit, lowAllpass;
+        void prepare (double sr, int block);
+        /** Moves the bands not in `keep` from (l, r) into (restL, restR). */
+        void split (float* l, float* r, float* restL, float* restR, int n, const std::array<bool, 3>& keep);
+    };
+    std::array<BandSplit, numDecks + 1> fxBands;               // channels + master
+    juce::AudioBuffer<float> fxRest;
+    void runBeatFx (BeatFx&, BandSplit&, float* l, float* r, int n, const Deck& clock);
     MeterState master;
     MasterLimiter masterLimiter;
     Recorder rec;
 
     juce::AudioBuffer<float> deckBuf, cueBuf, masterBuf, sepBuf;
     juce::ThreadPool loaderPool { juce::ThreadPoolOptions{}.withNumberOfThreads (2).withThreadName ("OpenMix loader") };
-    std::array<std::atomic<bool>, numDecks> loading {};
+    std::array<std::atomic<bool>, numDecks> loading {}, analysingOnLoad {};
     std::array<int, numDecks> loadGeneration {};
     std::shared_ptr<bool> alive = std::make_shared<bool> (true);
-    std::array<std::atomic<int>, numDecks> rmxRenderGen {};
 
     std::atomic<juce::uint64> callbackCount { 0 };
     juce::uint64 lastSeenCount = 0;

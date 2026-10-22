@@ -76,6 +76,9 @@ public:
     const std::vector<TrackPtr>& tracks() const noexcept   { return all; }
     TrackPtr find (const juce::String& path) const;
     TrackPtr addFile (const juce::File&);                  // e.g. dropped from Finder
+    /** Adds a track that already exists outside the collection (EXPLORADOR) keeping what it already
+        knows: an analysis done there is not repeated. */
+    TrackPtr addTrack (const TrackPtr&);
 
     // Folders
     const juce::Array<juce::File>& folders() const noexcept { return watched; }

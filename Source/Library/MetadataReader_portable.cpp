@@ -29,8 +29,14 @@ static juce::String decodeText (const juce::uint8* p, int n)
         juce::String out;
         for (int i = 0; i + 1 < n; i += 2)
         {
-            const auto c = (juce::juce_wchar) (bigEndian ? (p[i] << 8 | p[i + 1]) : (p[i + 1] << 8 | p[i]));
+            auto at = [&] (int k) { return (juce::juce_wchar) (bigEndian ? (p[k] << 8 | p[k + 1]) : (p[k + 1] << 8 | p[k])); };
+            auto c = at (i);
             if (c == 0) break;
+            if (c >= 0xd800 && c < 0xdc00 && i + 3 < n && at (i + 2) >= 0xdc00 && at (i + 2) < 0xe000)
+            {
+                c = 0x10000 + ((c - 0xd800) << 10) + (at (i + 2) - 0xdc00);      // surrogate pair (emoji…)
+                i += 2;
+            }
             out += juce::String::charToString (c);
         }
         return out.trim();

@@ -40,8 +40,17 @@ namespace
                 juce::String s;
                 for (size_t i = 0; i + 1 < n; i += 2)
                 {
-                    const auto c = (juce::juce_wchar) (p[o + 4 + i] | (p[o + 5 + i] << 8));
+                    auto c = (juce::juce_wchar) (p[o + 4 + i] | (p[o + 5 + i] << 8));
                     if (c == 0) break;
+                    if (c >= 0xd800 && c < 0xdc00 && i + 3 < n)          // surrogate pair (emoji…)
+                    {
+                        const auto lo = (juce::juce_wchar) (p[o + 6 + i] | (p[o + 7 + i] << 8));
+                        if (lo >= 0xdc00 && lo < 0xe000)
+                        {
+                            c = 0x10000 + ((c - 0xd800) << 10) + (lo - 0xdc00);
+                            i += 2;
+                        }
+                    }
                     s += juce::String::charToString (c);
                 }
                 return s;

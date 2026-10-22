@@ -12,15 +12,13 @@ AudioEngine::AudioEngine()
     for (int i = 0; i < numDecks; ++i)
         decks[(size_t) i] = std::make_unique<Deck> (i);
 
-    for (auto& deckSlots : fxSlots)
-    {
+    for (auto& slots : deckFxSlots)
         for (auto [slot, t] : { std::pair { 0, BeatFx::Type::echo }, std::pair { 1, BeatFx::Type::reverb }, std::pair { 2, BeatFx::Type::filter } })
         {
-            deckSlots[(size_t) slot].type = (int) t;
-            deckSlots[(size_t) slot].param = BeatFx::defaultParam (t);
-            deckSlots[(size_t) slot].wet = BeatFx::defaultLevel (t);
+            slots[(size_t) slot].type = (int) t;
+            slots[(size_t) slot].param = BeatFx::defaultParam (t);
+            slots[(size_t) slot].wet = BeatFx::defaultLevel (t);
         }
-    }
 
     deviceManager.addChangeListener (this);
     startTimerHz (5);
@@ -81,6 +79,7 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
 
     const int generation = ++loadGeneration[(size_t) deckIndex];
     loading[(size_t) deckIndex] = true;
+    analysingOnLoad[(size_t) deckIndex] = ! meta.knownGrid.isValid();
     sendChangeMessage();
 
     auto aliveFlag = alive;
@@ -94,12 +93,12 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
             error = "Formato no soportado o archivo ilegible";
         else if (reader->lengthInSamples <= 0 || reader->sampleRate <= 0)
             error = "El archivo no contiene audio";
-        else if ((double) reader->lengthInSamples / reader->sampleRate > 60.0 * 45.0)
-            error = "Pista demasiado larga (máx. 45 min)"_u;
+        else if (reader->lengthInSamples >= std::numeric_limits<int>::max() - (int) reader->sampleRate)
+            error = "Pista demasiado larga"_u;
         else
         {
             const int len = (int) reader->lengthInSamples;
-            const int lead = Analysis::mp3TrimmedLeadSamples (file);   // same timeline as club players
+            const int lead = Analysis::mp3TrimmedLeadSamples (file, *reader);   // same timeline as club players
             result->file = file;
             result->meta = meta;
             result->sampleRate = reader->sampleRate;
@@ -156,81 +155,76 @@ float AudioEngine::autoGainTrimFor (const LoadedTrack& t) const
     return (float) juce::jlimit (-12.0, 6.0, (double) autoGainTargetLufs.load() - t.loudnessLufs);   // gentle boosts only
 }
 
-void AudioEngine::loadRmxSample (int deckIndex, int pad, const juce::File& file, LoadCallback cb)
+juce::String AudioEngine::BeatFxSection::targetName (int t)
 {
-    if (file == juce::File())
+    switch (t)
     {
-        rmx (deckIndex).setSample (pad, nullptr, {});
-        if (cb) cb (true, {});
-        return;
+        case ch1: return "1";
+        case ch2: return "2";
+        case xfA: return "XF-A";
+        case xfB: return "XF-B";
+        default:  return "MASTER";
     }
-    const double outRate = currentRate.load() > 0.0 ? currentRate.load() : 48000.0;
-    auto aliveFlag = alive;
-    loaderPool.addJob ([this, aliveFlag, deckIndex, pad, file, outRate, cb]
-    {
-        std::shared_ptr<juce::AudioBuffer<float>> buf;
-        juce::String error;
-        std::unique_ptr<juce::AudioFormatReader> reader (formatManager.createReaderFor (file));
-        if (reader == nullptr) error = "Formato no soportado";
-        else
-        {
-            const int len = (int) std::min (reader->lengthInSamples, (juce::int64) (reader->sampleRate * 10.0));  // ≤ 10 s
-            juce::AudioBuffer<float> src (2, len);
-            src.clear();
-            reader->read (&src, 0, len, 0, true, reader->numChannels > 1);
-            if (reader->numChannels == 1) src.copyFrom (1, 0, src, 0, 0, len);
-            const double ratio = reader->sampleRate / outRate;
-            const int outLen = (int) std::floor ((len - 1) / ratio);
-            buf = std::make_shared<juce::AudioBuffer<float>> (2, juce::jmax (1, outLen));
-            const auto& rs = SincResampler::get();
-            for (int c = 0; c < 2; ++c)
-                for (int i = 0; i < outLen; ++i)
-                    buf->setSample (c, i, rs.interpolate (src.getReadPointer (c), len, i * ratio, ratio));
-        }
-        juce::MessageManager::callAsync ([this, aliveFlag, deckIndex, pad, buf, error, file, cb]
-        {
-            if (! *aliveFlag) return;
-            if (error.isEmpty())
-            {
-                rmx (deckIndex).setSample (pad, buf, file.getFullPathName());
-                if (rmx (deckIndex).needsProcessing())       // re-render with the current TONE / SPEED
-                    setRmxToneSpeed (deckIndex, rmx (deckIndex).getTone(), rmx (deckIndex).getSpeed());
-            }
-            if (cb) cb (error.isEmpty(), error);
-        });
-    });
 }
 
-void AudioEngine::setRmxToneSpeed (int deckIndex, float semitones, float speed)
+void AudioEngine::BeatFxSection::tap()
 {
-    auto& u = rmx (deckIndex);
-    u.setToneAndSpeed (juce::jlimit (-12.0f, 12.0f, semitones), juce::jlimit (0.5f, 2.0f, speed));
-    const int gen = ++rmxRenderGen[(size_t) deckIndex];
-    if (! u.needsProcessing())
-    {
-        u.setProcessed ({});
-        return;
-    }
-    std::array<std::shared_ptr<const juce::AudioBuffer<float>>, RmxUnit::numDrums> sources;
-    for (int p = 0; p < RmxUnit::numDrums; ++p) sources[(size_t) p] = u.sourceFor (p);
-    const double rate = u.sampleRate();
-    const float t = u.getTone(), s = u.getSpeed();
-    auto aliveFlag = alive;
-    loaderPool.addJob ([this, aliveFlag, deckIndex, gen, sources, rate, t, s]
-    {
-        juce::Thread::sleep (60);                                   // knob still moving: render only the last value
-        std::array<std::shared_ptr<juce::AudioBuffer<float>>, RmxUnit::numDrums> out;
-        for (int p = 0; p < RmxUnit::numDrums; ++p)
+    const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    const double gap = now - lastTap;
+    lastTap = now;
+    if (gap < 0.2 || gap > 2.0) { tapCount = 0; return; }          // 30 … 300 BPM; a long pause starts over
+    tapGaps[(size_t) (tapCount % (int) tapGaps.size())] = gap;
+    ++tapCount;
+    if (tapCount < 2) return;
+    const int k = juce::jmin (tapCount, (int) tapGaps.size());
+    double sum = 0;
+    for (int i = 0; i < k; ++i) sum += tapGaps[(size_t) i];
+    tapBpm = (float) (60.0 * k / sum);
+    timeMs = 0.0f;
+}
+
+void AudioEngine::BandSplit::prepare (double sr, int block)
+{
+    juce::dsp::ProcessSpec spec { sr, (juce::uint32) juce::jmax (1, block), 2 };
+    lowSplit.prepare (spec);   lowSplit.setCutoffFrequency (300.0f);
+    highSplit.prepare (spec);  highSplit.setCutoffFrequency (3000.0f);
+    lowAllpass.prepare (spec); lowAllpass.setCutoffFrequency (3000.0f);
+    lowAllpass.setType (juce::dsp::LinkwitzRileyFilterType::allpass);
+}
+
+void AudioEngine::BandSplit::split (float* l, float* r, float* restL, float* restR, int n, const std::array<bool, 3>& keep)
+{
+    float* io[2] = { l, r };
+    float* rest[2] = { restL, restR };
+    for (int c = 0; c < 2; ++c)
+        for (int i = 0; i < n; ++i)
         {
-            if (rmxRenderGen[(size_t) deckIndex].load() != gen) return;
-            if (sources[(size_t) p] != nullptr) out[(size_t) p] = RmxUnit::render (*sources[(size_t) p], rate, t, s);
+            float lo, above, mid, hi;
+            lowSplit.processSample (c, io[c][i], lo, above);
+            highSplit.processSample (c, above, mid, hi);
+            lo = lowAllpass.processSample (c, lo);
+            io[c][i]   = (keep[0] ? lo : 0.0f) + (keep[1] ? mid : 0.0f) + (keep[2] ? hi : 0.0f);
+            rest[c][i] = (keep[0] ? 0.0f : lo) + (keep[1] ? 0.0f : mid) + (keep[2] ? 0.0f : hi);
         }
-        juce::MessageManager::callAsync ([this, aliveFlag, deckIndex, gen, out]
-        {
-            if (! *aliveFlag || rmxRenderGen[(size_t) deckIndex].load() != gen) return;
-            rmx (deckIndex).setProcessed (out);
-        });
-    });
+}
+
+void AudioEngine::runBeatFx (BeatFx& fx, BandSplit& bands, float* l, float* r, int n, const Deck& clock)
+{
+    const std::array<bool, 3> keep { beatFxSection.bands[0].load(), beatFxSection.bands[1].load(), beatFxSection.bands[2].load() };
+    const bool allBands = (keep[0] && keep[1] && keep[2]) || ! fx.enabled.load();
+    float* restL = fxRest.getWritePointer (0);
+    float* restR = fxRest.getWritePointer (1);
+    // The splitter keeps running (cheap) so switching bands never clicks.
+    if (! allBands) bands.split (l, r, restL, restR, n, keep);
+    // TAP: the effect runs on the tapped tempo, on its own clock. AUTO: on the track's grid.
+    const float tapped = (&fx == &masterFx || &fx == &fxSlots[0][0] || &fx == &fxSlots[1][0]) ? beatFxSection.tapBpm.load() : 0.0f;
+    if (tapped > 0.0f && ! autoMixFx.load()) fx.process (l, r, n, tapped);
+    else fx.process (l, r, n, clock.getRenderedBpm(), clock.audioBlockBeat(), clock.audioBeatsPerSample());
+    if (! allBands)
+    {
+        juce::FloatVectorOperations::add (l, restL, n);
+        juce::FloatVectorOperations::add (r, restR, n);
+    }
 }
 
 //==============================================================================
@@ -257,14 +251,6 @@ void AudioEngine::audioDeviceAboutToStart (juce::AudioIODevice* device)
 {
     prepareForTest (device->getCurrentSampleRate(), device->getCurrentBufferSizeSamples(),
                     device->getActiveOutputChannels().countNumberOfSetBits());
-    // The built-in X-PAD sounds were re-synthesised at the new rate: re-render TONE / SPEED too.
-    auto aliveFlag = alive;
-    juce::MessageManager::callAsync ([this, aliveFlag]
-    {
-        if (! *aliveFlag) return;
-        for (int d = 0; d < numDecks; ++d)
-            if (rmx (d).needsProcessing()) setRmxToneSpeed (d, rmx (d).getTone(), rmx (d).getSpeed());
-    });
 }
 
 void AudioEngine::prepareForTest (double sr, int block, int outputs)
@@ -278,7 +264,11 @@ void AudioEngine::prepareForTest (double sr, int block, int outputs)
     for (auto& c : channels) c.prepare (sr, juce::jmax (block, 4096));
     for (auto& deckSlots : fxSlots)
         for (auto& f : deckSlots) f.prepare (sr, juce::jmax (block, 4096));
-    for (auto& u : rmxUnits) u.prepare (sr, juce::jmax (block, 4096));
+    masterFx.prepare (sr, juce::jmax (block, 4096));
+    for (auto& slots : deckFxSlots)
+        for (auto& f : slots) f.prepare (sr, juce::jmax (block, 4096));
+    for (auto& b : fxBands) b.prepare (sr, juce::jmax (block, 4096));
+    fxRest.setSize (2, juce::jmax (block, 4096));
 
     masterLimiter.prepare (sr, juce::jmax (block, 4096));
     masterGain.reset (sr, 0.02);
@@ -321,8 +311,16 @@ void AudioEngine::applySync()
     for (int i = 0; i < numDecks; ++i)
     {
         auto& d = *decks[(size_t) i];
-        auto& o = *decks[(size_t) (1 - i)];
-        const bool dPlays = audibleNow[(size_t) i], oPlays = audibleNow[(size_t) (1 - i)];
+        // The deck to follow: the chosen master; else the one playing longest; else the other side's.
+        const int masterSel = masterDeck.load();
+        int oi = -1;
+        if (masterSel >= 0 && masterSel != i && decks[(size_t) masterSel]->hasTrack()) oi = masterSel;
+        else
+            for (int j = 0; j < numDecks; ++j)
+                if (j != i && audibleNow[(size_t) j] && (oi < 0 || playingSince[(size_t) j] < playingSince[(size_t) oi])) oi = j;
+        if (oi < 0) oi = otherDeck (i) == i ? (i + 1) % numDecks : otherDeck (i);
+        auto& o = *decks[(size_t) oi];
+        const bool dPlays = audibleNow[(size_t) i], oPlays = audibleNow[(size_t) oi];
         // PLAY was just pressed and nothing has sounded yet: align before the first sample.
         const bool starting = d.isPlaying() && ! dPlays && ! wasAudible[(size_t) i];
         const bool justStarted = dPlays && ! wasAudible[(size_t) i];
@@ -341,7 +339,7 @@ void AudioEngine::applySync()
         if (masterIdx >= 0)          dLeads = masterIdx == i;
         else if (dPlays && ! oPlays) dLeads = true;
         else if (oPlays && ! dPlays) dLeads = false;
-        else if (dPlays && oPlays)   dLeads = playingSince[(size_t) i] < playingSince[(size_t) (1 - i)];
+        else if (dPlays && oPlays)   dLeads = playingSince[(size_t) i] < playingSince[(size_t) oi];
         else                         dLeads = o.isSyncOn() && o.getSyncStamp() > d.getSyncStamp();   // both stopped
 
         if (dLeads)
@@ -377,7 +375,7 @@ void AudioEngine::applySync()
                 d.consumeJustLoaded();
                 // A jump of the leader realigns this deck only while it is still silent; once it is
                 // heard, moving its playhead because the other track jumped would cut it.
-                const bool leaderJumped = moved[(size_t) (1 - i)];
+                const bool leaderJumped = moved[(size_t) oi];
                 const bool engaged = d.consumeSyncEngaged() || moved[(size_t) i] || (leaderJumped && ! dPlays);
                 if (! oPlays || ! d.isPlaying() || ! (dPlays || starting))   // a stopped deck is never moved
                 {
@@ -486,6 +484,30 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
     const float xf = crossfader.load();
     const int curve = crossfaderCurve.load();
 
+    // BEAT FX section → the processor of each place it can sit on.
+    if (! autoMixFx.load())
+    {
+        const auto& bx = beatFxSection;
+        const int target = bx.target.load();
+        auto drive = [&bx] (BeatFx& f, bool here)
+        {
+            f.type = bx.type.load();
+            f.param = bx.param.load();
+            f.wet = bx.level.load();
+            f.timeMs = bx.timeMs.load();
+            f.enabled = bx.on.load() && here;
+        };
+        for (int i = 0; i < numDecks; ++i)
+        {
+            const auto side = (ChannelStrip::XfAssign) channels[(size_t) i].xfAssign.load();
+            drive (fxSlots[(size_t) i][0], (target == BeatFxSection::ch1 && i == visibleDeck (0))
+                                             || (target == BeatFxSection::ch2 && i == visibleDeck (1))
+                                             || (target == BeatFxSection::xfA && side == ChannelStrip::XfAssign::a)
+                                             || (target == BeatFxSection::xfB && side == ChannelStrip::XfAssign::b));
+        }
+        drive (masterFx, target == BeatFxSection::master);
+    }
+
     for (int i = 0; i < numDecks; ++i)
     {
         float* l = deckBuf.getWritePointer (0);
@@ -494,12 +516,6 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
         decks[(size_t) i]->render (l, r, numSamples);
         auto& ch = channels[(size_t) i];
         ch.processPreFader (l, r, numSamples, decks[(size_t) i]->getRenderedBpm());
-
-        {
-            auto& dk = *decks[(size_t) i];
-            rmxUnits[(size_t) i].process (l, r, numSamples, dk.audioBlockBeat(), dk.audioBeatsPerSample(), dk.getRenderedBpm(),
-                                          dk.getQuantizeBeats());
-        }
 
         ch.meter.push (l, r, numSamples);              // channel meter: pre-fader, as on a club mixer
 
@@ -523,13 +539,16 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
 
         // Channel fader first, then the beat FX (post-fader, as on a club mixer): pulling the fader down
         // stops feeding the echo / reverb but its tail keeps ringing out at full level.
-        const float fg = ch.faderGain();
+        // With an external mixer (or a unit that mixes itself) its channel fader sets the level:
+        // applying ours too would turn the deck down twice.
+        const float fg = mode == separateDecks ? 1.0f : ch.faderGain();
         ramp (l, r, lastFaderGain[(size_t) i], fg);
         lastFaderGain[(size_t) i] = fg;
 
+        runBeatFx (fxSlots[(size_t) i][0], fxBands[(size_t) i], l, r, numSamples, *decks[(size_t) i]);
         {
             auto& dk = *decks[(size_t) i];
-            for (auto& f : fxSlots[(size_t) i])
+            for (auto& f : deckFxSlots[(size_t) i])
                 f.process (l, r, numSamples, dk.getRenderedBpm(), dk.audioBlockBeat(), dk.audioBeatsPerSample());
         }
 
@@ -548,6 +567,16 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
             mL[s] += l[s];
             mR[s] += r[s];
         }
+    }
+
+    // BEAT FX on MASTER: on the whole mix, in time with the deck heard the most.
+    {
+        int clock = 0;
+        float best = -1.0f;
+        for (int i = 0; i < numDecks; ++i)
+            if (decks[(size_t) i]->isPlaying())
+                if (const float heard = lastFaderGain[(size_t) i] * lastXfGain[(size_t) i]; heard > best) { best = heard; clock = i; }
+        runBeatFx (masterFx, fxBands[numDecks], mL, mR, numSamples, *decks[(size_t) clock]);
     }
 
     masterGain.setTargetValue (masterDbToGain (masterDb.load()));
@@ -583,7 +612,11 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
     if (mode == separateDecks)
     {
         for (int i = 0; i < numDecks; ++i)
-            putStereo (deckChannel[(size_t) i].load(), sepBuf.getReadPointer (2 * i), sepBuf.getReadPointer (2 * i + 1));
+        {
+            int ch = deckChannel[(size_t) i].load();
+            if (i >= 2 && ch + 1 >= numOutputChannels) ch = deckChannel[(size_t) (i % 2)].load();   // shares its side's channel
+            putStereo (ch, sepBuf.getReadPointer (2 * i), sepBuf.getReadPointer (2 * i + 1));
+        }
         if (pc >= 0) putStereo (pc, pL, pR);
     }
     else if (mode == speakersPhones && splitMono.load())

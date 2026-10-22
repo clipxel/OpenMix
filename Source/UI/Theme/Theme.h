@@ -49,6 +49,8 @@ enum class Col
     // Deck identity
     deckA,
     deckB,
+    deckC,          // deck 3 (left side, swapped with deck 1)
+    deckD,          // deck 4 (right side, swapped with deck 2)
 
     // Waveform spectrum (3-band)
     waveLow,
@@ -112,7 +114,11 @@ public:
     juce::Colour colour (Col c) const noexcept       { return colours[(size_t) c]; }
     juce::Colour accent() const noexcept             { return accentColour; }
     juce::Colour accentDim() const noexcept          { return accentColour.withMultipliedSaturation (0.75f).withAlpha (0.22f); }
-    juce::Colour deckColour (int deckIndex) const     { return colour (deckIndex == 0 ? Col::deckA : Col::deckB); }
+    juce::Colour deckColour (int deckIndex) const
+    {
+        static constexpr Col cols[] = { Col::deckA, Col::deckB, Col::deckC, Col::deckD };
+        return colour (cols[juce::jlimit (0, 3, deckIndex)]);
+    }
     static juce::Colour hotCueColour (int slot);
 
     /** Accent is user-configurable; every component repaints on change. */

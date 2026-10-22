@@ -181,20 +181,22 @@ bool KeyboardControl::keyPressed (const juce::KeyPress& kp)
         const auto* info = actions.find (b.action);
         if (info == nullptr) return false;
 
+        // Keys for deck 1 / deck 2 drive the deck their side shows (1 or 3, 2 or 4).
+        const int deck = juce::isPositiveAndBelow (b.deck, 2) ? actions.getEngine().visibleDeck (b.deck) : b.deck;
         if (repeats (b.action))                 // steps: every auto-repeat acts again
         {
-            actions.trigger (b.action, b.deck, b.value);
+            actions.trigger (b.action, deck, b.value);
             return true;
         }
 
         // Ignore auto-repeat for momentary actions already held.
         for (auto& h : held)
-            if (h.keyCode == b.keyCode && h.action == b.action && h.deck == b.deck)
+            if (h.keyCode == b.keyCode && h.action == b.action && h.deck == deck)
                 return true;
 
-        actions.trigger (b.action, b.deck, b.value);
+        actions.trigger (b.action, deck, b.value);
         if (info->type == ControlType::button)
-            held.push_back ({ b.keyCode, b.action, b.deck });
+            held.push_back ({ b.keyCode, b.action, deck });
         return true;
     }
     return false;

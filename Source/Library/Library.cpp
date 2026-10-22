@@ -4,7 +4,24 @@
 namespace om
 {
 
-static const juce::StringArray audioExtensions { "mp3", "wav", "aif", "aiff", "flac", "m4a", "aac", "ogg", "caf" };
+// Every extension a registered decoder claims (on macOS that is whatever the system can decode:
+// mp3, m4a/aac/alac, aiff, caf, ac3, amr, mp2…), plus the usual ones in case a decoder is missing.
+static const juce::StringArray& audioExtensions()
+{
+    static const juce::StringArray exts = []
+    {
+        juce::StringArray e { "mp3", "wav", "wave", "bwf", "aif", "aiff", "aifc", "flac", "m4a", "mp4", "aac",
+                              "alac", "ogg", "oga", "caf", "wma", "w64", "rf64", "mp2", "mpa" };
+        juce::AudioFormatManager fm;
+        fm.registerBasicFormats();
+        for (int i = 0; i < fm.getNumKnownFormats(); ++i)
+            for (auto x : fm.getKnownFormat (i)->getFileExtensions())
+                e.addIfNotAlreadyThere (x.trimCharactersAtStart (".").toLowerCase());
+        e.removeEmptyStrings();
+        return e;
+    }();
+    return exts;
+}
 
 Library::Library (juce::AudioFormatManager& fm) : formats (fm)
 {
@@ -12,6 +29,7 @@ Library::Library (juce::AudioFormatManager& fm) : formats (fm)
 
     for (auto& t : all)
         if (t->analysis == Track::Analysis::pending || t->analysis == Track::Analysis::analysing
+            || t->analysis == Track::Analysis::failed          // retry: a newer decoder may read it now
             || (t->analysis == Track::Analysis::done && t->analysisVersion < currentAnalysisVersion))
         {
             t->analysis = Track::Analysis::pending;
@@ -51,7 +69,7 @@ juce::File Library::dataFolder()
 
 bool Library::isAudioFile (const juce::File& f)
 {
-    return audioExtensions.contains (f.getFileExtension().trimCharactersAtStart (".").toLowerCase());
+    return audioExtensions().contains (f.getFileExtension().trimCharactersAtStart (".").toLowerCase());
 }
 
 TrackPtr Library::find (const juce::String& path) const
@@ -119,6 +137,22 @@ TrackPtr Library::addFile (const juce::File& f)
     all.push_back (t);
     byPath[t->path()] = t;
     requestAnalysis (t);
+    touched();
+    return t;
+}
+
+TrackPtr Library::addTrack (const TrackPtr& t)
+{
+    if (t == nullptr) return nullptr;
+    if (auto existing = find (t->path()))
+        return existing;
+    if (! t->file.existsAsFile() || ! isAudioFile (t->file))
+        return nullptr;
+
+    all.push_back (t);
+    byPath[t->path()] = t;
+    if (t->analysis != Track::Analysis::done && t->analysis != Track::Analysis::analysing)
+        requestAnalysis (t);
     touched();
     return t;
 }
@@ -238,14 +272,14 @@ void Library::requestAnalysis (const TrackPtr& t, bool force)
         if (std::unique_ptr<juce::AudioFormatReader> reader { formats.createReaderFor (file) })
         {
             const auto len = reader->lengthInSamples;
-            if (len > 0 && reader->sampleRate > 0 && (double) len / reader->sampleRate < 60.0 * 45.0)
+            if (len > 0 && reader->sampleRate > 0 && len < std::numeric_limits<int>::max())
             {
                 // Fast path: stream the file in chunks and keep a decimated mono copy
                 // (~11 kHz). Beat tracking only needs < 200 Hz onset detail, so this is
                 // ~4× less work and memory than analysing the full-rate stereo audio.
                 const int factor = juce::jmax (1, (int) std::floor (reader->sampleRate / 11025.0));
                 const double outRate = reader->sampleRate / factor;
-                const int leadFull = Analysis::mp3TrimmedLeadSamples (file);          // club player timeline
+                const int leadFull = Analysis::mp3TrimmedLeadSamples (file, *reader);          // club player timeline
                 const int lead = juce::jmax (0, leadFull) / factor;
                 const juce::int64 skip = juce::jmax (0, -leadFull);
                 juce::AudioBuffer<float> mono (1, (int) (len / factor) + 1 + lead);

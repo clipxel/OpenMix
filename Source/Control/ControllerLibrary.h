@@ -64,6 +64,19 @@ public:
     /** Resolves a device right now on the calling thread (tests; tick() does it in the background). */
     Device resolveNow (const juce::String& deviceName);
 
+    /** True when this bundled mapping's unit mixes the decks itself (each deck needs its own output pair). */
+    static bool hasHardwareMixer (const juce::String& profileName);
+    /** True when the controller has its own sound card whose MASTER and headphone knobs work on its
+        outputs (no MIDI): OpenMix must play the master on its outputs 1–2 and the headphones on 3–4. */
+    static bool hasOwnSoundcard (const juce::String& profileName);
+    /** For a VirtualDJ device id ("HCINP500"): the bundled mapping that knows its control names exactly —
+        (mapping name, { control name → [messages] }). */
+    static std::optional<std::pair<juce::String, juce::var>> findVdjTable (const juce::String& vdjDevice);
+    /** Puts back the mapping that ships with OpenMix for this connected controller (undoes edits / imports). */
+    bool restoreLibraryMapping (const juce::String& deviceName);
+    /** The mapping that ships inside OpenMix for this controller name, if any: (its name, bindings). */
+    static std::optional<std::pair<juce::String, std::vector<MidiBinding>>> findBundled (const juce::String& deviceName);
+
     static juce::String normalise (const juce::String& midiName);
     static bool nameMatches (const juce::String& deviceName, const juce::String& pattern);
     static std::vector<Profile> parseIndex (const juce::var&);
@@ -75,6 +88,7 @@ private:
     struct Result { Status status; juce::String profileName, detail; std::vector<MidiBinding> bindings; };
     Result lookup (const juce::String& deviceName);                 // any thread: cache + network
     void install (const juce::String& deviceName, Result);          // message thread
+    void refreshFromLibrary (const juce::String& deviceName);       // message thread
     juce::var loadIndex (bool allowNetwork, bool force, bool& downloaded, juce::String& error);
     static juce::URL indexUrl();
     static juce::File cacheFolder();

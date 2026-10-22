@@ -24,14 +24,13 @@ TopBar::TopBar (AudioEngine& e) : engine (e)
 
     settings.setTooltip ("Configuración"_u);
     settings.onClick = [this] { if (onOpenSettings) onOpenSettings (0); };
-    fx.setTextType (Type::label, Weight::bold);
-    fx.setTooltip ("Mostrar u ocultar los efectos (pantallas chicas)"_u);
-    fx.onClick = [this] { if (onToggleFx) onToggleFx(); };
-    addChildComponent (fx);
     automixBtn.setTextType (Type::label, Weight::bold);
     automixBtn.setTooltip ("Mezcla automática: abrir / cerrar el panel"_u);
     automixBtn.onClick = [this] { if (onToggleAutoMix) onToggleAutoMix(); };
     addAndMakeVisible (automixBtn);
+    fxMode.setCompact (true);
+    fxMode.onChange = [this] (int m) { if (onFxModeChange) onFxModeChange (m); };
+    addAndMakeVisible (fxMode);
     helpBtn.setTooltip ("Ayuda, contacto y reportes: escribinos y te respondemos"_u);
     helpBtn.onClick = [this] { showHelpMenu(); };
     addAndMakeVisible (helpBtn);
@@ -129,11 +128,8 @@ void TopBar::resized()
     r.removeFromRight (Space::sm);
     automixBtn.setBounds (r.removeFromRight (84));
     r.removeFromRight (Space::sm);
-    if (fx.isVisible())
-    {
-        fx.setBounds (r.removeFromRight (44));
-        r.removeFromRight (Space::sm);
-    }
+    fxMode.setBounds (r.removeFromRight (124).withSizeKeepingCentre (124, 22));
+    r.removeFromRight (Space::sm);
     r.removeFromRight (Space::md - Space::sm);
     cpu.setBounds (r.removeFromRight (cpu.idealWidth() + 4));
     controllers.setBounds (r.removeFromRight (controllers.idealWidth()));
@@ -161,16 +157,6 @@ void TopBar::setAutoMixState (bool panelOpen, bool running)
 {
     automixBtn.setToggleState (panelOpen || running, juce::dontSendNotification);
     automixBtn.setLitColour (running ? colour (Col::play) : colour (Col::textSecondary));
-}
-
-void TopBar::setFxButton (bool visible, bool panelShown)
-{
-    fx.setToggleState (panelShown, juce::dontSendNotification);
-    if (fx.isVisible() != visible)
-    {
-        fx.setVisible (visible);
-        resized();
-    }
 }
 
 void TopBar::paint (juce::Graphics& g)

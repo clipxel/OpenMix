@@ -1,0 +1,752 @@
+{
+ "name": "Pioneer XDJ-AERO",
+ "author": "OpenMix (datos técnicos de asignación MIDI del equipo)",
+ "match": {
+  "midi": [
+   "Pioneer XDJ-AERO",
+   "XDJ-AERO"
+  ]
+ },
+ "bindings": [
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 64,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 64,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 64,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 64,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 65,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 65,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 65,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 65,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 11,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 11,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 71,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 71,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 12,
+   "encoding": "button",
+   "action": "cue_button",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 12,
+   "encoding": "button",
+   "action": "cue_button",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 72,
+   "encoding": "button",
+   "action": "cue_button",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 72,
+   "encoding": "button",
+   "action": "cue_button",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 0,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 1,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 54,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 54,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 103,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 103,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 1,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 0,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 1,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 1,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 0,
+   "lsb": 32,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 0,
+   "lsb": 32,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 5,
+   "lsb": 37,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 5,
+   "lsb": 37,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 26,
+   "encoding": "button",
+   "action": "key_lock",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 26,
+   "encoding": "button",
+   "action": "key_lock",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 86,
+   "encoding": "button",
+   "action": "key_lock",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 86,
+   "encoding": "button",
+   "action": "key_lock",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 27,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 27,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 87,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 87,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 88,
+   "encoding": "button",
+   "action": "sync",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 88,
+   "encoding": "button",
+   "action": "sync",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 92,
+   "encoding": "button",
+   "action": "sync",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 92,
+   "encoding": "button",
+   "action": "sync",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 19,
+   "encoding": "rel_twos",
+   "action": "loop",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 19,
+   "encoding": "rel_twos",
+   "action": "loop",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 79,
+   "encoding": "rel_twos",
+   "action": "loop",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 79,
+   "encoding": "rel_twos",
+   "action": "loop",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "vinyl_mode",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "vinyl_mode",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 31,
+   "lsb": 63,
+   "encoding": "abs14",
+   "action": "crossfader",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 19,
+   "lsb": 51,
+   "encoding": "abs14",
+   "action": "volume",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 21,
+   "lsb": 53,
+   "encoding": "abs14",
+   "action": "volume",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 3,
+   "lsb": 35,
+   "encoding": "abs14",
+   "action": "gain",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 4,
+   "lsb": 36,
+   "encoding": "abs14",
+   "action": "gain",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 7,
+   "lsb": 39,
+   "encoding": "abs14",
+   "action": "eq_high",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 8,
+   "lsb": 40,
+   "encoding": "abs14",
+   "action": "eq_high",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 11,
+   "lsb": 43,
+   "encoding": "abs14",
+   "action": "eq_mid",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 12,
+   "lsb": 44,
+   "encoding": "abs14",
+   "action": "eq_mid",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 15,
+   "lsb": 47,
+   "encoding": "abs14",
+   "action": "eq_low",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 16,
+   "lsb": 48,
+   "encoding": "abs14",
+   "action": "eq_low",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 84,
+   "encoding": "button",
+   "action": "pfl",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 85,
+   "encoding": "button",
+   "action": "pfl",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 0,
+   "lsb": 32,
+   "encoding": "abs14",
+   "action": "master_volume",
+   "deck": -1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 2,
+   "lsb": 34,
+   "encoding": "abs14",
+   "action": "effect_wet_1",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 10,
+   "lsb": 42,
+   "encoding": "abs14",
+   "action": "effect_wet_1",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 18,
+   "lsb": 50,
+   "encoding": "abs14",
+   "action": "effect_wet_1",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 26,
+   "lsb": 58,
+   "encoding": "abs14",
+   "action": "effect_wet_1",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 2,
+   "lsb": 34,
+   "encoding": "abs14",
+   "action": "effect_wet_1",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 10,
+   "lsb": 42,
+   "encoding": "abs14",
+   "action": "effect_wet_1",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 18,
+   "lsb": 50,
+   "encoding": "abs14",
+   "action": "effect_wet_1",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 26,
+   "lsb": 58,
+   "encoding": "abs14",
+   "action": "effect_wet_1",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 27,
+   "lsb": 59,
+   "encoding": "abs14",
+   "action": "filter",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 28,
+   "lsb": 60,
+   "encoding": "abs14",
+   "action": "filter",
+   "deck": 1,
+   "shift": false
+  }
+ ]
+}

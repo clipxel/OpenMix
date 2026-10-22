@@ -40,7 +40,7 @@ public:
 
     std::function<void (const juce::MouseEvent&)> onRightClick;
     std::function<void()> onPress, onRelease;      // momentary actions (cue)
-    std::function<void (const juce::MouseEvent&)> onDrag;   // gestures while held (X-PAD)
+    std::function<void (const juce::MouseEvent&)> onDrag;   // gestures while held
 
     void paintButton (juce::Graphics&, bool over, bool down) override;
     void mouseDown (const juce::MouseEvent&) override;

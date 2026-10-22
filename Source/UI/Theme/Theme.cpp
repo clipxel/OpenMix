@@ -46,6 +46,8 @@ Theme::Theme()
 
     set (Col::deckA,          0x2EC6E8);
     set (Col::deckB,          0xF29A3A);
+    set (Col::deckC,          0x5CD68A);
+    set (Col::deckD,          0xC77DEB);
 
     // Waveform: blue lows, amber mids, warm-white highs. Muted enough that
     // cue / loop markers keep the strongest contrast.

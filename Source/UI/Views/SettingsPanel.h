@@ -86,7 +86,7 @@ private:
     Button wizardBtn { "Mapear con asistente" };
     Button importBtn { juce::String::fromUTF8 ("Importar mapeo de otro programa…") };
     std::unique_ptr<juce::FileChooser> importChooser;
-    void importMapping (const juce::File& file, const juce::String& controllerHint);
+    void importMapping (const juce::Array<juce::File>& files, const juce::String& controllerHint);
     std::unique_ptr<MappingWizardView> wizardView;
     Button driverBtn { juce::String(), Icon::none };
     juce::String driverPage;
@@ -99,7 +99,7 @@ private:
     std::unique_ptr<BindingList> bindingList;
     std::unique_ptr<KeyboardMapView> keyMap;
     juce::ListBox bindingBox;
-    juce::Rectangle<int> monitorArea, ctrlListArea;
+    juce::Rectangle<int> monitorArea, ctrlStatusArea, ctrlListArea;
     juce::String learnStatus;
 };
 

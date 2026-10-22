@@ -8,6 +8,7 @@
 #include "../Control/AutoMix.h"
 #include "../Common/Updater.h"
 #include <juce_cryptography/juce_cryptography.h>
+#include <set>
 #include "../Library/Library.h"
 #include "../Library/UsbExport.h"
 #include "../Library/VolumeCueStore.h"
@@ -263,7 +264,7 @@ static void audioQualityTests (Report& rep)
             }
             if (! finite || peak > 4.0f) { allOk = false; bad << FxUnit::typeName (type) << " "; }
         }
-        rep.check (allOk, "Motor interno (Color FX / RMX): procesa estable (sin NaN ni desbordes)", bad);
+        rep.check (allOk, "Motor interno (Color FX): procesa estable (sin NaN ni desbordes)", bad);
     }
 
     // Functional checks on a few effects.
@@ -320,7 +321,7 @@ static void audioQualityTests (Report& rep)
             std::vector<float> mid (y.begin() + (long) (1.5 * beat * sr), y.begin() + (long) (3.0 * beat * sr));
             std::vector<float> end (y.end() - (long) (0.5 * sr), y.end());
             const double trackDuring = goertzel (mid, 880.0, 0) / juce::jmax (1e-12, goertzel (end, 880.0, 0) * (double) mid.size() / (double) end.size());
-            if (mute) rep.check (trackDuring < 0.01 && ! fx.enabled.load(), "Motor interno (RMX ECHO OUT): silencia el tema 4 beats y vuelve solo",
+            if (mute) rep.check (trackDuring < 0.01 && ! fx.enabled.load(), "Motor interno (release mute): silencia el tema 4 beats y vuelve solo",
                                  "tema durante el mute: " + juce::String (trackDuring * 100.0, 2) + " %");
             else      rep.check (trackDuring > 0.5 && ! fx.enabled.load(), "Motor interno: release echo DRY deja sonar el tema y vuelve solo"_u,
                                  juce::String (trackDuring * 100.0, 0) + " % del tema");
@@ -411,7 +412,7 @@ static void audioQualityTests (Report& rep)
         double stopped = 0, back = 0;
         for (int b = 0; b < 60; ++b) stopped = blockRms (true);      // 0.64 s on (> 0.3 s brake)
         for (int b = 0; b < 20; ++b) back = blockRms (false);
-        rep.check (stopped < 0.01 && back > 0.3, "Motor interno (RMX BRAKE): frena el sonido y vuelve el tema",
+        rep.check (stopped < 0.01 && back > 0.3, "Motor interno (BRAKE): frena el sonido y vuelve el tema",
                    "en freno " + juce::String (stopped, 3) + ", después "_u + juce::String (back, 3));
     }
 
@@ -663,7 +664,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
     for (size_t i = 0; i < ex->tracks.size() && (int) picks.size() < count; i += stride)
         picks.push_back (i);
 
-    struct Row { juce::String name, genre; double rbBpm, omBpm, rbFirst, omFirst, rbBar; bool variable; double secs; juce::String fmt; juce::String path; int lead = 0; double rbAlign = 0.0; Analysis::GridQuality q; };
+    struct Row { juce::String name, genre; double rbBpm, omBpm, rbFirst, omFirst, rbBar; bool variable; double secs; juce::String fmt; juce::String path; int lead = 0; double rbAlign = 0.0; Analysis::GridQuality q; double cueMs = 1.0e9; };
     std::vector<Row> rows (picks.size());
     std::atomic<int> done { 0 };
     juce::AudioFormatManager fm;
@@ -711,6 +712,19 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                     r.secs = (juce::Time::getMillisecondCounterHiRes() - t0) / 1000.0;
                     r.omBpm = g.bpm;
                     r.omFirst = g.firstBeatSeconds;
+                    // Auto cue's first sound (same rule as Deck) against the nearest grid line.
+                    const auto w = Analysis::computeWaveform (buf, rd->sampleRate);
+                    for (int f = 0; f < w.numFrames(); ++f)
+                        if (juce::jmax (w.low[(size_t) f], w.mid[(size_t) f], w.high[(size_t) f]) > 4)
+                        {
+                            const double c = (double) f / WaveformData::framesPerSecond;
+                            if (g.isValid())
+                            {
+                                const double b = g.timeOfBeat (std::round (g.beatAt (c)));
+                                if (std::abs (b - c) < g.beatLengthSeconds() * 0.5) r.cueMs = (b - c) * 1000.0;   // + = grid after the sound
+                            }
+                            break;
+                        }
                 }
                 rows[k] = r;
                 ++done;
@@ -749,7 +763,7 @@ int runAnalyzerBenchmark (const juce::File& usbRoot, int count, const juce::File
                  || std::abs (r.omBpm * 1.5 - r.rbBpm) <= 0.2 || std::abs (r.omBpm / 1.5 - r.rbBpm) <= 0.2) ++octave;
         else ++wrong;
         report << juce::String (r.rbBpm, 2) << "\t" << juce::String (r.omBpm, 2) << "\t" << juce::String (phaseMs, 1) << "\t"
-               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\t" << juce::String (r.q.offsetMs, 1) << "\t" << juce::String (r.q.spreadMs, 1) << "\t" << juce::String (r.q.driftMs, 1) << "\t" << r.q.hits << "\t" << juce::String (r.q.startMs, 1) << "\n";
+               << (bar ? "1" : "0") << "\t" << (r.variable ? "1" : "0") << "\t" << r.fmt << "\t" << r.genre << "\t" << r.name << "\t" << juce::String (barOff, 0) << "\t" << r.path << "\t" << juce::String (r.rbFirst, 4) << "\t" << r.lead << "\t" << juce::String (r.q.offsetMs, 1) << "\t" << juce::String (r.q.spreadMs, 1) << "\t" << juce::String (r.q.driftMs, 1) << "\t" << r.q.hits << "\t" << juce::String (r.q.startMs, 1) << "\t" << juce::String (r.cueMs, 1) << "\n";
     }
     reportFile.replaceWithText (report);
 
@@ -1097,273 +1111,6 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         rep.check (db < -80.0, "Cargar y dar play al instante suena limpio (sin restos del tema anterior)", juce::String (db, 1) + " dB");
     }
 
-    std::cout << "== SAMPLES/RMX" << std::endl;
-    {
-        AudioEngine re;
-        re.prepareForTest (sr, block);
-        re.autoGain = false;
-        re.limiter().enabled = false;
-        auto silent = std::make_shared<LoadedTrack>();
-        silent->sampleRate = sr;
-        silent->audio.setSize (2, (int) (sr * 30));
-        silent->audio.clear();
-        silent->setGrid ({ 120.0, 0.0 });                  // 1 beat = 0.5 s = 24000 samples
-        auto& dk = re.deck (0);
-        dk.setTrack (silent);
-        dk.seek (10.0 + 0.137);                            // mid-beat
-        dk.setPlaying (true);
-        std::vector<float> ol (block), orr (block), cap;
-        float* outs2[2] = { ol.data(), orr.data() };
-        auto runBlocks = [&] (int count) { for (int k = 0; k < count; ++k) { re.audioDeviceIOCallbackWithContext (nullptr, 0, outs2, 2, block, {}); cap.insert (cap.end(), ol.begin(), ol.end()); } };
-        runBlocks (4);
-        const size_t before = cap.size();
-        const double beatAtCap = dk.audioBlockBeat() + block * (120.0 / 60.0 / sr);   // next block's first sample
-        re.rmx (0).padDown (RmxUnit::kick, false);
-        runBlocks (40);
-        size_t onset = 0;
-        for (size_t i = before; i < cap.size(); ++i) if (std::abs (cap[i]) > 1.0e-4f) { onset = i; break; }
-        juce::ignoreUnused (beatAtCap);
-        // The master limiter delays all output equally (look-ahead): the hit is the very next sample out.
-        const int wait = (int) (onset - before) - re.limiter().latencySamples();
-        rep.check (onset > 0 && wait <= 1, "X-PAD suena apenas se aprieta (no espera el próximo golpe)"_u, juce::String (wait) + " muestras");
-
-        // Held → roll in 1/8: count onsets during 2 beats.
-        int onsets = 0;
-        cap.clear();
-        runBlocks ((int) (1.0 * sr / block));             // 1 s = 2 beats at 120 BPM
-        re.rmx (0).padUp (RmxUnit::kick);
-        // Energy in 25 ms windows: each new kick makes the energy jump (body + click).
-        double prevEnv = 1.0e9, lastOnset = -1.0;        // the first window holds the tail of the initial hit
-        const size_t win = (size_t) (0.025 * sr);
-        for (size_t w0 = 0; w0 + win < cap.size(); w0 += win)
-        {
-            double e = 0; for (size_t i = w0; i < w0 + win; ++i) e += (double) cap[i] * cap[i];
-            if (e > 1.0 && e > prevEnv * 2.0 && (double) w0 / sr - lastOnset > 0.06) { ++onsets; lastOnset = (double) w0 / sr; }
-            prevEnv = e;
-        }
-        rep.check (onsets == 8, "Mantener el X-PAD hace roll (VEL. por defecto 1/16)", juce::String (onsets) + " golpes en 2 beats");
-
-        // VEL. knob and the held-pad gesture: left / right halves or doubles the roll speed around VEL.
-        re.rmx (0).setBaseRoll (0.5);
-        re.rmx (0).padDown (RmxUnit::snare, false);
-        const double atBase = re.rmx (0).rollRate (RmxUnit::snare);
-        re.rmx (0).padGesture (RmxUnit::snare, 5.0f, 1);
-        const double faster = re.rmx (0).rollRate (RmxUnit::snare);
-        const float liveSt = re.rmx (0).liveTone (RmxUnit::snare);
-        re.rmx (0).padUp (RmxUnit::snare);
-        const double released = re.rmx (0).rollRate (RmxUnit::snare);
-        rep.check (std::abs (atBase - 0.5) < 1e-9 && std::abs (faster - 0.25) < 1e-9 && std::abs (liveSt - 5.0f) < 1e-6
-                       && std::abs (released - 0.5) < 1e-9 && std::abs (re.rmx (0).liveTone (RmxUnit::snare)) < 1e-6,
-                   "Gesto del X-PAD: arriba/abajo = tono, izquierda/derecha = velocidad del roll; al soltar vuelve a las perillas"_u);
-        re.rmx (0).setBaseRoll (RmxUnit::defaultRoll);
-        runBlocks ((int) (1.5 * sr / block));             // let the quantized snare hit and its tail pass
-
-        // Speed up and back down while rolling: every hit must still sit on the 1/16 grid.
-        {
-            auto& rx = re.rmx (0);
-            rx.setSample (RmxUnit::hat, [] { auto b = std::make_shared<juce::AudioBuffer<float>> (2, 64);
-                                               b->clear(); for (int i = 0; i < 64; ++i) { b->setSample (0, i, 0.5f); b->setSample (1, i, 0.5f); } return b; }(), "click");
-            const double bpsStep = 120.0 / 60.0 / sr;
-            cap.clear();
-            const double capStartBeat = dk.audioBlockBeat() + block * bpsStep;
-            rx.padDown (RmxUnit::hat, false);
-            runBlocks (60);                                   // first hit (waits for the next beat) and some 1/16
-            rx.padGesture (RmxUnit::hat, 0.0f, 1);            // 1/32
-            runBlocks (13);
-            rx.padGesture (RmxUnit::hat, 0.0f, 2);            // 1/64
-            runBlocks (7);
-            rx.padGesture (RmxUnit::hat, 0.0f, 0);            // back to 1/16
-            const size_t backAt = cap.size();
-            runBlocks (60);
-            rx.padUp (RmxUnit::hat);
-            runBlocks (10);
-            double worstOff = 0.0; int hits = 0;
-            const size_t lat = (size_t) re.limiter().latencySamples();
-            for (size_t i = 1; i < cap.size(); ++i)
-                if (std::abs (cap[i]) > 0.3f && std::abs (cap[i - 1]) < 0.3f && i > lat)
-                {
-                    const double b = capStartBeat + (double) (i - lat) * bpsStep;
-                    // after the return to 1/16 (one step of slack), hits must be on 1/16; before, at least on 1/64
-                    const double g = i > backAt + (size_t) (0.25 * sr) ? 4.0 : 16.0;
-                    const double off = (b * g - std::round (b * g)) / g;
-                    worstOff = juce::jmax (worstOff, std::abs (off) / bpsStep);
-                    ++hits;
-                }
-            rep.check (hits >= 10 && worstOff <= 1.5, "Roll del RMX: subir y bajar la velocidad nunca lo saca de tiempo",
-                       juce::String (hits) + " golpes · desvío máx " + juce::String (worstOff, 2) + " muestras");
-            rx.setSample (RmxUnit::hat, nullptr, {});
-        }
-
-        // Wherever in the beat the pad is pressed, the hit sounds at once.
-        auto pressAt = [&] (double beatFrac)
-        {
-            dk.seek (12.0 + beatFrac * 0.5);
-            runBlocks (30);                                         // let earlier hits die out
-            for (int k = 0; k < 400; ++k)                           // advance until the next block starts right after a beat
-            {
-                const double nb = dk.audioBlockBeat() + block * (120.0 / 60.0 / sr);
-                const double ph = nb - std::floor (nb);
-                if (std::abs (ph - beatFrac) < block * (120.0 / 60.0 / sr) * 0.5) break;
-                runBlocks (1);
-            }
-            const double nextBlockBeat = dk.audioBlockBeat() + block * (120.0 / 60.0 / sr);
-            cap.clear();
-            re.rmx (0).padDown (RmxUnit::kick, false);
-            runBlocks (1);
-            re.rmx (0).padUp (RmxUnit::kick);
-            runBlocks ((int) (0.6 * sr / block));
-            size_t on = 0;
-            for (size_t i = 0; i < cap.size(); ++i) if (std::abs (cap[i]) > 1.0e-4f) { on = i; break; }
-            return std::pair<double, size_t> { nextBlockBeat, on };
-        };
-        const auto lat = (size_t) re.limiter().latencySamples();
-        const auto early = pressAt (0.05).second, mid = pressAt (0.40).second, lateHit = pressAt (0.93).second;
-        rep.check (early <= lat + 1 && mid <= lat + 1 && lateHit <= lat + 1, "X-PAD al instante en cualquier momento del beat"_u,
-                   juce::String ((int) early - (int) lat) + " · " + juce::String ((int) mid - (int) lat) + " · " + juce::String ((int) lateHit - (int) lat) + " muestras");
-    }
-    {
-        // X-PAD roll against the music itself: a track with a click on every beat (left channel only), played
-        // with and without key lock at several tempos. The first hit sounds at once; every following roll
-        // hit (a short click on both channels) must sit on a 1/16 of the clicks we hear.
-        auto clicks = std::make_shared<LoadedTrack>();
-        clicks->sampleRate = sr;
-        clicks->audio.setSize (2, (int) (sr * 40));
-        clicks->audio.clear();
-        for (int b = 0; b < 80; ++b)
-            for (int i = 0; i < 48; ++i)
-                clicks->audio.setSample (0, b * 24000 + i, 0.8f * std::sin ((float) i * 0.9f) * (1.0f - (float) i / 48.0f));
-        clicks->setGrid ({ 120.0, 0.0 });
-        auto padClick = std::make_shared<juce::AudioBuffer<float>> (2, 64);
-        padClick->clear();
-        for (int i = 0; i < 64; ++i) { padClick->setSample (0, i, 0.5f); padClick->setSample (1, i, 0.5f); }
-        juce::String worst;
-        double maxErrMs = 0.0;
-        int rollHits = 0;
-        struct Cfg { bool keyLock; double pitch; };
-        for (auto cfg : { Cfg { false, 0.0 }, Cfg { false, 0.06 }, Cfg { true, 0.06 }, Cfg { true, -0.04 }, Cfg { true, 0.0 } })
-        {
-            AudioEngine re;
-            re.prepareForTest (sr, block);
-            re.autoGain = false;
-            re.limiter().enabled = false;
-            re.rmx (0).setSample (RmxUnit::hat, padClick, "click");
-            auto& dk = re.deck (0);
-            dk.setKeyLock (cfg.keyLock);
-            dk.setTrack (clicks);
-            dk.setPitch (cfg.pitch);
-            dk.seek (4.0);
-            dk.setPlaying (true);
-            std::vector<float> ol (block), orr (block), capL, capR;
-            float* outs2[2] = { ol.data(), orr.data() };
-            auto run = [&] (int count) { for (int k = 0; k < count; ++k) { re.audioDeviceIOCallbackWithContext (nullptr, 0, outs2, 2, block, {});
-                                                                           capL.insert (capL.end(), ol.begin(), ol.end()); capR.insert (capR.end(), orr.begin(), orr.end()); } };
-            run (200);
-            const double sixteenth = 0.25 * 60.0 / (120.0 * (1.0 + cfg.pitch)) * sr;   // output samples
-            for (int trial = 0; trial < 3; ++trial)
-            {
-                run (7 + trial * 5);                                  // press at varied phases
-                const size_t from = capR.size();
-                re.rmx (0).padDown (RmxUnit::hat, false);
-                run ((int) (1.0 * sr / block));
-                re.rmx (0).padUp (RmxUnit::hat);
-                run (20);
-                std::vector<size_t> hits;
-                for (size_t i = from + 1; i < capR.size(); ++i)
-                    if (std::abs (capR[i]) > 0.3f && std::abs (capR[i - 1]) < 0.3f && (hits.empty() || i - hits.back() > 1000))
-                        hits.push_back (i);
-                for (size_t h = 1; h < hits.size(); ++h)              // the first hit is the immediate one
-                {
-                    const size_t hit = hits[h];
-                    size_t click = 0;                                 // last music click onset at or before the hit
-                    for (size_t i = hit; i > 2 && i + 30000 > hit; --i)
-                        if (std::abs (capL[i] - capR[i]) > 0.05f && std::abs (capL[i - 1] - capR[i - 1]) <= 0.05f
-                            && std::abs (capL[i - 2] - capR[i - 2]) <= 0.05f) { bool quiet = true;
-                                for (size_t j = i > 600 ? i - 600 : 0; j < i - 2; ++j) if (std::abs (capL[j] - capR[j]) > 0.05f) { quiet = false; break; }
-                                if (quiet) { click = i; break; } }
-                    if (click == 0) continue;
-                    const double gap = (double) (hit - click);
-                    const double err = (gap - std::round (gap / sixteenth) * sixteenth) / sr * 1000.0;
-                    ++rollHits;
-                    if (std::abs (err) > std::abs (maxErrMs)) { maxErrMs = err;
-                        worst = juce::String (cfg.keyLock ? "keylock " : "") + juce::String (cfg.pitch * 100.0, 0) + "%"; }
-                }
-            }
-        }
-        rep.check (rollHits > 50 && std::abs (maxErrMs) < 1.0, "Roll del X-PAD en tiempo con la música (key lock y tempo cambiado)"_u,
-                   juce::String (rollHits) + " golpes · " + juce::String (maxErrMs, 2) + " ms · " + worst);
-    }
-    {
-        // TONO renders the sound in another key without changing its length or delaying its attack.
-        juce::AudioBuffer<float> src (2, (int) (0.5 * sr));
-        for (int i = 0; i < src.getNumSamples(); ++i)
-        {
-            const float v = (i < (int) (0.45 * sr)) ? 0.5f * std::sin (juce::MathConstants<float>::twoPi * 440.0f * (float) i / (float) sr) : 0.0f;
-            src.setSample (0, i, v); src.setSample (1, i, v);
-        }
-        auto up = RmxUnit::render (src, sr, 12.0f, 1.0f);
-        int crossings = 0, first = -1;
-        const int a0 = (int) (0.1 * sr), a1 = (int) (0.3 * sr);
-        for (int i = 1; up != nullptr && i < up->getNumSamples(); ++i)
-        {
-            if (first < 0 && std::abs (up->getSample (0, i)) > 0.05f) first = i;
-            if (i > a0 && i < a1 && (up->getSample (0, i - 1) < 0.0f) != (up->getSample (0, i) < 0.0f)) ++crossings;
-        }
-        const double freq = crossings / 2.0 / ((a1 - a0) / sr);
-        rep.check (up != nullptr && up->getNumSamples() == src.getNumSamples() && std::abs (freq - 880.0) < 15.0 && first >= 0 && first < (int) (0.003 * sr),
-                   "TONO +12 sube una octava sin cambiar la duración ni atrasar el golpe"_u,
-                   juce::String (freq, 0) + " Hz · ataque " + juce::String (first / sr * 1000.0, 1) + " ms");
-    }
-    {
-        // Scene and release FX on a tone track.
-        AudioEngine re;
-        re.prepareForTest (sr, block);
-        re.autoGain = false;
-        re.limiter().enabled = false;
-        auto tone = sineTrack (100.0, 48000.0, 30.0, 0.5f);
-        tone->setGrid ({ 120.0, 0.0 });
-        auto& dk = re.deck (0);
-        dk.setTrack (tone);
-        dk.setPlaying (true);
-        std::vector<float> ol (block), orr (block);
-        float* outs2[2] = { ol.data(), orr.data() };
-        auto blockRms = [&] (int count)
-        {
-            double a = 0;
-            for (int k = 0; k < count; ++k)
-            {
-                re.audioDeviceIOCallbackWithContext (nullptr, 0, outs2, 2, block, {});
-                for (auto v : ol) a += (double) v * v;
-            }
-            return std::sqrt (a / (count * block));
-        };
-        const double dry = blockRms (50);
-        re.rmx (0).padDown (RmxUnit::buildUp, false);
-        blockRms ((int) (4.0 * sr / block));                 // 8 beats at 120 BPM
-        const double built = blockRms (20);
-        re.rmx (0).padUp (RmxUnit::buildUp);
-        blockRms (10);
-        const double back = blockRms (20);
-        rep.check (built < dry * 0.5 && back > dry * 0.9, "BUILD UP quita los graves al crecer y vuelve al soltar",
-                   juce::String (built / dry * 100.0, 0) + " % → "_u + juce::String (back / dry * 100.0, 0) + " %");
-
-        re.rmx (0).padDown (RmxUnit::brake, false);
-        blockRms (150);                                       // > 1 s brake
-        const double braked = blockRms (10);
-        re.rmx (0).padUp (RmxUnit::brake);
-        blockRms (5);
-        const double unbraked = blockRms (10);
-        rep.check (braked < dry * 0.05 && unbraked > dry * 0.9 && dk.isPlaying(), "BRAKE frena el sonido y el tema sigue corriendo",
-                   juce::String (braked / dry * 100.0, 1) + " % → "_u + juce::String (unbraked / dry * 100.0, 0) + " %");
-
-        re.rmx (0).padDown (RmxUnit::echoOut, false);
-        re.rmx (0).padUp (RmxUnit::echoOut);
-        const double echoNow = blockRms ((int) (0.25 * sr / block));          // first ½ beat after the press
-        rep.check (echoNow > dry * 0.5, "ECHO OUT repite al instante lo último que sonó (sin hueco)"_u,
-                   juce::String (echoNow / dry * 100.0, 0) + " %");
-        blockRms ((int) (2.25 * sr / block));                 // rest of the 4 beats + 1
-        rep.check (! re.rmx (0).isLit (RmxUnit::echoOut) && blockRms (20) > dry * 0.8, "ECHO OUT vuelve solo al tema");
-    }
-
     std::cout << "== BEAT FX" << std::endl;
     {
         // Run one Beat FX on a stereo signal with a 120 BPM grid (1 beat = 0.5 s at 48 kHz).
@@ -1377,6 +1124,13 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
             return (float) (0.2 * std::sin (0.00523 * (double) k) + 0.1 * std::sin (0.0731 * (double) k)) + 0.15f * nz;
         };
         struct Run { std::vector<float> in, out; };
+        // The control value that shows a given BEAT ("1/2", "1/4"…), whatever the effect's default.
+        auto beatParam = [] (BT t, const char* label)
+        {
+            for (int i = 0; i < 256; ++i)
+                if (const float p = ((float) i + 0.5f) / 256.0f; BeatFx::paramText (t, p) == label) return p;
+            return 0.5f;
+        };
         auto runFx = [&] (BT t, float level, float paramValue, double seconds, double onAt, double offAt, double startBeat)
         {
             BeatFx fx;
@@ -1453,7 +1207,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         auto repeats = [&] (BT t)
         {
             BeatFx fx; fx.prepare (sr, block);
-            fx.type = (int) t; fx.wet = 1.0f; fx.param = BeatFx::defaultParam (t); fx.enabled = true;   // 1/2 beat = 12000
+            fx.type = (int) t; fx.wet = 1.0f; fx.param = beatParam (t, "1/2"); fx.enabled = true;   // 1/2 beat = 12000
             std::vector<float> l (block), r (block), out;
             for (int b = 0; b < (int) (4.0 * sr / block); ++b)
             {
@@ -1478,7 +1232,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
 
         // 4. TRANS cuts on the grid: 1/4-beat cells, sound in the first part, cut in the last part.
         {
-            const auto res = runFx (BT::trans, 1.0f, BeatFx::defaultParam (BT::trans), 2.0, 0.2, 9.0, 0.0);
+            const auto res = runFx (BT::trans, 1.0f, beatParam (BT::trans, "1/4"), 2.0, 0.2, 9.0, 0.0);
             const int cell = 6000;                                           // 1/4 beat
             double openE = 0, cutE = 0;
             for (int c = 4; c < 15; ++c)                                    // 0.5 s … 1.9 s
@@ -1496,7 +1250,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         // 5. ROLL: pressed mid-beat, it repeats the 1/4 beat that started on the grid — sample exact.
         {
             const double onAt = 1.0 + 0.0021;                                     // not on a grid line
-            const auto res = runFx (BT::roll, 1.0f, BeatFx::defaultParam (BT::roll), 2.0, onAt, 9.0, 0.0);
+            const auto res = runFx (BT::roll, 1.0f, beatParam (BT::roll, "1/4"), 2.0, onAt, 9.0, 0.0);
             const int onSample = (int) std::ceil (onAt * sr / block) * block;
             const int L = 6000;
             const int startCell = (onSample / L) * L;                             // last 1/4 beat boundary
@@ -1578,8 +1332,8 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
             auto& dk = pe.deck (0);
             dk.setTrack (tone);
             dk.setPlaying (true);
-            auto& fx = pe.fx (0, 0);
-            if (type >= 0) { fx.type = type; fx.wet = 0.7f; fx.param = 0.5f; fx.enabled = true; }
+            auto& bx = pe.beatFx();                                   // BEAT FX section on CH 1
+            if (type >= 0) { bx.select ((BeatFx::Type) type); bx.level = 0.7f; bx.param = 0.5f; bx.target = 0; bx.on = true; }
             std::vector<float> ol (block), orr (block);
             float* o2[2] = { ol.data(), orr.data() };
             auto rms = [&] (int count)
@@ -1603,6 +1357,156 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         rep.check (bad.isEmpty(), "Bajar el fader deja sonar la cola del ECHO / REVERB (FX post-fader)"_u, bad);
     }
 
+    std::cout << "== BEAT FX del mixer de club: los 14 efectos" << std::endl;
+    {
+        // Every effect of the club mixer's selector runs on music, stays finite, changes the sound,
+        // and offers the BEAT values of the owner's manual.
+        juce::String bad;
+        for (auto t : BeatFx::clubOrder())
+        {
+            BeatFx fx; fx.prepare (sr, block);
+            fx.type = (int) t; fx.param = BeatFx::defaultParam (t); fx.wet = juce::jmax (0.6f, BeatFx::defaultLevel (t)); fx.enabled = true;
+            std::vector<float> l (block), r (block);
+            double diff = 0, energy = 0; bool finite = true; juce::int64 k = 0;
+            for (int b = 0; b < (int) (3.0 * sr / block); ++b)
+            {
+                std::vector<float> dry (block);
+                for (int i = 0; i < block; ++i, ++k)
+                {
+                    const double tsec = (double) k / sr;
+                    const float kick = (float) (0.6 * std::exp (-std::fmod (tsec, 0.5) * 18.0) * std::sin (6.283 * 60.0 * tsec));
+                    dry[(size_t) i] = l[(size_t) i] = r[(size_t) i] = kick + 0.15f * (float) std::sin (6.283 * 330.0 * tsec + 0.3 * std::sin (2.0 * tsec));
+                }
+                fx.process (l.data(), r.data(), block, 120.0, (double) (k - block) * 2.0 / sr, 2.0 / sr);
+                for (int i = 0; i < block; ++i)
+                {
+                    finite = finite && std::isfinite (l[(size_t) i]) && std::abs (l[(size_t) i]) < 8.0f;
+                    if (b > 20) { diff += std::pow (l[(size_t) i] - dry[(size_t) i], 2.0); energy += std::pow (dry[(size_t) i], 2.0); }
+                }
+            }
+            const double rel = std::sqrt (diff / juce::jmax (1.0e-12, energy));
+            if (! finite || rel < 0.03) bad << BeatFx::typeName (t) << " (" << juce::String (rel, 3) << ") ";
+        }
+        const bool beats = BeatFx::paramText (BeatFx::Type::echo, BeatFx::defaultParam (BeatFx::Type::echo)) == "1"
+                        && BeatFx::paramText (BeatFx::Type::tripletFilter, BeatFx::defaultParam (BeatFx::Type::tripletFilter)) == "4/3"
+                        && BeatFx::paramText (BeatFx::Type::tripletRoll, BeatFx::defaultParam (BeatFx::Type::tripletRoll)) == "1/3"
+                        && BeatFx::paramText (BeatFx::Type::reverb, BeatFx::defaultParam (BeatFx::Type::reverb)) == "50%"
+                        && BeatFx::paramText (BeatFx::Type::mobius, BeatFx::stepBeat (BeatFx::Type::mobius, 1.0f, 0)) == "-1/16"
+                        && BeatFx::paramText (BeatFx::Type::delay, BeatFx::stepBeat (BeatFx::Type::delay, 0.0f, 3)) == "1/3";
+        rep.check (bad.isEmpty() && beats && BeatFx::clubOrder().size() == 14,
+                   "Los 14 BEAT FX del mixer de club suenan, son estables y tienen los BEAT del manual"_u,
+                   bad.isEmpty() ? (beats ? juce::String ("ok") : juce::String ("valores de BEAT distintos")) : bad);
+    }
+
+    std::cout << "== BEAT FX: TIME" << std::endl;
+    {
+        // TIME = 250 ms puts DELAY's repeat at 250 ms, whatever BEAT says (here 1 beat = 500 ms at 120 BPM).
+        auto firstRepeatMs = [&] (float timeMs)
+        {
+            BeatFx fx; fx.prepare (sr, block);
+            fx.type = (int) BeatFx::Type::delay; fx.param = BeatFx::defaultParam (BeatFx::Type::delay); fx.wet = 1.0f;
+            fx.timeMs = timeMs; fx.enabled = true;
+            std::vector<float> l (block), r (block), all;
+            for (int b = 0; b < (int) (1.5 * sr / block); ++b)
+            {
+                std::fill (l.begin(), l.end(), 0.0f); std::fill (r.begin(), r.end(), 0.0f);
+                if (b == 4) l[0] = r[0] = 1.0f;
+                fx.process (l.data(), r.data(), block, 120.0, b * block * 2.0 / sr, 2.0 / sr);
+                all.insert (all.end(), l.begin(), l.end());
+            }
+            size_t best = 0;
+            for (size_t i = (size_t) (4 * block + 64); i < all.size(); ++i) if (std::abs (all[i]) > std::abs (all[best])) best = i;
+            return ((double) best - 4.0 * block) * 1000.0 / sr;
+        };
+        const double beat = firstRepeatMs (0.0f), timed = firstRepeatMs (250.0f);
+        rep.check (std::abs (beat - 500.0) < 3.0 && std::abs (timed - 250.0) < 3.0, "BEAT FX: la perilla TIME fija el tiempo en ms (y sin ella sigue el BEAT)"_u,
+                   "BEAT " + juce::String (beat, 1) + " ms · TIME " + juce::String (timed, 1) + " ms");
+    }
+
+    std::cout << "== SOUND COLOR FX: SWEEP" << std::endl;
+    {
+        // Right: band-pass that narrows (the centre passes, far tones drop). Left: band-stop (the centre drops).
+        auto level = [&] (double hz, float knob)
+        {
+            ChannelStrip ch; ch.prepare (sr, block);
+            ch.colorType = (int) ChannelStrip::Color::sweep; ch.colorOn = true; ch.colorParam = 0.5f; ch.filter = knob;
+            std::vector<float> l (block), r (block);
+            double e = 0; juce::int64 k = 0;
+            for (int b = 0; b < (int) (1.0 * sr / block); ++b)
+            {
+                for (int i = 0; i < block; ++i, ++k) l[(size_t) i] = r[(size_t) i] = 0.3f * (float) std::sin (juce::MathConstants<double>::twoPi * hz * (double) k / sr);
+                ch.processPreFader (l.data(), r.data(), block, 120.0);
+                if (b > 20) for (auto v : l) e += (double) v * v;
+            }
+            return std::sqrt (e);
+        };
+        const double centre = 150.0 * std::pow (2.0, 0.5 * 6.5);
+        const double off = level (centre, 0.0f);
+        const double passC = level (centre, 0.9f) / off, passFar = level (centre / 8.0, 0.9f) / level (centre / 8.0, 0.0f);
+        const double stopC = level (centre, -0.9f) / off;
+        rep.check (passC > 0.7 && passFar < 0.2 && stopC < 0.2,
+                   "SOUND COLOR FX SWEEP: a la derecha pasa-banda, a la izquierda corta-banda (PARAMETER = centro)"_u,
+                   "centro " + juce::String (passC, 2) + " · lejos " + juce::String (passFar, 2) + " · corta-banda " + juce::String (stopC, 2));
+    }
+
+    std::cout << "== Mixer de club: BEAT FX y SOUND COLOR FX" << std::endl;
+    {
+        // One BEAT FX for the whole mixer, placed by CH SELECT; FX FREQUENCY keeps the other bands dry;
+        // the COLOR knobs do nothing until a SOUND COLOR FX button is lit.
+        auto tone = sineTrack (220.0, 48000.0, 30.0, 0.5f);
+        tone->setGrid ({ 120.0, 0.0 });
+        auto hiTone = sineTrack (6000.0, 48000.0, 30.0, 0.5f);
+        hiTone->setGrid ({ 120.0, 0.0 });
+        auto run = [&] (const std::function<void (AudioEngine&)>& setup, const std::shared_ptr<LoadedTrack>& t0,
+                        const std::shared_ptr<LoadedTrack>& t1, bool play1, double& dev0, double* levelRatio = nullptr)
+        {
+            // Returns how much the output differs from the same mix without the change (relative RMS).
+            auto render = [&] (bool apply)
+            {
+                AudioEngine pe;
+                pe.prepareForTest (sr, block);
+                pe.autoGain = false;
+                pe.limiter().enabled = false;
+                pe.deck (0).setTrack (t0);
+                pe.deck (0).setPlaying (true);
+                if (t1 != nullptr) { pe.deck (1).setTrack (t1); pe.deck (1).setPlaying (play1); }
+                if (apply) setup (pe);
+                std::vector<float> ol (block), orr (block), all;
+                float* o2[2] = { ol.data(), orr.data() };
+                for (int k = 0; k < (int) (1.5 * sr / block); ++k)
+                {
+                    pe.audioDeviceIOCallbackWithContext (nullptr, 0, o2, 2, block, {});
+                    all.insert (all.end(), ol.begin(), ol.end());
+                }
+                return all;
+            };
+            const auto a = render (false), b = render (true);
+            double d = 0, e = 0, eb = 0;
+            for (size_t i = a.size() / 3; i < a.size(); ++i) { d += (a[i] - b[i]) * (a[i] - b[i]); e += a[i] * a[i]; eb += b[i] * b[i]; }
+            dev0 = std::sqrt (d / juce::jmax (1.0e-12, e));
+            if (levelRatio != nullptr) *levelRatio = std::sqrt (eb / juce::jmax (1.0e-12, e));
+        };
+        double master = 0, xfOther = 0, lowOnly = 0, lowLevel = 0, colorOff = 0, colorOn = 0;
+        run ([] (AudioEngine& e) { auto& b = e.beatFx(); b.select (BeatFx::Type::echo); b.level = 1.0f; b.target = AudioEngine::BeatFxSection::master; b.on = true; },
+             tone, nullptr, false, master);
+        // XF-B with CH 1 on side A (CH 2 silent): nothing may change.
+        run ([] (AudioEngine& e) { e.channel (0).xfAssign = (int) ChannelStrip::XfAssign::a; auto& b = e.beatFx(); b.select (BeatFx::Type::filter);
+                                   b.level = 1.0f; b.target = AudioEngine::BeatFxSection::xfB; b.on = true; },
+             tone, nullptr, false, xfOther);
+        // FX FREQUENCY = LOW only: a 6 kHz tone goes through untouched.
+        run ([] (AudioEngine& e) { auto& b = e.beatFx(); b.select (BeatFx::Type::filter); b.level = 1.0f; b.target = 0;
+                                   b.bands[1] = false; b.bands[2] = false; b.on = true; },
+             hiTone, nullptr, false, lowOnly, &lowLevel);
+        run ([] (AudioEngine& e) { for (int d = 0; d < 2; ++d) e.channel (d).colorOn = false; e.channel (0).filter = -0.8f; },
+             tone, nullptr, false, colorOff);
+        run ([] (AudioEngine& e) { e.channel (0).colorType = (int) ChannelStrip::Color::filter; e.channel (0).colorOn = true; e.channel (0).filter = -0.95f; },
+             hiTone, nullptr, false, colorOn);
+        rep.check (master > 0.2 && xfOther < 0.02 && std::abs (lowLevel - 1.0) < 0.05 && colorOff < 0.01 && colorOn > 0.5,
+                   "Mixer de club: BEAT FX en MASTER / XF-A / XF-B, FX FREQUENCY por bandas y COLOR solo con un botón encendido"_u,
+                   "master " + juce::String (master, 2) + " · XF otro lado " + juce::String (xfOther, 3) + " · solo LOW: nivel de los agudos "
+                   + juce::String (lowLevel, 3) + " · COLOR apagado " + juce::String (colorOff, 3) + " · COLOR encendido " + juce::String (colorOn, 2));
+    }
+
     std::cout << "== Funciones de deck" << std::endl;
     {
         Deck c (0);
@@ -1618,7 +1522,22 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         c.setTrack (quiet);
         rep.check (std::abs (c.getCuePoint() - 1.5) < 0.02, "Auto cue en el primer sonido", juce::String (c.getCuePoint(), 3) + " s");
 
-        // Gate cue: paused, hold hot cue → plays; release → back to the cue, paused.
+        // Hot cue while paused: jumps there and keeps playing after the pad is released.
+        c.seek (10.0);
+        run (c, 0.01);
+        c.hotCue (2);                       // set at 10 s
+        c.seek (3.0);
+        run (c, 0.01);
+        c.hotCue (2);
+        c.hotCueRelease (2);
+        run (c, 0.5);
+        rep.check (c.isPlaying() && c.audioPositionSeconds() > c.getHotCue (2) + 0.4,
+                   "Hot cue en pausa: salta a la marca y sigue sonando al soltar el pad"_u);
+        c.setPlaying (false);
+        c.clearHotCue (2);
+
+        // Gate cue (option): paused, hold hot cue → plays; release → back to the cue, paused.
+        c.setGateCue (true);
         c.seek (10.0);
         run (c, 0.01);
         c.hotCue (2);                       // set at 10 s
@@ -1631,6 +1550,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         run (c, 0.05);
         rep.check (playedWhileHeld && ! c.isPlaying() && std::abs (c.audioPositionSeconds() - c.getHotCue (2)) < 0.001,
                    "Gate cue: suena mientras se mantiene y vuelve al soltar");
+        c.setGateCue (false);
 
         // Instant doubles: the other deck lands in the same place, tempo and play state.
         Deck other (1);
@@ -2211,6 +2131,24 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         }
     }
 
+    {
+        // A track analysed in the EXPLORADOR (outside the collection) keeps that analysis when it is
+        // loaded and joins the collection: it is not analysed again.
+        juce::AudioFormatManager fm;
+        fm.registerBasicFormats();
+        Library lib (fm);
+        auto t = std::make_shared<Track>();
+        t->file = trackA;
+        t->bpm = 123.0;
+        t->firstBeat = 0.2;
+        t->analysis = Track::Analysis::done;
+        const int queued = lib.pendingAnalysisCount();
+        const auto added = lib.addTrack (t);
+        rep.check (added == t && added->bpm == 123.0 && added->analysis == Track::Analysis::done
+                   && lib.pendingAnalysisCount() == queued && lib.find (t->path()) == t,
+                   "Tema analizado en el Explorador: al cargarlo no se vuelve a analizar"_u);
+    }
+
     std::cout << "== MIDI" << std::endl;
     Actions actions (engine, {});
     MidiEngine midi (actions);
@@ -2248,6 +2186,165 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     midi.inject ("Test", juce::MidiMessage::noteOn (1, 11, (juce::uint8) 127));
     rep.check (d2.isReverse() && ! d2.isPlaying(), "SHIFT + botón dispara la capa shift"_u);
     midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
+
+    if (auto inp = ControllerLibrary::findBundled ("DJControl Inpulse 500"))
+    {
+        // The Inpulse sends another message while its SHIFT is held (deck 2: channel 6). Those
+        // messages have normal bindings: SHIFT held must not silence them.
+        d2.setReverse (false);
+        d2.setPlaying (false);
+        d2.seek (20.0);
+        run (d2, 0.05);
+        midi.setBindings (inp->second);
+        midi.inject ("Test", juce::MidiMessage::noteOn (3, 0x04, (juce::uint8) 127));     // SHIFT (deck 2)
+        midi.inject ("Test", juce::MidiMessage::noteOn (6, 0x06, (juce::uint8) 127));     // SHIFT + CUE → start and play
+        midi.inject ("Test", juce::MidiMessage::noteOff (6, 0x06));
+        midi.inject ("Test", juce::MidiMessage::noteOff (3, 0x04));
+        run (d2, 0.05);
+        rep.check (d2.isPlaying() && d2.getPosition() < 2.0, "Inpulse 500: con SHIFT apretado andan las funciones de SHIFT (SHIFT + CUE vuelve al principio)"_u,
+                   juce::String (d2.getPosition(), 2) + " s");
+        d2.setPlaying (false);
+        midi.setBindings (b);
+    }
+
+    {
+        // VirtualDJ scripts, run as written.
+        d2.setReverse (false);
+        auto vb = [] (int ch, MidiBinding::Kind k, int num, MidiBinding::Encoding e, const char* script)
+        {
+            MidiBinding x; x.device = "Test"; x.channel = ch; x.kind = k; x.number = num; x.encoding = e; x.action = "vdj"; x.script = script; x.deck = 1;
+            return x;
+        };
+        using K = MidiBinding::Kind; using E = MidiBinding::Encoding;
+        auto sj = vb (3, K::cc, 2, E::relativeOffset, "jogwheel"); sj.scale = 1.0f / 512.0f;
+        midi.setBindings ({ shift, vb (3, K::note, 1, E::button, "shift ? reverse : play_pause"), sj,
+                            vb (3, K::note, 3, E::button, "hot_cue 3"), vb (3, K::note, 4, E::button, "loop 4"),
+                            vb (3, K::cc, 5, E::absolute7, "volume"), vb (3, K::note, 6, E::button, "play ? nothing : goto_start & key +2") });
+        auto tap = [&midi] (int ch, int n) { midi.inject ("Test", juce::MidiMessage::noteOn (ch, n, (juce::uint8) 127)); midi.inject ("Test", juce::MidiMessage::noteOff (ch, n)); };
+        d2.setPlaying (false);
+        tap (3, 1);
+        const bool played = d2.isPlaying();
+        midi.inject ("Test", juce::MidiMessage::noteOn (1, 63, (juce::uint8) 127));
+        tap (3, 1);
+        midi.inject ("Test", juce::MidiMessage::noteOff (1, 63));
+        rep.check (played && d2.isReverse(), "Script de VirtualDJ «shift ? reverse : play_pause» tal cual"_u);
+        d2.setReverse (false);
+        d2.setPlaying (false);
+        run (d2, 0.05);
+        const double p0 = d2.getPosition();
+        for (int i = 0; i < 64; ++i) midi.inject ("Test", juce::MidiMessage::controllerEvent (3, 2, 65));
+        rep.check (std::abs (d2.getPosition() - (p0 + 1.8 / 8.0)) < 0.02, "Script «jogwheel»: el jog mueve el tema en pausa"_u, juce::String (d2.getPosition() - p0, 3));
+        d2.clearHotCue (2);
+        tap (3, 3);
+        tap (3, 4);
+        run (d2, 0.02);                                     // the loop is laid down by the audio thread
+        const bool looped = d2.isLoopActive() && std::abs (d2.getLoopBeats() - 4.0) < 0.01;
+        tap (3, 4);
+        run (d2, 0.02);
+        midi.inject ("Test", juce::MidiMessage::controllerEvent (3, 5, 64));
+        d2.setKeyShift (0);
+        tap (3, 6);
+        rep.check (d2.getHotCue (2) >= 0.0 && looped && ! d2.isLoopActive() && std::abs (engine.channel (1).fader.load() - 64.0f / 127.0f) < 0.01f
+                   && d2.getKeyShift() == 2,
+                   "Scripts «hot_cue 3», «loop 4» (entra y sale), «volume» y «play ? nothing : goto_start & key +2»"_u,
+                   juce::String (d2.getHotCue (2), 2) + " " + juce::String ((int) looped) + " " + juce::String ((int) d2.isLoopActive())
+                   + " " + juce::String (engine.channel (1).fader.load(), 3) + " " + juce::String (d2.getKeyShift()));
+        {
+            // Lights and the newer verbs, straight on the engine.
+            VdjScript vs (actions);
+            VdjScript::Context c;
+            c.deck = 1;
+            d2.exitLoop();
+            run (d2, 0.02);
+            const auto dimLight = vs.light ("loop ? on : dim", c);
+            d2.clearHotCue (0);
+            const auto offCue = vs.light ("hot_cue 1 ? color 'red' : off", c);
+            d2.hotCue (0);
+            const auto redCue = vs.light ("hot_cue 1 ? color 'red' : off", c);
+            const auto ownColour = vs.light ("hot_cue 1", c);
+            engine.channel (1).eqLow = 0.7f;
+            vs.run ("eq_kill_low", c);
+            const bool killedLow = engine.channel (1).eqLow.load() < 0.001f;
+            vs.run ("eq_kill_low", c);
+            const bool restored = std::abs (engine.channel (1).eqLow.load() - 0.7f) < 0.001f;
+            d2.clearHotCue (2);
+            vs.run ("cue 3", c);
+            c.value = 0.0f; vs.run ("cue 3", c); c.value = 1.0f;
+            rep.check (dimLight.level == Actions::Led::dim && offCue.level == Actions::Led::off
+                       && redCue.level == Actions::Led::on && redCue.colour == juce::Colour (0xffff0000)
+                       && ownColour.level == Actions::Led::on && ! ownColour.colour.isTransparent()
+                       && killedLow && restored && d2.getHotCue (2) >= 0.0,
+                       "Scripts de VirtualDJ: luces «dim» / «color», color propio del hot cue, «eq_kill_low» y «cue 3»"_u);
+            rep.check (VdjScript::isContinuous ("touchwheel") && ! VdjScript::isContinuous ("touchwheel_touch")
+                       && VdjScript::unknownVerbs ("holding ? sync : play_pause & loop_pad 3 & beatjump_select 4 & pause_stop").isEmpty(),
+                       "Scripts de VirtualDJ: «touchwheel» es el giro del jog y «…_touch» el toque; holding, loop_pad, beatjump_select…"_u);
+            d2.setPlaying (false);
+            d2.clearHotCue (0);
+            d2.clearHotCue (2);
+        }
+        {
+            // Decks 3 and 4: each side shows one of its two decks; 2-deck controllers follow the side,
+            // controllers with their own deck buttons drive the deck they name and the screen follows.
+            auto& d3 = engine.deck (2);
+            d3.prepare (sr);
+            d3.setTrack (tb);
+            engine.showDeck (0); engine.showDeck (1);
+            const bool start = engine.visibleDeck (0) == 0 && engine.visibleDeck (1) == 1 && engine.otherDeck (0) == 1;
+            engine.swapSide (0);
+            const bool swapped = engine.visibleDeck (0) == 2 && engine.otherDeck (1) == 2 && engine.isVisible (2) && ! engine.isVisible (0);
+
+            MidiBinding p1; p1.device = "Two"; p1.channel = 4; p1.kind = MidiBinding::Kind::note; p1.number = 1; p1.action = "play_pause"; p1.deck = 0;
+            midi.setBindings ({ p1 });
+            d3.setPlaying (false); engine.deck (0).setPlaying (false);
+            midi.inject ("Two", juce::MidiMessage::noteOn (4, 1, (juce::uint8) 127));
+            midi.inject ("Two", juce::MidiMessage::noteOff (4, 1));
+            const bool followsSide = d3.isPlaying() && ! engine.deck (0).isPlaying();
+            d3.setPlaying (false);
+
+            MidiBinding q1 = p1; q1.device = "Four";
+            MidiBinding q3 = p1; q3.device = "Four"; q3.channel = 5; q3.deck = 2;
+            midi.setBindings ({ q1, q3 });
+            engine.showDeck (0);
+            midi.inject ("Four", juce::MidiMessage::noteOn (4, 1, (juce::uint8) 127));
+            midi.inject ("Four", juce::MidiMessage::noteOff (4, 1));
+            const bool ownDeck = engine.deck (0).isPlaying() && ! d3.isPlaying();
+            engine.deck (0).setPlaying (false);
+            midi.inject ("Four", juce::MidiMessage::noteOn (5, 1, (juce::uint8) 127));
+            midi.inject ("Four", juce::MidiMessage::noteOff (5, 1));
+            const bool screenFollows = d3.isPlaying() && engine.visibleDeck (0) == 2;
+            d3.setPlaying (false);
+
+            VdjScript vs (actions);
+            VdjScript::Context c;
+            c.deck = 0;
+            vs.run ("deck 3 play_pause", c);
+            const bool deck3Verb = d3.isPlaying();
+            d3.setPlaying (false);
+            vs.run ("deck left play_pause", c);                 // left shows deck 3 now
+            const bool leftVerb = d3.isPlaying();
+            d3.setPlaying (false);
+            vs.run ("deck 1 select", c);
+            const bool selectVerb = engine.visibleDeck (0) == 0;
+            actions.trigger ("deck_swap", 1, 1.0f);
+            const bool swapAction = engine.visibleDeck (1) == 3 && actions.isActive ("deck_swap", 1);
+            actions.trigger ("deck_swap", 1, 1.0f);
+            rep.check (start && swapped && followsSide && ownDeck && screenFollows && deck3Verb && leftVerb && selectVerb
+                       && swapAction && engine.visibleDeck (1) == 1,
+                       "Decks 3 y 4: cambio de lado, controlador de 2 decks sigue al deck a la vista, el de 4 decks maneja el suyo y la pantalla lo sigue, scripts «deck 3» / «deck left» / «select»"_u,
+                       juce::String ((int) start) + juce::String ((int) swapped) + juce::String ((int) followsSide) + juce::String ((int) ownDeck)
+                       + juce::String ((int) screenFollows) + juce::String ((int) deck3Verb) + juce::String ((int) leftVerb)
+                       + juce::String ((int) selectVerb) + juce::String ((int) swapAction));
+            engine.showDeck (0);
+            midi.setBindings (b);
+        }
+        rep.check (VdjScript::unknownVerbs ("shift ? hot_cue 1 : sampler_play 2 & video_fx").joinIntoString (",") == "sampler_play,video_fx"
+                   && VdjScript::isContinuous ("shift ? jogwheel : jogwheel") && ! VdjScript::isContinuous ("play_pause"),
+                   "Scripts de VirtualDJ: se detectan los verbos sin equivalente y los controles continuos"_u);
+        d2.setPlaying (false);
+        d2.setKeyShift (0);
+        d2.clearHotCue (2);
+        midi.setBindings (b);
+    }
 
     {
         // Pitch fader: down (low values) = faster, like the screen and club players.
@@ -2624,7 +2721,8 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
             "CFXParameterCH1,CFXParameterCH1,KnobSliderHiRes,B617,,,,,,,,,,,\n"
             "PAD1_HotCue,PAD1_PadMode1,Pad,9000,7,9,,,,,,,,,\n"
             "PAD1_HotCue,PAD1_PadMode1+Shift,Pad,9000,8,10,,,,,,,,,\n"
-            "FX1-1On,FX1-1On,Button,9447,,,,,,,,,,,\n");
+            "FX1-1On,FX1-1On,Button,9447,,,,,,,,,,,\n"
+            "SmartCFX,SmartCFX,Button,9600,,,,,,,,,,,\n");
         const auto r = MappingImport::fromCsv (csv);
         auto has = [&r] (const char* act, int dk, int chn, int nm, bool sh)
         {
@@ -2634,11 +2732,104 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         rep.check (r.controller == "Test Board 2" && has ("play_pause", 0, 1, 11, false) && has ("play_pause", 1, 2, 11, false)
                    && has ("hot_cue_1", 0, 8, 0, false) && has ("delete_hot_cue_1", 1, 11, 0, false)
                    && has ("load", 1, 7, 71, false) && has ("filter", 0, 7, 23, false) && has ("play_pause", 0, 1, 71, false)
-                   && r.untranslated.contains ("FX1-1On"),
-                   "Tabla CSV de otro programa: decks, pads por canal, SHIFT del hardware, filtro y funciones sin equivalente");
+                   && has ("beat_fx_on", 0, 5, 71, false) && r.untranslated.contains ("SmartCFX"),
+                   "Tabla CSV de otro programa: decks, pads por canal, SHIFT del hardware, filtro, BEAT FX y funciones sin equivalente");
         const auto pitchRow = std::find_if (r.bindings.begin(), r.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "pitch" && mb.deck == 1; });
         rep.check (pitchRow != r.bindings.end() && pitchRow->encoding == MidiBinding::Encoding::absolute14 && pitchRow->lsbNumber == 32,
                    "Los faders de alta resolución se importan como 14 bits (MSB + LSB)"_u);
+
+        // RGB pads (Hercules: 0bRRGGGBB in the velocity) and the Inpulse 500 that ships with OpenMix.
+        using RG = MidiBinding::Rgb;
+        rep.check (MidiBinding::encodeColour (RG::hercules, juce::Colours::red, 1.0f) == 0x60
+                   && MidiBinding::encodeColour (RG::hercules, juce::Colour (0xff00ff00), 1.0f) == 0x1C
+                   && MidiBinding::encodeColour (RG::hercules, juce::Colours::blue, 1.0f) == 0x03
+                   && MidiBinding::encodeColour (RG::hercules, juce::Colours::white, 1.0f) == 0x7F
+                   && MidiBinding::encodeColour (RG::hercules, juce::Colours::red, 0.3f) == 0x20
+                   && MidiBinding::encodeColour (RG::none, juce::Colours::red, 1.0f) < 0,
+                   "Color de los pads RGB (formato Hercules)");
+        const auto inpulse = ControllerLibrary::findBundled ("DJControl Inpulse 500");
+        auto inp = [&inpulse] (const char* act, int dk, int chn, int nm, bool rgb)
+        {
+            return inpulse && std::any_of (inpulse->second.begin(), inpulse->second.end(), [=] (const MidiBinding& mb)
+                { return mb.action == act && mb.deck == dk && mb.channel == chn && mb.number == nm && ! mb.shift
+                         && (mb.rgb == MidiBinding::Rgb::hercules) == rgb; });
+        };
+        rep.check (inp ("hot_cue_1", 0, 7, 0x00, true) && inp ("delete_hot_cue_1", 0, 7, 0x08, true) && inp ("delete_hot_cue_8", 1, 8, 0x0F, true)
+                   && inp ("pad_loop_3", 0, 7, 0x12, true) && inp ("pad_roll_1", 1, 8, 0x50, true) && inp ("pad_jump_8", 0, 7, 0x77, true)
+                   && inp ("play_pause", 0, 2, 0x07, false) && inp ("stutter", 0, 5, 0x07, false) && inp ("jog", 1, 3, 0x0A, false)
+                   && inp ("guide_tempo_ok", 0, 2, 0x2C, false) && inp ("volume", 1, 3, 0x00, false)
+                   && inp ("pad_mode_loop", 0, 2, 0x10, false) && inp ("pad_mode_jump", 1, 3, 0x16, false),
+                   "Hercules Inpulse 500 incluido: pads por modo con color, SHIFT + pad borra el hot cue, transporte, jog y guía de beatmatch"_u);
+
+        // A VirtualDJ mapper of a natively supported controller: no definition on disk, so the messages
+        // come from OpenMix's own mapping for that model and the user's functions go on top.
+        const auto lone = MappingImport::fromMapperOnly (R"(<mapper device="DJControl Inpulse 500" version="800">
+              <map value="PLAY" action="play_pause"/><map value="CUE" action="cue_stop"/>
+              <map value="PAD1" action="hot_cue 2"/><map value="SYNC" action="shift ? key_match : sync"/>
+              <map value="MYSTERY_BUTTON" action="play_pause"/><map value="SHIFT_CUE" action="goto_start"/>
+              <map value="SHIFT" action="shift"/><map value="JOG" action="play_pause"/><map value="SHIFT_PAD3" action="delete_cue 3"/>
+              <map value="PLAYLIST" action="browser_window 'playlists'"/><map value="MASTER_VOLUME" action="master_volume"/>
+              <map value="PAD_MODE_HOTCUE" action="pad_page 1"/><map value="LOOP_HALVE" action="loop_half"/></mapper>)");
+        auto scrL = [&lone] (const char* script, int dk, int chn, int nm)
+        {
+            return std::any_of (lone.bindings.begin(), lone.bindings.end(), [=] (const MidiBinding& mb)
+                { return mb.action == "vdj" && mb.script == script && mb.deck == dk && mb.channel == chn && mb.number == nm; });
+        };
+        auto hasL = [&lone] (const char* act, int dk, int chn, int nm)
+        {
+            return std::any_of (lone.bindings.begin(), lone.bindings.end(), [=] (const MidiBinding& mb)
+                { return mb.action == act && mb.deck == dk && mb.channel == chn && mb.number == nm; });
+        };
+        rep.check (lone.basedOn == "Hercules DJControl Inpulse 500" && scrL ("play_pause", 0, 2, 0x07) && scrL ("cue_stop", 1, 3, 0x06)
+                   && scrL ("hot_cue 2", 0, 7, 0x00) && scrL ("shift ? key_match : sync", 0, 2, 0x05)
+                   && hasL ("pad_roll_4", 0, 7, 0x53) && lone.untranslated.contains ("MYSTERY_BUTTON"),
+                   "Mapper de VirtualDJ sin definición: cada script tal cual sobre el mapeo de OpenMix de ese controlador"_u);
+        rep.check (hasL ("shift", 0, 2, 0x04) && ! scrL ("goto_start", 0, 2, 0x04) && scrL ("goto_start", 0, 5, 0x06)
+                   && hasL ("jog", 0, 2, 0x0A) && ! scrL ("play_pause", 0, 2, 0x0A) && scrL ("delete_cue 3", 0, 7, 0x0A)
+                   && hasL ("loop", 0, 2, 0x2C) && ! scrL ("browser_window 'playlists'", 0, 2, 0x07) && ! scrL ("master_volume", 0, 2, 0x00)
+                   && hasL ("volume", 0, 2, 0x00) && ! scrL ("pad_page 1", 0, 2, 0x06) && ! scrL ("loop_half", 0, 2, 0x2C)
+                   && lone.untranslated.contains ("PLAYLIST") && lone.untranslated.contains ("MASTER_VOLUME"),
+                   "Mapper de VirtualDJ: «SHIFT_…» va al mensaje con SHIFT y no pisa el botón SHIFT, el jog no se vuelve botón, la perilla de loop entra / sale"_u);
+        // A mapper of a controller whose VirtualDJ control names OpenMix knows exactly (Inpulse 500:
+        // "HCINP500"): every control and every light gets its script, nothing guessed.
+        {
+            const auto exact = MappingImport::fromMapperOnly (R"(<mapper device="HCINP500" version="850">
+                  <map value="ONINIT" action="fake_master on"/><map value="SHIFT" action="shift"/>
+                  <map value="PLAY_PAUSE" action="pioneer_play"/><map value="SYNC" action="sync"/>
+                  <map value="LED_SYNC" action="loaded ? is_sync"/><map value="PADMODE_LOOP" action="pad_pages 2"/>
+                  <map value="PAD_LOOP_1" action="pad 1"/><map value="LOOP_IN" action="loop_in"/><map value="LOOP_IN_HELD" action="loop 4"/>
+                  <map value="MASTER_VOLUME" action="master_volume"/><map value="MIXER_FX2" action="deck all filter_activate 'Echo'"/></mapper>)");
+            auto has = [&exact] (const char* script, int ch, int num, bool light)
+            {
+                return std::any_of (exact.bindings.begin(), exact.bindings.end(), [=] (const MidiBinding& mb)
+                    { return mb.action == "vdj" && mb.script == script && mb.channel == ch && mb.number == num && mb.outputOnly == light; });
+            };
+            rep.check (exact.basedOn == "Hercules DJControl Inpulse 500" && has ("pioneer_play", 2, 0x07, false) && has ("pioneer_play", 3, 0x07, false)
+                       && has ("loaded ? is_sync", 2, 0x05, true) && has ("pad 1", 8, 0x10, false) && has ("pad_pages 2", 3, 0x10, false)
+                       && has ("holding ? (loop 4) : (loop_in)", 2, 0x09, false) && has ("deck all filter_activate 'Echo'", 1, 0x15, false)
+                       && exact.untranslated.contains ("MASTER_VOLUME") && ! exact.untranslated.contains ("ONINIT"),
+                       "Mapper de VirtualDJ del Inpulse 500 (HCINP500): cada control y cada luz con su script exacto, sin adivinar"_u);
+
+            // And it plays: LOOP pad mode, then pad 1 = loop of ¼ beat; PLAY plays (deck 2).
+            MidiEngine m2 (actions);
+            m2.setBindings (exact.bindings);
+            auto& dk = engine.deck (1);
+            dk.setPlaying (false);
+            dk.exitLoop();
+            run (dk, 0.02);
+            auto tap = [&m2] (int ch, int n) { m2.inject ("Test", juce::MidiMessage::noteOn (ch, n, (juce::uint8) 127)); m2.inject ("Test", juce::MidiMessage::noteOff (ch, n)); };
+            tap (3, 0x10);                                       // PADMODE_LOOP (deck 2)
+            tap (8, 0x10);                                       // PAD_LOOP_1
+            run (dk, 0.02);
+            const bool looped = dk.isLoopActive() && std::abs (dk.getLoopBeats() - 0.25) < 0.01;
+            dk.exitLoop();
+            tap (3, 0x07);                                       // PLAY_PAUSE
+            rep.check (looped && dk.isPlaying(), "Mapper de VirtualDJ del Inpulse 500: «pad_pages 2» + «pad 1» hace el loop del pad, «pioneer_play» reproduce"_u);
+            dk.setPlaying (false);
+        }
+
+        const auto unknown = MappingImport::fromMapperOnly (R"(<mapper device="Nobody Knows This 9000"><map value="PLAY" action="play_pause"/></mapper>)");
+        rep.check (unknown.bindings.empty() && unknown.missingDefinition, "Mapper sin definición de un controlador desconocido: se avisa que falta la definición"_u);
 
         // Definition + mapper pair (XML).
         const juce::String def = R"(<device name="TB3" type="MIDI" decks="2" drivername="Test Board 3">
@@ -2655,13 +2846,18 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
             return std::any_of (x.bindings.begin(), x.bindings.end(), [=] (const MidiBinding& mb)
                 { return mb.action == act && mb.deck == dk && mb.channel == chn && mb.shift == sh; });
         };
-        const auto volRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "volume"; });
-        const auto jogRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.action == "jog"; });
-        rep.check (x.controller == "Test Board 3" && hasX ("play_pause", 0, 1, false) && hasX ("play_pause", 1, 2, false)
-                   && hasX ("reverse", 0, 1, true) && hasX ("shift", 0, 1, false)
+        auto scr = [&x] (const char* script, int dk, int chn)
+        {
+            return std::any_of (x.bindings.begin(), x.bindings.end(), [=] (const MidiBinding& mb)
+                { return mb.action == "vdj" && mb.script == script && mb.deck == dk && mb.channel == chn && ! mb.shift; });
+        };
+        const auto volRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.script == "volume"; });
+        const auto jogRow = std::find_if (x.bindings.begin(), x.bindings.end(), [] (const MidiBinding& mb) { return mb.script == "jogwheel"; });
+        rep.check (x.controller == "Test Board 3" && scr ("shift ? reverse : play_pause", 0, 1) && scr ("shift ? reverse : play_pause", 1, 2)
+                   && hasX ("shift", 0, 1, false)
                    && volRow != x.bindings.end() && volRow->encoding == MidiBinding::Encoding::absolute14 && volRow->number == 0x13 && volRow->lsbNumber == 0x33
                    && jogRow != x.bindings.end() && jogRow->encoding == MidiBinding::Encoding::relativeOffset,
-                   "Definición + mapeo XML: decks, capa SHIFT, fader de 14 bits y jog"_u);
+                   "Definición + mapper de VirtualDJ: cada control con su script tal cual, decks, SHIFT, fader de 14 bits y jog"_u);
 
         // One-file XML preset, with script-driven controls named by their path.
         const juce::String preset = R"(<SomeControllerPreset schemaVersion="1"><info><name>Test Board 4</name></info>
@@ -2979,12 +3175,37 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
     juce::Array<juce::var> entries;
     juce::StringArray notices;
     std::vector<juce::File> files;
-    for (const auto& e : juce::RangedDirectoryIterator (sourceFolder, false, "*.xml;*.csv", juce::File::findFiles))
+    for (const auto& e : juce::RangedDirectoryIterator (sourceFolder, false, "*.xml;*.csv;*.json", juce::File::findFiles))
         files.push_back (e.getFile());
     std::sort (files.begin(), files.end(), [] (const juce::File& a, const juce::File& b) { return a.getFileName().compareNatural (b.getFileName()) < 0; });
 
+    // OpenMix's own mappings ("<model>.openmix.json": written and checked by hand, every function of
+    // the controller) take the place of any mapping converted from another program for that model.
+    std::set<juce::String> native;
     for (auto& f : files)
     {
+        if (! f.getFileName().endsWithIgnoreCase (".openmix.json")) continue;
+        auto v = juce::JSON::parse (f);
+        const auto name = v["name"].toString();
+        if (name.isEmpty() || v["bindings"].getArray() == nullptr) { std::cout << "  descartado: " << f.getFileName().toRawUTF8() << std::endl; continue; }
+        auto o = std::make_unique<juce::DynamicObject>();
+        o->setProperty ("id", ControllerLibrary::normalise (name));
+        o->setProperty ("name", name);
+        o->setProperty ("author", v["author"]);
+        o->setProperty ("match", v["match"]);
+        o->setProperty ("bindings", v["bindings"]);
+        if ((bool) v["hardwareMixer"]) o->setProperty ("hardwareMixer", true);
+        if ((bool) v["soundcard"]) o->setProperty ("soundcard", true);
+        if (v["vdj"].isObject()) o->setProperty ("vdj", v["vdj"]);
+        native.insert (ControllerLibrary::normalise (name));
+        entries.add (juce::var (o.release()));
+        notices.add ("- " + name + (v["author"].toString().isNotEmpty() ? juce::String::fromUTF8 (" — ") + v["author"].toString() : juce::String()));
+        std::cout << "  incluido (propio): " << name.toRawUTF8() << " (" << v["bindings"].size() << " asignaciones)" << std::endl;
+    }
+
+    for (auto& f : files)
+    {
+        if (f.hasFileExtension (".json")) continue;
         MappingImport::Source src { f.getFileNameWithoutExtension(), f, f };
         auto r = MappingImport::convert (src);
         const bool twoDecks = std::count_if (r.bindings.begin(), r.bindings.end(), [] (const MidiBinding& b) { return b.action == "play_pause" && ! b.outputOnly; }) >= 2;
@@ -3001,7 +3222,7 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
         auto words = juce::StringArray::fromTokens (name, " ", "");
         words.removeEmptyStrings();
         for (int i = words.size(); --i >= 0;)
-            if (words[i].startsWithIgnoreCase ("v") && words[i].substring (1).containsOnly ("0123456789."))
+            if (words[i].startsWithIgnoreCase ("v") && words[i].containsChar ('.') && words[i].substring (1).containsOnly ("0123456789."))
                 words.remove (i);                                   // "v0.995"
         name = words.joinIntoString (" ");
         std::vector<juce::StringArray> variants { {} };
@@ -3028,6 +3249,12 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
                     match.add (pattern);
             }
 
+        if (native.count (ControllerLibrary::normalise (name)) > 0)
+        {
+            std::cout << "  reemplazado por el mapeo propio: " << f.getFileName().toRawUTF8() << std::endl;
+            continue;
+        }
+
         juce::String author;
         if (auto xml = juce::XmlDocument::parse (f))
             if (auto* info = xml->getChildByName ("info"))
@@ -3043,8 +3270,13 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
         m->setProperty ("midi", match);
         o->setProperty ("match", juce::var (m.release()));
         o->setProperty ("bindings", bindings);
+        // Vendor tables without channel faders or EQ over MIDI: the unit mixes the decks itself, so each
+        // deck needs its own output. (Community mappings may just leave a control out; not flagged.)
+        auto has = [&r] (const char* a) { return std::any_of (r.bindings.begin(), r.bindings.end(), [a] (const MidiBinding& b) { return b.action == a && ! b.outputOnly; }); };
+        if (f.hasFileExtension (".csv") && (! has ("volume") || ! has ("eq_high")))
+            o->setProperty ("hardwareMixer", true);
         entries.add (juce::var (o.release()));
-        notices.add ("- " + name + (author.isNotEmpty() ? " — " + author : juce::String()));
+        notices.add ("- " + name + (author.isNotEmpty() ? juce::String::fromUTF8 (" — ") + author : juce::String()));
         std::cout << "  incluido: " << name.toRawUTF8() << " (" << bindings.size() << " asignaciones)" << std::endl;
     }
 
@@ -3053,7 +3285,7 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
     root->setProperty ("mappings", entries);
     outFile.getParentDirectory().createDirectory();
     outFile.replaceWithText (juce::JSON::toString (juce::var (root.release()), juce::JSON::FormatOptions{}.withSpacing (juce::JSON::Spacing::none)));
-    outFile.getSiblingFile ("CREDITS.txt").replaceWithText (notices.joinIntoString ("\n") + "\n");
+    outFile.getSiblingFile ("CREDITS.txt").replaceWithText (notices.joinIntoString ("\n") + "\n", false, false, "\n");
     std::cout << entries.size() << " mapeos en la biblioteca incluida" << std::endl;
     return entries.isEmpty() ? 1 : 0;
 }

@@ -16,7 +16,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -84,6 +84,29 @@ public:
             return;
         }
 
+        if (commandLine.contains ("--probe-audio"))
+        {
+            const auto path = commandLine.fromFirstOccurrenceOf ("--probe-audio", false, false).trim().unquoted();
+            juce::AudioFormatManager fm;
+            fm.registerBasicFormats();
+            const juce::File f (path);
+            std::unique_ptr<juce::AudioFormatReader> rd (fm.createReaderFor (f));
+            std::cout << f.getFullPathName() << " existe=" << f.existsAsFile() << std::endl;
+            if (rd == nullptr) std::cout << "NO SE PUDO ABRIR" << std::endl;
+            else std::cout << rd->getFormatName() << " " << rd->sampleRate << " Hz, " << rd->numChannels << " canales, "
+                           << (double) rd->lengthInSamples / rd->sampleRate << " s" << std::endl;
+            for (auto* af : fm) std::cout << "  formato: " << af->getFormatName() << " " << af->getFileExtensions().joinIntoString (",") << std::endl;
+            quit();
+            return;
+        }
+        if (commandLine.contains ("--fx-audit"))
+        {
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            auto arg = [&args] (const juce::String& key) { auto i = args.indexOf (key); return i >= 0 ? args[i + 1].unquoted() : juce::String(); };
+            setApplicationReturnValue (om::fxAudit (juce::File (arg ("--demo")), juce::File (arg ("--out"))));
+            quit();
+            return;
+        }
         if (commandLine.contains ("--grid-debug"))
         {
             auto args = juce::StringArray::fromTokens (commandLine, true);
@@ -119,7 +142,10 @@ public:
             const auto r = om::MappingImport::fromFile (juce::File (args[args.indexOf ("--dump-mapping") + 1].unquoted()));
             for (auto& b : r.bindings)
                 std::cout << (b.action + "|" + juce::String (b.deck) + "|" + (b.shift ? "S" : "-") + "|" + juce::String ((int) b.kind)
-                              + "|" + juce::String (b.channel) + "|" + juce::String (b.number) + "|" + juce::String ((int) b.encoding)).toRawUTF8() << std::endl;
+                              + "|" + juce::String (b.channel) + "|" + juce::String (b.number) + "|" + juce::String ((int) b.encoding)
+                              + (b.outputOnly ? "|luz" : "") + (b.script.isNotEmpty() ? "|" + b.script : juce::String())).toRawUTF8() << std::endl;
+            std::cout << "base: " << r.basedOn.toRawUTF8() << " · cambiados: " << r.changed
+                      << " · sin equivalente: " << r.untranslated.joinIntoString (", ").toRawUTF8() << std::endl;
             quit();
             return;
         }
@@ -341,6 +367,8 @@ private:
         snapshotHost = std::make_unique<ScaledHost> (true);
         snapshotHost->setSize (w, h);
         auto* snapshotComponent = &snapshotHost->main();
+        if (auto fm = arg ("--fx-mode"); fm.isNotEmpty())
+            snapshotComponent->setFxModeForSnapshot (fm.getIntValue());
         if (auto pg = arg ("--pads"); pg.isNotEmpty())
             snapshotComponent->showPadPageForSnapshot (pg.getIntValue());
         if (auto st = arg ("--settings"); st.isNotEmpty())

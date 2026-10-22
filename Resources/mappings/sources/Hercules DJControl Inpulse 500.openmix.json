@@ -1,0 +1,9504 @@
+{
+ "name": "Hercules DJControl Inpulse 500",
+ "author": "OpenMix (MIDI messages: Mixxx mapping by DJ Phatso, Event1ne and Reset Reboot)",
+ "match": {
+  "midi": [
+   "Hercules DJControl Inpulse 500",
+   "DJControl Inpulse 500",
+   "Inpulse 500"
+  ]
+ },
+ "bindings": [
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "cue_button",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 5,
+   "encoding": "button",
+   "action": "sync",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 12,
+   "encoding": "button",
+   "action": "pfl",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 13,
+   "encoding": "button",
+   "action": "vdj",
+   "deck": 0,
+   "shift": false,
+   "vdj": "doubleclick ? clone_from_deck : load"
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "slip_mode",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "quantize",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "vinyl_mode",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 9,
+   "encoding": "button",
+   "action": "vdj",
+   "deck": 0,
+   "shift": false,
+   "vdj": "holding ? loop 4 : loop_in"
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 10,
+   "encoding": "button",
+   "action": "loop_out",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 4,
+   "encoding": "button",
+   "action": "shift",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 8,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 44,
+   "encoding": "button",
+   "action": "loop",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "stutter",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "start_play",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 5,
+   "encoding": "button",
+   "action": "pitch_reset",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "key_lock",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "brake",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 9,
+   "encoding": "button",
+   "action": "loop_half",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 10,
+   "encoding": "button",
+   "action": "loop_double",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "censor",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 13,
+   "encoding": "button",
+   "action": "unload",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 4,
+   "encoding": "button",
+   "action": "shift",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 8,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 44,
+   "encoding": "button",
+   "action": "loop_4",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 0,
+   "encoding": "abs14",
+   "action": "volume",
+   "deck": 0,
+   "shift": false,
+   "lsb": 32
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 0,
+   "encoding": "abs14",
+   "action": "volume",
+   "deck": 0,
+   "shift": false,
+   "lsb": 32
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs14",
+   "action": "eq_low",
+   "deck": 0,
+   "shift": false,
+   "lsb": 34
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 3,
+   "encoding": "abs14",
+   "action": "eq_mid",
+   "deck": 0,
+   "shift": false,
+   "lsb": 35
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 4,
+   "encoding": "abs14",
+   "action": "eq_high",
+   "deck": 0,
+   "shift": false,
+   "lsb": 36
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 5,
+   "encoding": "abs14",
+   "action": "gain",
+   "deck": 0,
+   "shift": false,
+   "lsb": 37
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 8,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 0,
+   "shift": false,
+   "lsb": 40
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 8,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 0,
+   "shift": false,
+   "lsb": 40
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 1,
+   "encoding": "abs7",
+   "action": "filter",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 10,
+   "encoding": "rel_twos",
+   "action": "jog",
+   "deck": 0,
+   "shift": false,
+   "scale": 0.001388888888888889
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 10,
+   "encoding": "rel_twos",
+   "action": "jog_search",
+   "deck": 0,
+   "shift": false,
+   "scale": 0.001388888888888889
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 9,
+   "encoding": "rel_twos",
+   "action": "jog",
+   "deck": 0,
+   "shift": false,
+   "scale": 0.001388888888888889
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 9,
+   "encoding": "rel_twos",
+   "action": "jog_search",
+   "deck": 0,
+   "shift": false,
+   "scale": 0.001388888888888889
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 14,
+   "encoding": "rel_twos",
+   "action": "loop_resize",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "cc",
+   "number": 14,
+   "encoding": "rel_twos",
+   "action": "vdj",
+   "deck": 0,
+   "shift": false,
+   "vdj": "loop_move"
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 48,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 64,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 30,
+   "encoding": "button",
+   "action": "guide_tempo_slower",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 31,
+   "encoding": "button",
+   "action": "guide_tempo_faster",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 44,
+   "encoding": "button",
+   "action": "guide_tempo_ok",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 29,
+   "encoding": "button",
+   "action": "guide_phase_ahead",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 28,
+   "encoding": "button",
+   "action": "guide_phase_behind",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 45,
+   "encoding": "button",
+   "action": "guide_phase_ok",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "hot_cue_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 8,
+   "encoding": "button",
+   "action": "delete_hot_cue_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 16,
+   "encoding": "button",
+   "action": "pad_loop_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 24,
+   "encoding": "button",
+   "action": "saved_loop_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 32,
+   "encoding": "button",
+   "action": "saved_loop_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 80,
+   "encoding": "button",
+   "action": "pad_roll_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 88,
+   "encoding": "button",
+   "action": "pad_roll_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 112,
+   "encoding": "button",
+   "action": "pad_jump_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 120,
+   "encoding": "button",
+   "action": "pad_jump_long_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "hot_cue_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 9,
+   "encoding": "button",
+   "action": "delete_hot_cue_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 17,
+   "encoding": "button",
+   "action": "pad_loop_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 25,
+   "encoding": "button",
+   "action": "saved_loop_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 33,
+   "encoding": "button",
+   "action": "saved_loop_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 81,
+   "encoding": "button",
+   "action": "pad_roll_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 89,
+   "encoding": "button",
+   "action": "pad_roll_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 113,
+   "encoding": "button",
+   "action": "pad_jump_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 121,
+   "encoding": "button",
+   "action": "pad_jump_long_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "hot_cue_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 10,
+   "encoding": "button",
+   "action": "delete_hot_cue_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 18,
+   "encoding": "button",
+   "action": "pad_loop_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 26,
+   "encoding": "button",
+   "action": "saved_loop_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 34,
+   "encoding": "button",
+   "action": "saved_loop_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 82,
+   "encoding": "button",
+   "action": "pad_roll_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 90,
+   "encoding": "button",
+   "action": "pad_roll_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 114,
+   "encoding": "button",
+   "action": "pad_jump_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 122,
+   "encoding": "button",
+   "action": "pad_jump_long_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "hot_cue_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 11,
+   "encoding": "button",
+   "action": "delete_hot_cue_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 19,
+   "encoding": "button",
+   "action": "pad_loop_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 27,
+   "encoding": "button",
+   "action": "saved_loop_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 35,
+   "encoding": "button",
+   "action": "saved_loop_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 83,
+   "encoding": "button",
+   "action": "pad_roll_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 91,
+   "encoding": "button",
+   "action": "pad_roll_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 115,
+   "encoding": "button",
+   "action": "pad_jump_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 123,
+   "encoding": "button",
+   "action": "pad_jump_long_4",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 4,
+   "encoding": "button",
+   "action": "hot_cue_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 12,
+   "encoding": "button",
+   "action": "delete_hot_cue_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "pad_loop_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 28,
+   "encoding": "button",
+   "action": "saved_loop_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 36,
+   "encoding": "button",
+   "action": "saved_loop_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 84,
+   "encoding": "button",
+   "action": "pad_roll_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 92,
+   "encoding": "button",
+   "action": "pad_roll_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 116,
+   "encoding": "button",
+   "action": "pad_jump_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 124,
+   "encoding": "button",
+   "action": "pad_jump_long_5",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 5,
+   "encoding": "button",
+   "action": "hot_cue_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 13,
+   "encoding": "button",
+   "action": "delete_hot_cue_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "pad_loop_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 29,
+   "encoding": "button",
+   "action": "saved_loop_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 37,
+   "encoding": "button",
+   "action": "saved_loop_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 85,
+   "encoding": "button",
+   "action": "pad_roll_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 93,
+   "encoding": "button",
+   "action": "pad_roll_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 117,
+   "encoding": "button",
+   "action": "pad_jump_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 125,
+   "encoding": "button",
+   "action": "pad_jump_long_6",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "hot_cue_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 14,
+   "encoding": "button",
+   "action": "delete_hot_cue_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "pad_loop_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 30,
+   "encoding": "button",
+   "action": "saved_loop_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 38,
+   "encoding": "button",
+   "action": "saved_loop_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 86,
+   "encoding": "button",
+   "action": "pad_roll_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 94,
+   "encoding": "button",
+   "action": "pad_roll_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 118,
+   "encoding": "button",
+   "action": "pad_jump_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 126,
+   "encoding": "button",
+   "action": "pad_jump_long_7",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "hot_cue_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 15,
+   "encoding": "button",
+   "action": "delete_hot_cue_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 23,
+   "encoding": "button",
+   "action": "pad_loop_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 31,
+   "encoding": "button",
+   "action": "saved_loop_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 39,
+   "encoding": "button",
+   "action": "saved_loop_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 87,
+   "encoding": "button",
+   "action": "pad_roll_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 95,
+   "encoding": "button",
+   "action": "pad_roll_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 119,
+   "encoding": "button",
+   "action": "pad_jump_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 127,
+   "encoding": "button",
+   "action": "pad_jump_long_8",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 64,
+   "encoding": "button",
+   "action": "key_tone_down",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 72,
+   "encoding": "button",
+   "action": "key_tone_down",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 65,
+   "encoding": "button",
+   "action": "key_down",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 73,
+   "encoding": "button",
+   "action": "key_down",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 66,
+   "encoding": "button",
+   "action": "key_up",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 74,
+   "encoding": "button",
+   "action": "key_up",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 67,
+   "encoding": "button",
+   "action": "key_tone_up",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 75,
+   "encoding": "button",
+   "action": "key_tone_up",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 68,
+   "encoding": "button",
+   "action": "key_reset",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 76,
+   "encoding": "button",
+   "action": "key_reset",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 69,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 77,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 70,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 78,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 71,
+   "encoding": "button",
+   "action": "key_match",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 79,
+   "encoding": "button",
+   "action": "key_match",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 96,
+   "encoding": "button",
+   "action": "effect_active_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 97,
+   "encoding": "button",
+   "action": "effect_active_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 98,
+   "encoding": "button",
+   "action": "effect_active_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 99,
+   "encoding": "button",
+   "action": "reverse",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 100,
+   "encoding": "button",
+   "action": "censor",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 101,
+   "encoding": "button",
+   "action": "brake",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 102,
+   "encoding": "button",
+   "action": "backspin",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 103,
+   "encoding": "button",
+   "action": "slip_mode",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 104,
+   "encoding": "button",
+   "action": "effect_select_1",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 105,
+   "encoding": "button",
+   "action": "effect_select_2",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 106,
+   "encoding": "button",
+   "action": "effect_select_3",
+   "deck": 0,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "cue_button",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 5,
+   "encoding": "button",
+   "action": "sync",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 12,
+   "encoding": "button",
+   "action": "pfl",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 13,
+   "encoding": "button",
+   "action": "vdj",
+   "deck": 1,
+   "shift": false,
+   "vdj": "doubleclick ? clone_from_deck : load"
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "slip_mode",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "quantize",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "vinyl_mode",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 9,
+   "encoding": "button",
+   "action": "vdj",
+   "deck": 1,
+   "shift": false,
+   "vdj": "holding ? loop 4 : loop_in"
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 10,
+   "encoding": "button",
+   "action": "loop_out",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 4,
+   "encoding": "button",
+   "action": "shift",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 8,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 44,
+   "encoding": "button",
+   "action": "loop",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "stutter",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "start_play",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 5,
+   "encoding": "button",
+   "action": "pitch_reset",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "key_lock",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "brake",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 9,
+   "encoding": "button",
+   "action": "loop_half",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 10,
+   "encoding": "button",
+   "action": "loop_double",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "censor",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 13,
+   "encoding": "button",
+   "action": "unload",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 4,
+   "encoding": "button",
+   "action": "shift",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 8,
+   "encoding": "button",
+   "action": "jog_touch",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 44,
+   "encoding": "button",
+   "action": "loop_4",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 0,
+   "encoding": "abs14",
+   "action": "volume",
+   "deck": 1,
+   "shift": false,
+   "lsb": 32
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 0,
+   "encoding": "abs14",
+   "action": "volume",
+   "deck": 1,
+   "shift": false,
+   "lsb": 32
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs14",
+   "action": "eq_low",
+   "deck": 1,
+   "shift": false,
+   "lsb": 34
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 3,
+   "encoding": "abs14",
+   "action": "eq_mid",
+   "deck": 1,
+   "shift": false,
+   "lsb": 35
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 4,
+   "encoding": "abs14",
+   "action": "eq_high",
+   "deck": 1,
+   "shift": false,
+   "lsb": 36
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 5,
+   "encoding": "abs14",
+   "action": "gain",
+   "deck": 1,
+   "shift": false,
+   "lsb": 37
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 8,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 1,
+   "shift": false,
+   "lsb": 40
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 8,
+   "encoding": "abs14",
+   "action": "pitch",
+   "deck": 1,
+   "shift": false,
+   "lsb": 40
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 1,
+   "encoding": "abs7",
+   "action": "filter",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 10,
+   "encoding": "rel_twos",
+   "action": "jog",
+   "deck": 1,
+   "shift": false,
+   "scale": 0.001388888888888889
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 10,
+   "encoding": "rel_twos",
+   "action": "jog_search",
+   "deck": 1,
+   "shift": false,
+   "scale": 0.001388888888888889
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 9,
+   "encoding": "rel_twos",
+   "action": "jog",
+   "deck": 1,
+   "shift": false,
+   "scale": 0.001388888888888889
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 9,
+   "encoding": "rel_twos",
+   "action": "jog_search",
+   "deck": 1,
+   "shift": false,
+   "scale": 0.001388888888888889
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 14,
+   "encoding": "rel_twos",
+   "action": "loop_resize",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "cc",
+   "number": 14,
+   "encoding": "rel_twos",
+   "action": "vdj",
+   "deck": 1,
+   "shift": false,
+   "vdj": "loop_move"
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 48,
+   "encoding": "button",
+   "action": "play_pause",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 64,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 30,
+   "encoding": "button",
+   "action": "guide_tempo_slower",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 31,
+   "encoding": "button",
+   "action": "guide_tempo_faster",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 44,
+   "encoding": "button",
+   "action": "guide_tempo_ok",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 29,
+   "encoding": "button",
+   "action": "guide_phase_ahead",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 28,
+   "encoding": "button",
+   "action": "guide_phase_behind",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 45,
+   "encoding": "button",
+   "action": "guide_phase_ok",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "hot_cue_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 8,
+   "encoding": "button",
+   "action": "delete_hot_cue_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 16,
+   "encoding": "button",
+   "action": "pad_loop_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 24,
+   "encoding": "button",
+   "action": "saved_loop_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 32,
+   "encoding": "button",
+   "action": "saved_loop_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 80,
+   "encoding": "button",
+   "action": "pad_roll_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 88,
+   "encoding": "button",
+   "action": "pad_roll_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 112,
+   "encoding": "button",
+   "action": "pad_jump_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 120,
+   "encoding": "button",
+   "action": "pad_jump_long_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "hot_cue_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 9,
+   "encoding": "button",
+   "action": "delete_hot_cue_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 17,
+   "encoding": "button",
+   "action": "pad_loop_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 25,
+   "encoding": "button",
+   "action": "saved_loop_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 33,
+   "encoding": "button",
+   "action": "saved_loop_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 81,
+   "encoding": "button",
+   "action": "pad_roll_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 89,
+   "encoding": "button",
+   "action": "pad_roll_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 113,
+   "encoding": "button",
+   "action": "pad_jump_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 121,
+   "encoding": "button",
+   "action": "pad_jump_long_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "hot_cue_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 10,
+   "encoding": "button",
+   "action": "delete_hot_cue_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 18,
+   "encoding": "button",
+   "action": "pad_loop_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 26,
+   "encoding": "button",
+   "action": "saved_loop_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 34,
+   "encoding": "button",
+   "action": "saved_loop_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 82,
+   "encoding": "button",
+   "action": "pad_roll_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 90,
+   "encoding": "button",
+   "action": "pad_roll_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 114,
+   "encoding": "button",
+   "action": "pad_jump_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 122,
+   "encoding": "button",
+   "action": "pad_jump_long_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "hot_cue_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 11,
+   "encoding": "button",
+   "action": "delete_hot_cue_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 19,
+   "encoding": "button",
+   "action": "pad_loop_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 27,
+   "encoding": "button",
+   "action": "saved_loop_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 35,
+   "encoding": "button",
+   "action": "saved_loop_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 83,
+   "encoding": "button",
+   "action": "pad_roll_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 91,
+   "encoding": "button",
+   "action": "pad_roll_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 115,
+   "encoding": "button",
+   "action": "pad_jump_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 123,
+   "encoding": "button",
+   "action": "pad_jump_long_4",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 4,
+   "encoding": "button",
+   "action": "hot_cue_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 12,
+   "encoding": "button",
+   "action": "delete_hot_cue_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "pad_loop_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 28,
+   "encoding": "button",
+   "action": "saved_loop_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 36,
+   "encoding": "button",
+   "action": "saved_loop_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 84,
+   "encoding": "button",
+   "action": "pad_roll_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 92,
+   "encoding": "button",
+   "action": "pad_roll_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 116,
+   "encoding": "button",
+   "action": "pad_jump_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 124,
+   "encoding": "button",
+   "action": "pad_jump_long_5",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 5,
+   "encoding": "button",
+   "action": "hot_cue_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 13,
+   "encoding": "button",
+   "action": "delete_hot_cue_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "pad_loop_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 29,
+   "encoding": "button",
+   "action": "saved_loop_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 37,
+   "encoding": "button",
+   "action": "saved_loop_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 85,
+   "encoding": "button",
+   "action": "pad_roll_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 93,
+   "encoding": "button",
+   "action": "pad_roll_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 117,
+   "encoding": "button",
+   "action": "pad_jump_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 125,
+   "encoding": "button",
+   "action": "pad_jump_long_6",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "hot_cue_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 14,
+   "encoding": "button",
+   "action": "delete_hot_cue_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "pad_loop_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 30,
+   "encoding": "button",
+   "action": "saved_loop_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 38,
+   "encoding": "button",
+   "action": "saved_loop_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 86,
+   "encoding": "button",
+   "action": "pad_roll_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 94,
+   "encoding": "button",
+   "action": "pad_roll_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 118,
+   "encoding": "button",
+   "action": "pad_jump_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 126,
+   "encoding": "button",
+   "action": "pad_jump_long_7",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "hot_cue_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 15,
+   "encoding": "button",
+   "action": "delete_hot_cue_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 23,
+   "encoding": "button",
+   "action": "pad_loop_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 31,
+   "encoding": "button",
+   "action": "saved_loop_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 39,
+   "encoding": "button",
+   "action": "saved_loop_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 87,
+   "encoding": "button",
+   "action": "pad_roll_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 95,
+   "encoding": "button",
+   "action": "pad_roll_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 119,
+   "encoding": "button",
+   "action": "pad_jump_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 127,
+   "encoding": "button",
+   "action": "pad_jump_long_8",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 64,
+   "encoding": "button",
+   "action": "key_tone_down",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 72,
+   "encoding": "button",
+   "action": "key_tone_down",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 65,
+   "encoding": "button",
+   "action": "key_down",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 73,
+   "encoding": "button",
+   "action": "key_down",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 66,
+   "encoding": "button",
+   "action": "key_up",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 74,
+   "encoding": "button",
+   "action": "key_up",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 67,
+   "encoding": "button",
+   "action": "key_tone_up",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 75,
+   "encoding": "button",
+   "action": "key_tone_up",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 68,
+   "encoding": "button",
+   "action": "key_reset",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 76,
+   "encoding": "button",
+   "action": "key_reset",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 69,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 77,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 70,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 78,
+   "encoding": "button",
+   "action": "pitch_range",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 71,
+   "encoding": "button",
+   "action": "key_match",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 79,
+   "encoding": "button",
+   "action": "key_match",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 96,
+   "encoding": "button",
+   "action": "effect_active_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 97,
+   "encoding": "button",
+   "action": "effect_active_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 98,
+   "encoding": "button",
+   "action": "effect_active_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 99,
+   "encoding": "button",
+   "action": "reverse",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 100,
+   "encoding": "button",
+   "action": "censor",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 101,
+   "encoding": "button",
+   "action": "brake",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 102,
+   "encoding": "button",
+   "action": "backspin",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 103,
+   "encoding": "button",
+   "action": "slip_mode",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 104,
+   "encoding": "button",
+   "action": "effect_select_1",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 105,
+   "encoding": "button",
+   "action": "effect_select_2",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 106,
+   "encoding": "button",
+   "action": "effect_select_3",
+   "deck": 1,
+   "shift": false,
+   "rgb": "hercules"
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 0,
+   "encoding": "abs7",
+   "action": "crossfader",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 1,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 1,
+   "encoding": "rel_twos",
+   "action": "browser_scroll",
+   "deck": 0,
+   "shift": false,
+   "scale": 8
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "automix",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "browser_focus",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "browser_focus",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 64,
+   "encoding": "abs7",
+   "action": "vu_master",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 65,
+   "encoding": "abs7",
+   "action": "vu_master",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 15,
+   "encoding": "button",
+   "action": "pad_mode_hot_cue",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 16,
+   "encoding": "button",
+   "action": "pad_mode_loop",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 17,
+   "encoding": "button",
+   "action": "pad_mode_saved_loop",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 18,
+   "encoding": "button",
+   "action": "pad_mode_sampler",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 19,
+   "encoding": "button",
+   "action": "pad_mode_key",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "pad_mode_roll",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "pad_mode_fx",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "pad_mode_jump",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 15,
+   "encoding": "button",
+   "action": "pad_mode_hot_cue",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 16,
+   "encoding": "button",
+   "action": "pad_mode_loop",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 17,
+   "encoding": "button",
+   "action": "pad_mode_saved_loop",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 18,
+   "encoding": "button",
+   "action": "pad_mode_sampler",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 19,
+   "encoding": "button",
+   "action": "pad_mode_key",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "pad_mode_roll",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "pad_mode_fx",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "pad_mode_jump",
+   "deck": 0,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 15,
+   "encoding": "button",
+   "action": "pad_mode_hot_cue",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 16,
+   "encoding": "button",
+   "action": "pad_mode_loop",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 17,
+   "encoding": "button",
+   "action": "pad_mode_saved_loop",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 18,
+   "encoding": "button",
+   "action": "pad_mode_sampler",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 19,
+   "encoding": "button",
+   "action": "pad_mode_key",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "pad_mode_roll",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "pad_mode_fx",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "pad_mode_jump",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 15,
+   "encoding": "button",
+   "action": "pad_mode_hot_cue",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 16,
+   "encoding": "button",
+   "action": "pad_mode_loop",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 17,
+   "encoding": "button",
+   "action": "pad_mode_saved_loop",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 18,
+   "encoding": "button",
+   "action": "pad_mode_sampler",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 19,
+   "encoding": "button",
+   "action": "pad_mode_key",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "pad_mode_roll",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "pad_mode_fx",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "pad_mode_jump",
+   "deck": 1,
+   "shift": false,
+   "led": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 20,
+   "encoding": "button",
+   "action": "color_fx_filter",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 21,
+   "encoding": "button",
+   "action": "color_fx_echo",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 22,
+   "encoding": "button",
+   "action": "color_fx_sweep",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 23,
+   "encoding": "button",
+   "action": "color_fx_noise",
+   "deck": 0,
+   "shift": false
+  }
+ ],
+ "soundcard": true,
+ "vdj": {
+  "device": [
+   "HCINP500"
+  ],
+  "keys": {
+   "PLAY_PAUSE": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 7,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 7,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PLAY_PAUSE": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 7,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 7,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "CUE": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 6,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 6,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_CUE": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 6,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 6,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SYNC": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 5,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 5,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_SYNC": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 5,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 5,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PFL": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 12,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 12,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PFL": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 12,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 12,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LOAD": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 13,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 13,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_LOAD": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 13,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 13,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SLIP": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 1,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 1,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_SLIP": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 1,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 1,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "QUANTIZE": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 2,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 2,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_QUANTIZE": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 2,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 2,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "VINYL": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 3,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 3,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_VINYL": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 3,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 3,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LOOP_IN": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 9,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 9,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_LOOP_IN": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 9,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 9,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LOOP_OUT": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 10,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 10,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_LOOP_OUT": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 10,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 10,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LOOP_PUSH": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 44,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 44,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_LOOP_PUSH": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 44,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 44,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "JOG_TOUCH": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 8,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 8,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_JOG_TOUCH": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 8,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 8,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 4,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 4,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 4,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 4,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_SYNC": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 5,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 5,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "SHIFT_LED_SYNC": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 5,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 5,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "LED_SLIP": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 1,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 1,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "SHIFT_LED_SLIP": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 1,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 1,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "LED_LOOP_IN": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 9,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 9,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "SHIFT_LED_LOOP_IN": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 9,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 9,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "LED_LOOP_OUT": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 10,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 10,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "SHIFT_LED_LOOP_OUT": [
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 10,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 10,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "LED_DECK": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 48,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 48,
+     "deck": 1,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "VOLUME": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 0,
+     "deck": 0,
+     "encoding": "abs14",
+     "lsb": 32
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 0,
+     "deck": 1,
+     "encoding": "abs14",
+     "lsb": 32
+    }
+   ],
+   "EQ_LOW": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 2,
+     "deck": 0,
+     "encoding": "abs14",
+     "lsb": 34
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 2,
+     "deck": 1,
+     "encoding": "abs14",
+     "lsb": 34
+    }
+   ],
+   "EQ_MID": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 3,
+     "deck": 0,
+     "encoding": "abs14",
+     "lsb": 35
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 3,
+     "deck": 1,
+     "encoding": "abs14",
+     "lsb": 35
+    }
+   ],
+   "EQ_HIGH": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 4,
+     "deck": 0,
+     "encoding": "abs14",
+     "lsb": 36
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 4,
+     "deck": 1,
+     "encoding": "abs14",
+     "lsb": 36
+    }
+   ],
+   "GAIN": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 5,
+     "deck": 0,
+     "encoding": "abs14",
+     "lsb": 37
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 5,
+     "deck": 1,
+     "encoding": "abs14",
+     "lsb": 37
+    }
+   ],
+   "PITCH": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 8,
+     "deck": 0,
+     "encoding": "abs14",
+     "lsb": 40
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 8,
+     "deck": 1,
+     "encoding": "abs14",
+     "lsb": 40
+    }
+   ],
+   "FILTER": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 1,
+     "deck": 0,
+     "encoding": "abs7"
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 1,
+     "deck": 1,
+     "encoding": "abs7"
+    }
+   ],
+   "JOG": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 10,
+     "deck": 0,
+     "encoding": "rel_twos",
+     "scale": 0.001388888888888889
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 10,
+     "deck": 1,
+     "encoding": "rel_twos",
+     "scale": 0.001388888888888889
+    }
+   ],
+   "JOG_OUT": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 9,
+     "deck": 0,
+     "encoding": "rel_twos",
+     "scale": 0.001388888888888889
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 9,
+     "deck": 1,
+     "encoding": "rel_twos",
+     "scale": 0.001388888888888889
+    }
+   ],
+   "SHIFT_JOG": [
+    {
+     "channel": 5,
+     "kind": "cc",
+     "number": 10,
+     "deck": 0,
+     "encoding": "rel_twos",
+     "scale": 0.001388888888888889
+    },
+    {
+     "channel": 6,
+     "kind": "cc",
+     "number": 10,
+     "deck": 1,
+     "encoding": "rel_twos",
+     "scale": 0.001388888888888889
+    }
+   ],
+   "SHIFT_JOG_OUT": [
+    {
+     "channel": 5,
+     "kind": "cc",
+     "number": 9,
+     "deck": 0,
+     "encoding": "rel_twos",
+     "scale": 0.001388888888888889
+    },
+    {
+     "channel": 6,
+     "kind": "cc",
+     "number": 9,
+     "deck": 1,
+     "encoding": "rel_twos",
+     "scale": 0.001388888888888889
+    }
+   ],
+   "LOOP_ENCODER": [
+    {
+     "channel": 2,
+     "kind": "cc",
+     "number": 14,
+     "deck": 0,
+     "encoding": "rel_twos"
+    },
+    {
+     "channel": 3,
+     "kind": "cc",
+     "number": 14,
+     "deck": 1,
+     "encoding": "rel_twos"
+    }
+   ],
+   "SHIFT_LOOP_ENCODER": [
+    {
+     "channel": 5,
+     "kind": "cc",
+     "number": 14,
+     "deck": 0,
+     "encoding": "rel_twos"
+    },
+    {
+     "channel": 6,
+     "kind": "cc",
+     "number": 14,
+     "deck": 1,
+     "encoding": "rel_twos"
+    }
+   ],
+   "PADMODE_HOTCUE": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 15,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 15,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 15,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 15,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PAD_HOTCUE_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 0,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 0,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_HOTCUE_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 8,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 8,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_HOTCUE_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 0,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 0,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_HOTCUE_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 8,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 8,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_HOTCUE_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 1,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 1,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_HOTCUE_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 9,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 9,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_HOTCUE_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 1,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 1,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_HOTCUE_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 9,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 9,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_HOTCUE_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 2,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 2,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_HOTCUE_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 10,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 10,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_HOTCUE_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 2,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 2,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_HOTCUE_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 10,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 10,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_HOTCUE_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 3,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 3,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_HOTCUE_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 11,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 11,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_HOTCUE_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 3,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 3,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_HOTCUE_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 11,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 11,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_HOTCUE_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 4,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 4,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_HOTCUE_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 12,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 12,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_HOTCUE_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 4,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 4,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_HOTCUE_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 12,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 12,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_HOTCUE_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 5,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 5,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_HOTCUE_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 13,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 13,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_HOTCUE_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 5,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 5,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_HOTCUE_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 13,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 13,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_HOTCUE_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 6,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 6,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_HOTCUE_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 14,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 14,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_HOTCUE_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 6,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 6,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_HOTCUE_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 14,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 14,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_HOTCUE_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 7,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 7,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_HOTCUE_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 15,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 15,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_HOTCUE_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 7,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 7,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_HOTCUE_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 15,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 15,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PADMODE_LOOP": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 16,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 16,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 16,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 16,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PAD_LOOP_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 16,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 16,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_LOOP_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 24,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 24,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_LOOP_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 16,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 16,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_LOOP_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 24,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 24,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_LOOP_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 17,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 17,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_LOOP_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 25,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 25,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_LOOP_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 17,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 17,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_LOOP_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 25,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 25,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_LOOP_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 18,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 18,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_LOOP_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 26,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 26,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_LOOP_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 18,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 18,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_LOOP_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 26,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 26,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_LOOP_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 19,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 19,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_LOOP_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 27,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 27,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_LOOP_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 19,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 19,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_LOOP_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 27,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 27,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_LOOP_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 20,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 20,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_LOOP_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 28,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 28,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_LOOP_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 20,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 20,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_LOOP_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 28,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 28,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_LOOP_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 21,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 21,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_LOOP_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 29,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 29,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_LOOP_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 21,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 21,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_LOOP_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 29,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 29,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_LOOP_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 22,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 22,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_LOOP_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 30,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 30,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_LOOP_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 22,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 22,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_LOOP_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 30,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 30,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_LOOP_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 23,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 23,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_LOOP_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 31,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 31,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_LOOP_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 23,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 23,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_LOOP_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 31,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 31,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PADMODE_SLICER": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 17,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 17,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 17,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 17,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PAD_SLICER_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 32,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 32,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SLICER_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 40,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 40,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SLICER_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 32,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 32,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SLICER_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 40,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 40,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SLICER_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 33,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 33,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SLICER_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 41,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 41,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SLICER_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 33,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 33,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SLICER_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 41,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 41,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SLICER_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 34,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 34,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SLICER_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 42,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 42,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SLICER_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 34,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 34,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SLICER_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 42,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 42,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SLICER_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 35,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 35,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SLICER_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 43,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 43,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SLICER_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 35,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 35,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SLICER_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 43,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 43,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SLICER_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 36,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 36,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SLICER_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 44,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 44,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SLICER_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 36,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 36,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SLICER_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 44,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 44,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SLICER_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 37,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 37,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SLICER_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 45,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 45,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SLICER_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 37,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 37,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SLICER_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 45,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 45,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SLICER_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 38,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 38,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SLICER_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 46,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 46,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SLICER_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 38,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 38,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SLICER_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 46,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 46,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SLICER_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 39,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 39,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SLICER_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 47,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 47,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SLICER_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 39,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 39,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SLICER_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 47,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 47,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PADMODE_SAMPLER": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 18,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 18,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 18,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 18,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PAD_SAMPLER_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 48,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 48,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SAMPLER_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 56,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 56,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SAMPLER_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 48,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 48,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SAMPLER_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 56,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 56,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SAMPLER_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 49,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 49,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SAMPLER_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 57,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 57,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SAMPLER_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 49,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 49,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SAMPLER_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 57,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 57,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SAMPLER_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 50,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 50,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SAMPLER_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 58,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 58,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SAMPLER_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 50,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 50,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SAMPLER_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 58,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 58,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SAMPLER_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 51,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 51,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SAMPLER_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 59,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 59,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SAMPLER_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 51,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 51,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SAMPLER_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 59,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 59,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SAMPLER_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 52,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 52,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SAMPLER_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 60,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 60,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SAMPLER_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 52,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 52,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SAMPLER_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 60,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 60,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SAMPLER_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 53,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 53,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SAMPLER_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 61,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 61,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SAMPLER_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 53,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 53,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SAMPLER_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 61,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 61,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SAMPLER_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 54,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 54,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SAMPLER_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 62,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 62,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SAMPLER_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 54,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 54,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SAMPLER_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 62,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 62,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_SAMPLER_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 55,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 55,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_SAMPLER_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 63,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 63,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_SAMPLER_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 55,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 55,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_SAMPLER_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 63,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 63,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PADMODE_MODE5": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 19,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 19,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 19,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 19,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PAD_MODE5_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 64,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 64,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE5_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 72,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 72,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE5_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 64,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 64,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE5_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 72,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 72,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE5_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 65,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 65,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE5_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 73,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 73,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE5_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 65,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 65,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE5_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 73,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 73,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE5_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 66,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 66,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE5_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 74,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 74,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE5_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 66,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 66,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE5_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 74,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 74,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE5_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 67,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 67,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE5_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 75,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 75,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE5_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 67,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 67,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE5_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 75,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 75,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE5_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 68,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 68,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE5_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 76,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 76,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE5_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 68,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 68,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE5_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 76,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 76,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE5_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 69,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 69,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE5_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 77,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 77,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE5_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 69,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 69,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE5_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 77,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 77,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE5_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 70,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 70,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE5_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 78,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 78,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE5_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 70,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 70,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE5_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 78,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 78,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE5_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 71,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 71,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE5_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 79,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 79,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE5_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 71,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 71,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE5_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 79,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 79,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PADMODE_MODE6": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 20,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 20,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 20,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 20,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PAD_MODE6_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 80,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 80,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE6_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 88,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 88,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE6_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 80,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 80,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE6_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 88,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 88,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE6_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 81,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 81,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE6_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 89,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 89,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE6_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 81,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 81,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE6_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 89,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 89,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE6_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 82,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 82,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE6_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 90,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 90,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE6_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 82,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 82,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE6_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 90,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 90,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE6_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 83,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 83,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE6_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 91,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 91,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE6_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 83,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 83,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE6_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 91,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 91,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE6_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 84,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 84,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE6_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 92,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 92,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE6_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 84,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 84,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE6_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 92,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 92,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE6_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 85,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 85,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE6_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 93,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 93,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE6_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 85,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 85,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE6_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 93,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 93,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE6_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 86,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 86,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE6_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 94,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 94,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE6_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 86,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 86,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE6_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 94,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 94,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE6_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 87,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 87,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE6_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 95,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 95,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE6_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 87,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 87,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE6_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 95,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 95,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PADMODE_MODE7": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 21,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 21,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 21,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 21,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PAD_MODE7_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 96,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 96,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE7_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 104,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 104,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE7_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 96,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 96,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE7_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 104,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 104,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE7_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 97,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 97,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE7_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 105,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 105,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE7_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 97,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 97,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE7_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 105,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 105,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE7_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 98,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 98,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE7_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 106,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 106,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE7_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 98,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 98,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE7_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 106,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 106,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE7_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 99,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 99,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE7_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 107,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 107,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE7_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 99,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 99,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE7_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 107,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 107,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE7_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 100,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 100,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE7_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 108,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 108,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE7_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 100,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 100,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE7_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 108,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 108,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE7_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 101,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 101,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE7_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 109,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 109,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE7_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 101,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 101,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE7_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 109,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 109,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE7_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 102,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 102,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE7_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 110,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 110,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE7_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 102,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 102,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE7_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 110,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 110,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE7_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 103,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 103,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE7_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 111,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 111,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE7_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 103,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 103,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE7_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 111,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 111,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PADMODE_MODE8": [
+    {
+     "channel": 2,
+     "kind": "note",
+     "number": 22,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 5,
+     "kind": "note",
+     "number": 22,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 3,
+     "kind": "note",
+     "number": 22,
+     "deck": 1,
+     "encoding": "button"
+    },
+    {
+     "channel": 6,
+     "kind": "note",
+     "number": 22,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "PAD_MODE8_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 112,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 112,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE8_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 120,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 120,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE8_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 112,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 112,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE8_1": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 120,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 120,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE8_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 113,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 113,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE8_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 121,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 121,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE8_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 113,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 113,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE8_2": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 121,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 121,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE8_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 114,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 114,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE8_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 122,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 122,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE8_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 114,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 114,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE8_3": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 122,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 122,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE8_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 115,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 115,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE8_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 123,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 123,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE8_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 115,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 115,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE8_4": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 123,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 123,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE8_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 116,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 116,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE8_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 124,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 124,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE8_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 116,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 116,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE8_5": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 124,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 124,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE8_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 117,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 117,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE8_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 125,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 125,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE8_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 117,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 117,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE8_6": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 125,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 125,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE8_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 118,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 118,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE8_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 126,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 126,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE8_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 118,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 118,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE8_7": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 126,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 126,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "PAD_MODE8_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 119,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 119,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_PAD_MODE8_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 127,
+     "deck": 0,
+     "encoding": "button"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 127,
+     "deck": 1,
+     "encoding": "button"
+    }
+   ],
+   "LED_PAD_MODE8_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 119,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 119,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "SHIFT_LED_PAD_MODE8_8": [
+    {
+     "channel": 7,
+     "kind": "note",
+     "number": 127,
+     "deck": 0,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    },
+    {
+     "channel": 8,
+     "kind": "note",
+     "number": 127,
+     "deck": 1,
+     "encoding": "button",
+     "light": true,
+     "rgb": "hercules"
+    }
+   ],
+   "CROSSFADER": [
+    {
+     "channel": 1,
+     "kind": "cc",
+     "number": 0,
+     "deck": 0,
+     "encoding": "abs7"
+    }
+   ],
+   "BROWSER": [
+    {
+     "channel": 1,
+     "kind": "cc",
+     "number": 1,
+     "deck": 0,
+     "encoding": "rel_twos"
+    }
+   ],
+   "SHIFT_BROWSER": [
+    {
+     "channel": 4,
+     "kind": "cc",
+     "number": 1,
+     "deck": 0,
+     "encoding": "rel_twos"
+    }
+   ],
+   "BROWSER_PUSH": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 0,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ],
+   "SHIFT_BROWSER_PUSH": [
+    {
+     "channel": 4,
+     "kind": "note",
+     "number": 0,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ],
+   "ASSISTANT": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 3,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ],
+   "LED_ASSISTANT": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 3,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "MIXER_FX1": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 20,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ],
+   "LED_MIXER_FX1": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 20,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "MIXER_FX2": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 21,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ],
+   "LED_MIXER_FX2": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 21,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "MIXER_FX3": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 22,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ],
+   "LED_MIXER_FX3": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 22,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "MIXER_FX4": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 23,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ],
+   "LED_MIXER_FX4": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 23,
+     "deck": 0,
+     "encoding": "button",
+     "light": true
+    }
+   ],
+   "CF_DISABLE": [
+    {
+     "channel": 1,
+     "kind": "note",
+     "number": 24,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ],
+   "CF_CURVE": [
+    {
+     "channel": 1,
+     "kind": "cc",
+     "number": 11,
+     "deck": 0,
+     "encoding": "button"
+    }
+   ]
+  }
+ }
+}

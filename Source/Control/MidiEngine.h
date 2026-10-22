@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Actions.h"
+#include "VdjScript.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 
 namespace om
@@ -27,7 +28,8 @@ struct MidiBinding
     int number = 0;
     int lsbNumber = -1;
     Encoding encoding = Encoding::button;
-    juce::String action;
+    juce::String action;           // "vdj": runs `script` (VirtualDJ mapper language) instead
+    juce::String script;
     int deck = 0;                  // −1 for global actions
     bool shift = false;
     float scale = 1.0f;            // relative: units per tick (jog: revolutions per tick)
@@ -42,6 +44,16 @@ struct MidiBinding
     int onValue = 127, offValue = 0;
     int dimValue = -1;             // −1 = this light has no dim level (dim shows as off)
     bool outputOnly = false;       // a light with no control (VU meter, "track loaded", end warning)
+
+    /** RGB pads: how the light's value encodes a colour. With a colour format, an action that has a
+        colour (hot cues, loops…) is shown in that colour; dim = the same colour, darker. */
+    enum class Rgb
+    {
+        none,
+        hercules,      // 7-bit 0bRRGGGBB (Hercules DJControl Inpulse, …)
+    };
+    Rgb rgb = Rgb::none;
+    static int encodeColour (Rgb, juce::Colour, float brightness);
 
     int lightChannel() const noexcept  { return outChannel > 0 ? outChannel : channel; }
     Kind lightKind() const noexcept    { return outNumber >= 0 ? outKind : kind; }
@@ -66,7 +78,11 @@ public:
     juce::StringArray connectedInputs() const;
 
     std::vector<MidiBinding>& bindings() noexcept { return map; }
-    void setBindings (std::vector<MidiBinding> b)   { map = std::move (b); takeover.clear(); }
+    void setBindings (std::vector<MidiBinding> b)   { map = std::move (b); takeover.clear(); sideCache.clear(); }
+
+    /** The deck a binding drives now. Controllers with their own deck buttons (bindings for decks 3–4)
+        drive the deck they name; 2-deck controllers drive the deck their side shows (1 or 3, 2 or 4). */
+    int deckFor (const MidiBinding&);
     void load();
     void save() const;
 
@@ -114,6 +130,9 @@ private:
     void send (const juce::String& device, const juce::MidiMessage&);
 
     Actions& actions;
+    VdjScript vdj { actions };
+    juce::String currentDevice;                            // the device whose message is being processed
+    std::map<juce::String, bool> sideCache;                // device → has bindings for decks 3–4
     std::vector<MidiBinding> map;
 
     std::vector<std::unique_ptr<juce::MidiInput>> inputs;

@@ -68,8 +68,11 @@ public:
 
     // Hot cues (8 slots). Unset slots are < 0.
     void   hotCue (int slot);                     // set if empty, else jump
-    /** Gate cue: a hot cue pressed while paused plays only while held; release returns to it. */
+    /** A hot cue pressed while paused jumps there and starts playing (and keeps playing). With gate cue
+        on (club player style) it plays only while held and release returns to it. */
     void   hotCueRelease (int slot);
+    void   setGateCue (bool on) noexcept          { gateCue = on; }
+    bool   isGateCue() const noexcept             { return gateCue.load(); }
     /** Instant doubles: take the other deck's track, position, tempo, key and loop, in time. */
     void   cloneFrom (const Deck& other);
     void   setAutoCue (bool on) noexcept          { autoCue = on; }
@@ -211,6 +214,7 @@ private:
     double autoLoopBeats = 4.0;
     double rollBeats = 0.0;
     int gateSlot = -1;
+    std::atomic<bool> gateCue { false };
     bool autoCue = true;
     std::vector<double> taps;
     std::array<std::pair<double, double>, 8> savedLoops {};

@@ -29,7 +29,8 @@ private:
     void showTypeMenu (Slot&);
 
     AudioEngine& engine;
-    std::vector<std::unique_ptr<Slot>> slots;
+    std::vector<std::unique_ptr<Slot>> slots;       // every deck's; the two sides on screen are shown
+    std::pair<int, int> shown { -1, -1 };
     std::array<juce::Rectangle<int>, 2> deckAreas;
     int lastState = -1;
 };

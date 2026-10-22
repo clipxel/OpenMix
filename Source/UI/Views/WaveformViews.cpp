@@ -247,11 +247,13 @@ void ScrollingWaveform::mouseWheelMove (const juce::MouseEvent&, const juce::Mou
 }
 
 //==============================================================================
-WaveformStrip::WaveformStrip (Deck& a, Deck& b) : deckA (a), deckB (b), laneA (a), laneB (b)
+WaveformStrip::WaveformStrip (AudioEngine& e) : engine (e)
 {
-    for (auto* l : { &laneA, &laneB })
+    for (int d = 0; d < AudioEngine::numDecks; ++d)
     {
-        addAndMakeVisible (l);
+        lanes[(size_t) d] = std::make_unique<ScrollingWaveform> (engine.deck (d));
+        auto* l = lanes[(size_t) d].get();
+        addChildComponent (l);
         l->onZoom = [this] (double f) { zoomBy (f); };
     }
     addAndMakeVisible (zoomIn);
@@ -265,17 +267,20 @@ WaveformStrip::WaveformStrip (Deck& a, Deck& b) : deckA (a), deckB (b), laneA (a
 void WaveformStrip::zoomBy (double f)
 {
     secondsVisible = juce::jlimit (2.0, 32.0, secondsVisible * f);
-    laneA.setSecondsVisible (secondsVisible);
-    laneB.setSecondsVisible (secondsVisible);
+    for (auto& l : lanes) l->setSecondsVisible (secondsVisible);
 }
 
 void WaveformStrip::refresh()
 {
-    laneA.refresh();
-    laneB.refresh();
+    if (shown != std::pair { engine.visibleDeck (0), engine.visibleDeck (1) })
+        resized();
+    lanes[(size_t) engine.visibleDeck (0)]->refresh();
+    lanes[(size_t) engine.visibleDeck (1)]->refresh();
 
-    // Phase meter: deck 2's beat phase relative to deck 1 (−½ … +½ beat).
+    // Phase meter: the lower deck's beat phase relative to the upper one (−½ … +½ beat).
     double delta = 9.0;
+    auto& deckA = top();
+    auto& deckB = bottom();
     const auto ga = deckA.getGrid(), gb = deckB.getGrid();
     if (ga.isValid() && gb.isValid() && deckA.isPlaying() && deckB.isPlaying())
     {
@@ -297,9 +302,13 @@ void WaveformStrip::resized()
     phaseArea = r.removeFromBottom (phaseBarHeight).withTrimmedRight (26);
     auto controls = r.removeFromRight (26);
     const int lane = (r.getHeight() - 1) / 2;
-    laneA.setBounds (r.removeFromTop (lane));
+    shown = { engine.visibleDeck (0), engine.visibleDeck (1) };
+    for (int d = 0; d < AudioEngine::numDecks; ++d)
+        lanes[(size_t) d]->setVisible (engine.isVisible (d));
+    lanes[(size_t) shown.first]->setBounds (r.removeFromTop (lane));
     r.removeFromTop (1);
-    laneB.setBounds (r);
+    lanes[(size_t) shown.second]->setBounds (r);
+    repaint (phaseArea);
 
     controls.reduce (3, 6);
     zoomIn.setBounds (controls.removeFromTop (20));
@@ -320,18 +329,19 @@ void WaveformStrip::paint (juce::Graphics& g)
         g.setColour (colour (Col::lineStrong));
         for (float q : { -0.25f, 0.25f })
             g.fillRect (juce::Rectangle<float> (cx + q * bar.getWidth(), bar.getY() + 2.0f, 1.0f, bar.getHeight() - 4.0f));
-        g.setColour (Theme::get().deckColour (0));
+        g.setColour (Theme::get().deckColour (engine.visibleDeck (0)));
         g.fillRect (juce::Rectangle<float> (cx - 1.0f, bar.getY(), 2.0f, bar.getHeight()));
 
         if (lastDelta < 1.0)
         {
+            auto& deckA = top();
             const double beatMs = deckA.getGrid().isValid() ? 60000.0 / (deckA.getGrid().bpm * deckA.getTempoRatio()) : 500.0;
             const double ms = lastDelta * beatMs;
             const bool locked = std::abs (ms) < 10.0;
             const float x = cx + (float) lastDelta * bar.getWidth();
-            g.setColour (locked ? colour (Col::play) : Theme::get().deckColour (1));
+            g.setColour (locked ? colour (Col::play) : Theme::get().deckColour (engine.visibleDeck (1)));
             g.fillRoundedRectangle (juce::Rectangle<float> (6.0f, bar.getHeight()).withCentre ({ x, bar.getCentreY() }), 1.5f);
-            Text::drawTabular (g, "FASE 2: " + juce::String (ms >= 0 ? "+" : "") + juce::String ((int) std::round (ms)) + " ms",
+            Text::drawTabular (g, "FASE " + juce::String (engine.visibleDeck (1) + 1) + ": " + juce::String (ms >= 0 ? "+" : "") + juce::String ((int) std::round (ms)) + " ms",
                                bar.withTrimmedLeft (8.0f), font (Type::micro, Weight::semibold),
                                locked ? colour (Col::play) : colour (Col::textSecondary), juce::Justification::centredLeft);
         }

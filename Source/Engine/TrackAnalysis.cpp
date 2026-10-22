@@ -1,5 +1,6 @@
 #include <iostream>
 #include "TrackAnalysis.h"
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_dsp/juce_dsp.h>
 
 namespace om::Analysis
@@ -1186,6 +1187,11 @@ juce::String detectKey (const juce::AudioBuffer<float>& audio, double sr, const 
     }
 
     return best > 0.3 ? camelotFor (bestPc, bestMinor) : juce::String();
+}
+
+int mp3TrimmedLeadSamples (const juce::File& file, const juce::AudioFormatReader& reader)
+{
+    return reader.getFormatName().startsWithIgnoreCase ("CoreAudio") ? mp3TrimmedLeadSamples (file) : 0;
 }
 
 int mp3TrimmedLeadSamples (const juce::File& file)

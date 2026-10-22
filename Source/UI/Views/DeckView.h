@@ -75,6 +75,7 @@ public:
     void externalPad (int pad, bool down)          { if (down) padDown (pad, false); else padUp (pad); }
     std::unique_ptr<juce::Component> makeGridEditor();   // the GRID callout's content (also for snapshots)
     void nextPadPage()                             { setPadMode ((PadMode) (((int) padMode + 1) % numPadModes)); }
+    void showPadPage (int page)                    { if (juce::isPositiveAndBelow (page, numPadModes)) setPadMode ((PadMode) page); }
     /** Controller light of PAD 1–8 in the current page (Actions::Led: 0 off, 1 dim, 2 on, 3 blink). */
     int padLed (int pad) const                     { return juce::isPositiveAndBelow (pad, 8) ? padLeds[(size_t) pad] : 0; }
 
@@ -93,8 +94,8 @@ public:
     void itemDragExit (const SourceDetails&) override                  { dragOver = false; repaint(); }
 
 private:
-    enum class PadMode { hotCue = 0, roll, loop, savedLoop, jump, sampler };
-    static constexpr int numPadModes = 6;
+    enum class PadMode { hotCue = 0, roll, loop, savedLoop, jump };
+    static constexpr int numPadModes = 5;
 
     void setPadMode (PadMode);
     void layoutLoopAndPads (juce::Rectangle<int> loopRow, int padRowH);
@@ -119,10 +120,10 @@ private:
     Button vinylBtn { "VINYL" };
     Button gridBtn { "GRID" };
     void openGridEditor();
-    std::unique_ptr<juce::FileChooser> sampleChooser;
 
     Fader pitch { true, true };
     Button pitchRange { "±8%"_u, Icon::none, Button::Style::ghost };
+    Button deckSwap { {}, Icon::none, Button::Style::standard };      // shows the other deck of this side (1 ⇄ 3, 2 ⇄ 4)
     Button bendDown { {}, Icon::minus }, bendUp { {}, Icon::plus };
     PitchZeroDot pitchZero;
 
@@ -136,8 +137,6 @@ private:
     std::array<std::unique_ptr<Button>, 8> pads;
     PadMode padMode = PadMode::hotCue;
     std::array<int, 8> padLeds {};
-    // SAMPLES/RMX: X-PAD tone and roll speed, set before launching (the held-pad gesture adds to them)
-    Knob padTone { "TONO", true }, padRoll { "VEL.", false }, padVol { "VOL", false };
 
     bool showJog = true, dense = false, dragOver = false;
     juce::String message;

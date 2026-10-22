@@ -5,32 +5,52 @@ namespace om
 
 namespace
 {
-    // Club mixer BEAT values: 1/16 … 16 beats, and up to 64 for the cycle effects.
-    constexpr double beats16[] = { 1.0 / 16, 1.0 / 8, 1.0 / 4, 1.0 / 2, 3.0 / 4, 1, 2, 4, 8, 16 };
-    constexpr double beats64[] = { 1.0 / 16, 1.0 / 8, 1.0 / 4, 1.0 / 2, 3.0 / 4, 1, 2, 4, 8, 16, 32, 64 };
-    constexpr int n16 = (int) std::size (beats16), n64 = (int) std::size (beats64);
+    // BEAT values of each effect, as on the club mixer (owner's manual tables).
+    constexpr double bDelay[]   = { 1.0 / 16, 1.0 / 8, 1.0 / 4, 1.0 / 3, 1.0 / 2, 2.0 / 3, 3.0 / 4, 1, 2, 4, 8, 16 };   // DELAY ECHO PING PONG SPIRAL
+    constexpr double bRoll[]    = { 1.0 / 16, 1.0 / 8, 1.0 / 4, 1.0 / 2, 1, 2, 4, 8, 16 };                         // HELIX TRANS ROLL
+    constexpr double bCycle[]   = { 1.0 / 16, 1.0 / 8, 1.0 / 4, 1.0 / 2, 1, 2, 4, 8, 16, 32, 64 };                 // FLANGER PHASER FILTER
+    constexpr double bTriplet[] = { 1.0 / 12, 1.0 / 6, 1.0 / 3, 2.0 / 3, 4.0 / 3, 8.0 / 3, 12.0 / 3 };              // TRIPLET FILTER / ROLL
+    constexpr double bMobius[]  = { 1.0 / 16, 1.0 / 8, 1.0 / 4, 1.0 / 2, 1, 2, 4, 8, 16, 32, 64,
+                                    -64, -32, -16, -8, -4, -2, -1, -1.0 / 2, -1.0 / 4, -1.0 / 8, -1.0 / 16 };     // − = falling
+    constexpr double bReverb[]  = { 1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 };                                    // REVERB %
+
+    struct BeatList { const double* v; int n; int def; };
+    template <size_t N> constexpr BeatList list (const double (&a)[N], int def) { return { a, (int) N, def }; }
+
+    BeatList beatList (BeatFx::Type t) noexcept
+    {
+        using T = BeatFx::Type;
+        switch (t)
+        {
+            case T::delay: case T::echo: case T::pingPong: case T::spiral: return list (bDelay, 7);          // 1
+            case T::flanger: case T::phaser: case T::filter:              return list (bCycle, 6);          // 4
+            case T::tripletFilter:                                         return list (bTriplet, 4);        // 4/3
+            case T::tripletRoll:                                           return list (bTriplet, 2);        // 1/3
+            case T::mobius:                                                return list (bMobius, 6);         // 4
+            case T::reverb:                                                return list (bReverb, 5);         // 50 %
+            default:                                                       return list (bRoll, 4);           // 1
+        }
+    }
 
     int stepIndex (float p, int count) noexcept     { return juce::jlimit (0, count - 1, (int) std::floor (p * (float) count)); }
     float stepParam (int index, int count) noexcept { return ((float) index + 0.5f) / (float) count; }
-
-    bool usesCycle (BeatFx::Type t) noexcept
-    {
-        return t == BeatFx::Type::filter || t == BeatFx::Type::flanger || t == BeatFx::Type::phaser;
-    }
+    double listValue (BeatFx::Type t, float p) noexcept { const auto b = beatList (t); return b.v[stepIndex (p, b.n)]; }
 
     juce::String beatLabel (double b)
     {
-        if (b < 1.0)
+        const juce::String sign = b < 0 ? "-" : "";
+        b = std::abs (b);
+        for (int den : { 1, 2, 3, 4, 6, 8, 12, 16 })
         {
-            const int den = juce::roundToInt (1.0 / b);
-            if (std::abs (b - 0.75) < 1.0e-9) return "3/4";
-            return "1/" + juce::String (den);
+            const int num = juce::roundToInt (b * den);
+            if (num > 0 && std::abs ((double) num / den - b) < 1.0e-6)
+                return sign + (den == 1 ? juce::String (num) : juce::String (num) + "/" + juce::String (den));
         }
-        return juce::String (juce::roundToInt (b));
+        return sign + juce::String (b, 2);
     }
 
     float pitchPercent (float p) noexcept           { return (float) juce::roundToInt (-50.0f + 150.0f * juce::jlimit (0.0f, 1.0f, p)); }
-    float reverbPercent (float p) noexcept          { return (float) juce::roundToInt (1.0f + 99.0f * juce::jlimit (0.0f, 1.0f, p)); }
+    float reverbPercent (float p) noexcept          { return (float) listValue (BeatFx::Type::reverb, p); }
 
     // Triangle 0 → 1 → 0 over one cycle.
     float tri (double phase) noexcept               { return (float) (1.0 - std::abs (2.0 * phase - 1.0)); }
@@ -54,6 +74,9 @@ juce::String BeatFx::typeName (Type t)
         case Type::roll:       return "ROLL";
         case Type::vinylBrake: return "VINYL BRAKE";
         case Type::helix:      return "HELIX";
+        case Type::tripletFilter: return "TRIPLET FILTER";
+        case Type::tripletRoll:   return "TRIPLET ROLL";
+        case Type::mobius:     return "MOBIUS";
         case Type::numTypes:   break;
     }
     return {};
@@ -69,7 +92,26 @@ juce::String BeatFx::paramName (Type t)
 double BeatFx::beatsFor (Type t, float p) noexcept
 {
     if (t == Type::reverb || t == Type::pitch) return 1.0;
-    return usesCycle (t) ? beats64[stepIndex (p, n64)] : beats16[stepIndex (p, n16)];
+    return std::abs (listValue (t, p));
+}
+
+bool BeatFx::falling (Type t, float p) noexcept
+{
+    return t == Type::mobius && listValue (t, p) < 0.0;
+}
+
+int BeatFx::beatSteps (Type t) noexcept      { return t == Type::pitch ? 11 : beatList (t).n; }
+float BeatFx::paramAt (Type t, int index) noexcept
+{
+    const int n = beatSteps (t);
+    return stepParam (juce::jlimit (0, n - 1, index), n);
+}
+
+float BeatFx::stepBeat (Type t, float p, int dir) noexcept
+{
+    if (t == Type::pitch) return juce::jlimit (0.0f, 1.0f, p + (float) dir * 5.0f / 150.0f);   // 5 %
+    const auto b = beatList (t);
+    return stepParam (juce::jlimit (0, b.n - 1, stepIndex (p, b.n) + dir), b.n);
 }
 
 juce::String BeatFx::paramText (Type t, float p)
@@ -80,25 +122,21 @@ juce::String BeatFx::paramText (Type t, float p)
         const int pc = (int) pitchPercent (p);
         return (pc > 0 ? "+" : "") + juce::String (pc) + "%";
     }
-    return beatLabel (beatsFor (t, p));
+    return beatLabel (listValue (t, p));
 }
 
 float BeatFx::defaultParam (Type t)
 {
-    if (t == Type::reverb) return 0.6f;                                                        // 60 %
-    if (t == Type::pitch)  return 0.5f;                                                        // +25 %
-    if (t == Type::trans || t == Type::slipRoll || t == Type::roll) return stepParam (2, n16); // 1/4
-    if (t == Type::vinylBrake) return stepParam (5, n16);                                      // 1
-    if (t == Type::filter)     return stepParam (7, n64);                                      // 4
-    if (t == Type::phaser)     return stepParam (8, n64);                                      // 8
-    if (t == Type::flanger)    return stepParam (9, n64);                                      // 16
-    return stepParam (3, n16);                                                                 // 1/2
+    if (t == Type::pitch) return 0.5f;                                                         // +25 %
+    const auto b = beatList (t);
+    return stepParam (b.def, b.n);
 }
 
 float BeatFx::defaultLevel (Type t)
 {
-    if (t == Type::trans || t == Type::pitch || t == Type::slipRoll || t == Type::roll || t == Type::vinylBrake) return 1.0f;
-    if (t == Type::filter || t == Type::flanger || t == Type::phaser) return 0.75f;
+    if (t == Type::trans || t == Type::pitch || t == Type::slipRoll || t == Type::roll || t == Type::vinylBrake
+        || t == Type::tripletRoll) return 1.0f;
+    if (t == Type::filter || t == Type::flanger || t == Type::phaser || t == Type::tripletFilter) return 0.75f;
     if (t == Type::helix) return 0.6f;
     return 0.5f;
 }
@@ -235,7 +273,10 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
     }
 
     const float p = param.load();
-    const double beats = beatsFor (t, p);
+    // TIME (ms) replaces the BEAT fraction until a BEAT button is pressed again (as on the mixer).
+    const double ms = timeMs.load();
+    const double beats = ms > 0.0 && t != Type::reverb && t != Type::pitch ? juce::jmax (1.0e-3, ms * 0.001 * sr * bps)
+                                                                          : beatsFor (t, p);
     float peak = 0.0f;
 
     switch (t)
@@ -306,7 +347,8 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
             {
                 const float g = inSm.getNextValue(), lv = levelSm.getNextValue();
                 glideDelay += (D - glideDelay) * coef;
-                const float fb = 0.35f + 0.55f * lv;
+                // Longer BEATs repeat less often: cap the feedback so the tail lasts the same time (≈ 9 s to −60 dB).
+                const float fb = juce::jmin (0.35f + 0.55f * lv, (float) std::pow (0.001, glideDelay / (sr * 9.0)));
                 const float rl = allpass (1, allpass (0, delayRead (dl, glideDelay)));
                 const float rr = allpass (3, allpass (2, delayRead (dr, glideDelay)));
                 dl[(size_t) dw] = soft (l[i] * g + fb * rl);
@@ -376,6 +418,7 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
 
         //----------------------------------------------------------------------
         case Type::filter:
+        case Type::tripletFilter:
         {
             // Resonant filter whose cut-off rises and falls once per BEAT cycle, locked to the grid.
             // LEVEL/DEPTH: fully left = original sound; further right = deeper sweep, more resonance.
@@ -496,6 +539,7 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
         //----------------------------------------------------------------------
         case Type::slipRoll:
         case Type::roll:
+        case Type::tripletRoll:
         {
             // The sound from the last BEAT boundary on the grid repeats every BEAT — always in time,
             // while the track keeps running underneath (switching off returns to it, like slip).
@@ -618,6 +662,42 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
                 const float ol = l[i] * (1.0f - lv) + yl * lv, orr = r[i] * (1.0f - lv) + yr * lv;
                 l[i] += (ol - l[i]) * m;
                 r[i] += (orr - r[i]) * m;
+            }
+            break;
+        }
+
+        //----------------------------------------------------------------------
+        case Type::mobius:
+        {
+            // An endless riser (or faller, for − beats) in time with the track: soft triangle tones an octave
+            // apart glide up one octave per BEAT cycle under a bell-shaped envelope across 110 Hz – 3.5 kHz,
+            // so each one fades in at the bottom as another fades out at the top. A gentle low-pass keeps it a
+            // smooth "whoosh" over the music; LEVEL/DEPTH = its volume.
+            const bool down = falling (t, p);
+            constexpr int parts = 5;
+            const float lpA = (float) std::exp (-juce::MathConstants<double>::twoPi * 4500.0 / sr);
+            for (int i = 0; i < n; ++i)
+            {
+                const float lv = levelSm.getNextValue(), m = mixSm.getNextValue();
+                const double bt = b0 + i * bps;
+                double cyc = (bt - std::floor (bt / beats) * beats) / beats;
+                if (down) cyc = 1.0 - cyc;
+                float osc = 0.0f;
+                for (int k = 0; k < parts; ++k)
+                {
+                    const double pos = ((double) k + cyc) / parts;                         // 0 … 1 across the range
+                    const double hz = 110.0 * std::pow (2.0, pos * parts);
+                    auto& ph = mbPhase[(size_t) k];
+                    ph += hz / sr;
+                    ph -= std::floor (ph);
+                    const double env = std::pow (std::sin (juce::MathConstants<double>::pi * pos), 2.0);
+                    const double w = juce::MathConstants<double>::twoPi * ph;
+                    osc += (float) (env * (std::sin (w) - std::sin (3.0 * w) / 9.0));   // soft triangle
+                }
+                mbLp = osc + lpA * (mbLp - osc);
+                const float o = 0.16f * mbLp * lv * m;
+                l[i] += o;
+                r[i] += o;
             }
             break;
         }

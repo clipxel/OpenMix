@@ -18,12 +18,12 @@ public:
 
     std::function<void (int section)> onOpenSettings;   // 0 audio, 1 appearance, 2 layout, 3 controllers, 4 diagnostics
     std::function<void()> onToggleRecord;
-    std::function<void()> onToggleFx;
     std::function<void()> onToggleAutoMix;
     std::function<void()> onOpenFeedback;
     void setAutoMixState (bool panelOpen, bool running);
-    /** Small screens: the FX panel is folded away and this button shows / hides it. */
-    void setFxButton (bool visible, bool panelShown);
+    /** Effects workspace: 0 = BEAT FX (club mixer, one effect section), 1 = 3 FX per deck. */
+    std::function<void (int)> onFxModeChange;
+    void setFxMode (int m)                         { fxMode.setSelected (m); }
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -33,8 +33,8 @@ private:
     StatusPill audio, controllers, cpu;
     Button rec { "REC", Icon::record, Button::Style::standard };
     Button settings { {}, Icon::settings, Button::Style::ghost };
-    Button fx { "FX" };
     Button automixBtn { "AUTOMIX" };
+    Segmented fxMode { { "BEAT FX", "3 FX" } };
     Button helpBtn { {}, Icon::support, Button::Style::ghost };
     void showHelpMenu();
     juce::Rectangle<int> brandArea;

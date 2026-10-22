@@ -246,11 +246,11 @@ void Deck::hotCue (int slot)
     }
     else if (! isPlaying())
     {
-        // Gate cue (club player): plays while the pad is held, returns on release.
+        // Paused: jump there and play. Gate cue (club player): only while the pad is held.
         requestJump (Jump::absolute, c);
         publishedPos = c;
         publishedAtMs = juce::Time::getMillisecondCounterHiRes();
-        gateSlot = slot;
+        gateSlot = gateCue.load() ? slot : -1;
         previewing = false;
         playRequested = true;
     }
@@ -711,7 +711,7 @@ void Deck::render (float* left, float* right, int numSamples)
         restAt = -1.0;
     }
 
-    // Musical clock for effects / RMX scheduled on this deck (heard position, start of block).
+    // Musical clock for effects scheduled on this deck (heard position, start of block).
     {
         const auto g = t.grid();
         const double heardSec = (stretchActive ? pos - stretchLead * (t.sampleRate / outRate) : pos) / t.sampleRate;

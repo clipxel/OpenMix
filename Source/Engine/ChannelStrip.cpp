@@ -71,7 +71,13 @@ void ChannelStrip::processPreFader (float* l, float* r, int n, double deckBpm)
 
     // Sound Color: each colour also uses part of the filter (as on club mixers).
     const auto color = (Color) colorType.load();
-    const float knob = filter.load();
+    const float knob = colorOn.load() ? filter.load() : 0.0f;
+    const float prm = colorParam.load();
+    if (std::abs (prm - lastParam) > 1.0e-4f)
+    {
+        svf.setResonance (0.7f + prm * 1.6f);                    // FILTER: resonance
+        lastParam = prm;
+    }
     float fk = knob;
     switch (color)
     {
@@ -132,27 +138,34 @@ void ChannelStrip::processPreFader (float* l, float* r, int n, double deckBpm)
     const bool on = color != Color::filter && amt > 0.03f;
     switch (color)
     {
-        case Color::space:   colorFx.type = (int) FxUnit::Type::reverb;     colorFx.param = 0.8f; colorFx.wet = amt * 0.85f; break;
-        case Color::dubEcho: colorFx.type = (int) FxUnit::Type::tapeEcho;   colorFx.param = 0.5f; colorFx.feedback = 0.62f; colorFx.wet = amt; break;
-        case Color::noise:   colorFx.type = (int) FxUnit::Type::noise;      colorFx.param = (knob + 1.0f) * 0.5f; colorFx.wet = amt * 0.6f; break;
-        case Color::crush:   colorFx.type = (int) FxUnit::Type::bitcrusher; colorFx.param = amt; colorFx.wet = juce::jmin (1.0f, amt * 1.5f); break;
-        case Color::sweep:   colorFx.type = (int) FxUnit::Type::trans;      colorFx.param = 0.3f; colorFx.wet = amt; break;
-        case Color::filter: case Color::numColors: break;
+        case Color::space:   colorFx.type = (int) FxUnit::Type::reverb;     colorFx.param = 0.5f + 0.5f * prm; colorFx.wet = amt * 0.85f; break;
+        case Color::dubEcho: colorFx.type = (int) FxUnit::Type::tapeEcho;   colorFx.param = 0.5f; colorFx.feedback = 0.4f + 0.45f * prm; colorFx.wet = amt; break;
+        case Color::noise:   colorFx.type = (int) FxUnit::Type::noise;      colorFx.param = (knob + 1.0f) * 0.5f; colorFx.wet = amt * 0.6f * (0.25f + 1.5f * prm); break;   // PARAMETER: noise volume
+        case Color::crush:   colorFx.type = (int) FxUnit::Type::bitcrusher; colorFx.param = juce::jmin (1.0f, amt * (0.5f + prm)); colorFx.wet = juce::jmin (1.0f, amt * 1.5f); break;
+        case Color::sweep: case Color::filter: case Color::numColors: break;
     }
-    // SWEEP: left = gate, right = sweeping band-pass.
-    colorFx.enabled = on && ! (color == Color::sweep && knob > 0.0f);
+    colorFx.enabled = on && color != Color::sweep;
     colorFx.process (l, r, n, deckBpm);
 
-    const bool band = color == Color::sweep && knob > 0.03f;
-    bandMix.setTargetValue (band ? amt : 0.0f);
-    if (band || bandMix.isSmoothing() || bandMix.getCurrentValue() > 0.0f)
+    // SWEEP: left = band-stop that widens as you turn, right = band-pass that narrows;
+    // PARAMETER = the centre frequency. (SVF: x − R2·bp is a true notch, R2·bp a unity band-pass.)
+    const bool sweep = color == Color::sweep && amt > 0.03f;
+    bandMix.setTargetValue (sweep ? juce::jmin (1.0f, amt * 3.0f) : 0.0f);
+    if (sweep || bandMix.isSmoothing() || bandMix.getCurrentValue() > 0.0f)
     {
-        bandSvf.setCutoffFrequency (juce::jlimit (60.0f, (float) sr * 0.4f, 150.0f * std::pow (60.0f, amt)));
+        if (sweep) sweepPass = knob > 0.0f;
+        const float q = sweepPass ? 0.5f + 7.5f * amt * amt          // narrower to the right
+                                  : 5.0f * std::pow (0.08f, amt);    // wider to the left
+        bandSvf.setResonance (juce::jmax (0.3f, q));
+        bandSvf.setCutoffFrequency (juce::jlimit (60.0f, (float) sr * 0.42f, 150.0f * std::pow (2.0f, prm * 6.5f)));
+        const float r2 = 1.0f / juce::jmax (0.3f, q);
         for (int i = 0; i < n; ++i)
         {
             const float m = bandMix.getNextValue();
-            l[i] += (bandSvf.processSample (0, l[i]) * 1.4f - l[i]) * m;
-            r[i] += (bandSvf.processSample (1, r[i]) * 1.4f - r[i]) * m;
+            const float bl = bandSvf.processSample (0, l[i]) * r2, br = bandSvf.processSample (1, r[i]) * r2;
+            const float yl = sweepPass ? bl * 1.25f : l[i] - bl, yr = sweepPass ? br * 1.25f : r[i] - br;
+            l[i] += (yl - l[i]) * m;
+            r[i] += (yr - r[i]) * m;
         }
     }
 }
