@@ -614,7 +614,6 @@ void MainComponent::loadSettings()
     engine.limiter().ceilingDb = (float) settings->getDoubleValue ("limiterCeiling", -0.5);
     engine.autoGain = settings->getBoolValue ("autoGain", true);
     for (int d = 0; d < 2; ++d) engine.deck (d).setAutoCue (settings->getBoolValue ("autoCue", true));
-    for (int d = 0; d < AudioEngine::numDecks; ++d) engine.deck (d).setHotCueGate (settings->getBoolValue ("hotCueGate", false));
 }
 
 void MainComponent::saveSettings()
@@ -632,7 +631,6 @@ void MainComponent::saveSettings()
     settings->setValue ("columns", libraryView.getColumnState());
     settings->setValue ("librarySidebar", libraryView.getSidebarWidth());
     settings->setValue ("xfCurve", engine.crossfaderCurve.load());
-    settings->setValue ("hotCueGate", engine.deck (0).isHotCueGate());
     for (int d = 0; d < AudioEngine::numDecks; ++d)
     {
         settings->setValue ("vinylMode" + juce::String (d + 1), engine.deck (d).isVinylMode());

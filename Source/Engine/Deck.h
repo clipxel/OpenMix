@@ -70,10 +70,6 @@ public:
     void   hotCue (int slot);                     // set if empty, else jump
     /** Gate cue: a hot cue pressed while paused plays only while held; release returns to it. */
     void   hotCueRelease (int slot);
-    /** Hot cue pressed with the deck stopped. Off (default): jumps and keeps playing, like most
-        DJ software. On: club-player gate, plays only while held and goes back on release. */
-    void setHotCueGate (bool on) noexcept         { hotCueGate = on; }
-    bool isHotCueGate() const noexcept            { return hotCueGate.load(); }
     /** Instant doubles: take the other deck's track, position, tempo, key and loop, in time. */
     void   cloneFrom (const Deck& other);
     void   setAutoCue (bool on) noexcept          { autoCue = on; }
@@ -241,7 +237,6 @@ private:
     std::atomic<double> brakeSeconds { 1.0 }, backspinSeconds { 1.2 };
     std::atomic<double> phaseCorrection { 0.0 };   // sync phase-lock trim (fraction of speed)
     std::atomic<bool>   vinyl { true };
-    std::atomic<bool>   hotCueGate { false };
     std::atomic<int>    keyShift { 0 };
 
     // Published playhead

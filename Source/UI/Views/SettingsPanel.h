@@ -95,7 +95,6 @@ private:
     KeyboardControl* keyboard = nullptr;
     Segmented ctrlTab { { "MIDI", "TECLADO" } };
     juce::ToggleButton vinylToggle { juce::String::fromUTF8 ("Modo vinilo en ambos decks (cada deck tiene su botón VINYL)") }, learnShift { "Capa SHIFT" };
-    juce::ToggleButton hotCueGateToggle { juce::String::fromUTF8 ("Hot cue con el deck parado: suena solo mientras se mantiene (como un reproductor de club)") };
     Button learnBtn { "Aprender control", Icon::plus }, cancelLearnBtn { "Cancelar" };
     std::unique_ptr<BindingList> bindingList;
     std::unique_ptr<KeyboardMapView> keyMap;
