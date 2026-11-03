@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenMix — Sitio web oficial</title>
+  <meta name="description" content="El sitio web oficial de OpenMix ahora está en openmix.pages.dev.">
+  <meta name="theme-color" content="#000000">
+  <link rel="canonical" href="https://openmix.pages.dev/">
+  <link rel="icon" href="assets/img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+  <style>
+    :root { --accent: #93cbe3; --accent-hover: #b4ddef; --on-accent: #08161d; }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { height: 100%; }
+    body {
+      display: grid; place-items: center; padding: 24px 16px;
+      background: radial-gradient(ellipse at 50% 40%, #12202a 0%, #000 65%);
+      color: #fff; font-family: "Archivo", system-ui, sans-serif; text-align: center;
+    }
+    main { display: grid; justify-items: center; gap: 28px; animation: in 1.2s cubic-bezier(0.22, 0.75, 0.2, 1) both; }
+    .logo { width: 88px; height: 88px; }
+    h1 { font-size: clamp(34px, 9vw, 64px); font-weight: 800; font-stretch: 125%; letter-spacing: 0.04em; line-height: 1; }
+    p { max-width: 420px; color: rgba(255,255,255,0.62); font-size: 16px; line-height: 1.55; }
+    a.go {
+      display: inline-flex; align-items: center; gap: 12px; padding: 18px 30px; border-radius: 12px;
+      background: var(--accent); color: var(--on-accent); text-decoration: none;
+      font-weight: 700; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+      transition: background 0.2s, transform 0.2s;
+    }
+    a.go:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    a.go svg { width: 16px; height: 16px; }
+    .url { color: rgba(255,255,255,0.4); font-size: 13px; letter-spacing: 0.06em; }
+    @keyframes in { from { opacity: 0; transform: translateY(14px); } }
+    @media (prefers-reduced-motion: reduce) { main { animation: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <img class="logo" src="assets/img/logo.png" alt="">
+    <h1>OPENMIX</h1>
+    <p>El sitio web oficial de OpenMix se mudó. Descargas, mapeos, foro y ayuda, todo está ahora en la nueva dirección.</p>
+    <a class="go" id="go" href="https://openmix.pages.dev/">Ir al sitio web oficial
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+    <span class="url">openmix.pages.dev</span>
+  </main>
+  <script>
+    // Same page on the new site (mapeos.html, foro.html, #ayuda …)
+    var page = location.pathname.split("/").pop();
+    if (/^(mapeos|foro)\.html$/.test(page) || location.hash)
+      document.getElementById("go").href = "https://openmix.pages.dev/" + (/\.html$/.test(page) && page !== "index.html" ? page : "") + location.hash;
+  </script>
+</body>
+</html>

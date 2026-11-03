@@ -1,6 +1,6 @@
 #!/bin/sh
 # Instala (o actualiza) OpenMix en macOS desde la Terminal:
-#   curl -fsSL https://clipxel.github.io/OpenMix/install.sh | sh
+#   curl -fsSL https://openmix.pages.dev/install.sh | sh
 # Baja la última versión publicada, verifica su SHA-256 y copia OpenMix.app a Aplicaciones.
 set -eu
 
@@ -10,7 +10,7 @@ MANIFEST="https://github.com/${REPO}/releases/latest/download/update.json"
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 
-[ "$(uname -s)" = "Darwin" ] || fail "este instalador es para macOS. Para Windows y Linux: https://clipxel.github.io/OpenMix/"
+[ "$(uname -s)" = "Darwin" ] || fail "este instalador es para macOS. Para Windows y Linux: https://openmix.pages.dev/"
 
 TMP=$(mktemp -d)
 MNT="${TMP}/mnt"

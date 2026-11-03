@@ -21,7 +21,7 @@
   }
 
   // macOS: instalar desde la Terminal (sin el aviso de "no se pudo verificar" de la primera apertura).
-  const INSTALL_CMD = "curl -fsSL https://clipxel.github.io/OpenMix/install.sh | sh";
+  const INSTALL_CMD = "curl -fsSL https://openmix.pages.dev/install.sh | sh";
   function terminalInstall() {
     const code = el("code", { text: INSTALL_CMD });
     const copy = el("button", { class: "copy", type: "button" }, "Copiar");

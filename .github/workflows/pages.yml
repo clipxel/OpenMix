@@ -1,4 +1,7 @@
-# Publica website/ en GitHub Pages en cada push a main que toque la web.
+# En cada push a main que toque la web:
+#  · el sitio completo se publica en openmix.pages.dev (Cloudflare Pages, secreto CLOUDFLARE_API_TOKEN);
+#  · clipxel.github.io/OpenMix queda como portada con el botón al sitio oficial, más los
+#    archivos que usan las apps ya instaladas (official/, install.sh, config/).
 # Una sola vez: Settings › Pages › Source: "GitHub Actions".
 name: Página web
 
@@ -29,10 +32,28 @@ jobs:
         run: |
           mkdir -p _site
           cp -R website/index.html website/mapeos.html website/foro.html website/assets website/config website/official website/install.sh _site/
-          touch _site/.nojekyll
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publicar en openmix.pages.dev
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2dec9a1ed02f6eec42438202b8de1b7e
+        run: |
+          npx --yes wrangler@4 pages project create openmix --production-branch main || true
+          npx --yes wrangler@4 pages deploy _site --project-name openmix --branch main --commit-dirty=true
+      - name: Armar portada de clipxel.github.io/OpenMix
+        run: |
+          mkdir -p _gh/assets/img
+          cp website/redirect/index.html _gh/index.html
+          cp website/redirect/index.html _gh/mapeos.html
+          cp website/redirect/index.html _gh/foro.html
+          cp website/assets/img/logo.png website/assets/img/favicon.png _gh/assets/img/
+          cp -R website/config website/official website/install.sh _gh/
+          touch _gh/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: _gh
       - id: deployment
         uses: actions/deploy-pages@v4
