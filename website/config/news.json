@@ -1,0 +1,11 @@
+{
+  "_comment": "Noticias de la portada, de la más nueva a la más vieja. tag: Próximamente, Novedad, Versión… link es opcional.",
+  "news": [
+    {
+      "date": "2026-11-03",
+      "tag": "Próximamente",
+      "title": "Stems: controlá cada parte del tema",
+      "text": "Muy pronto vas a poder separar cada canción en voz, melodía y beat, y mezclarlas por separado: sacar la voz, quedarte con el beat o sumar solo la melodía, en vivo."
+    }
+  ]
+}

@@ -542,3 +542,12 @@ kbd { border-radius: 6px; }
 
 .hero .slide .copy { bottom: 64px; }
 @media (max-width: 600px) { .hero { height: 70vh; min-height: 440px; } }
+
+/* Noticias con texto */
+.news-list .news-row { display: grid; grid-template-columns: 160px 200px 1fr 30px; gap: 24px; align-items: start; padding: 26px 0; }
+.news-list a { align-items: start; }
+.news-list .title { display: grid; gap: 6px; }
+.news-list .title b { font-size: 18px; font-weight: 700; }
+.news-list .title small { font-size: 15px; color: #555; line-height: 1.55; max-width: 680px; }
+.news-list .tag.soon { justify-self: start; padding: 3px 10px; border-radius: 999px; background: var(--paper-ink); color: var(--accent); }
+@media (max-width: 760px) { .news-list .news-row { grid-template-columns: 1fr; gap: 6px; } }
