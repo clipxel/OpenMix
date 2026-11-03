@@ -15,9 +15,11 @@
   --paper-ink: #111111;
   --paper-2: #f3f3f3;
 
-  --accent: #f25e46;          /* coral de OpenMix */
-  --deck-a: #2ec6e8;
-  --deck-b: #f29a3a;
+  --accent: #93cbe3;          /* celeste del logo */
+  --accent-hover: #b4ddef;
+  --on-accent: #08161d;       /* texto sobre el celeste */
+  --deck-a: #93cbe3;
+  --deck-b: #dfe5e9;
   --ok: #3ccb8b;
 
   --font: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -36,7 +38,7 @@ a { color: inherit; text-decoration: none; }
 p { margin: 0; }
 ul { margin: 0; padding: 0; list-style: none; }
 h1, h2, h3, h4 { margin: 0; line-height: 1.05; }
-::selection { background: rgba(242, 94, 70, 0.45); }
+::selection { background: rgba(147, 203, 227, 0.4); }
 :focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
 code, kbd { font-family: var(--mono); font-size: 0.85em; }
 
@@ -78,7 +80,7 @@ html.no-intro .intro { display: none; }
 .nav a { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.82); transition: color 0.2s; }
 .nav a:hover, .nav a.active { color: #fff; }
 .nav .btn-dl { margin-left: auto; padding: 8px 18px; background: var(--accent); color: #fff; }
-.nav .btn-dl:hover { background: #ff6f57; }
+.nav .btn-dl:hover { background: var(--accent-hover); }
 .menu-toggle { display: none; margin-left: auto; background: none; border: 0; color: #fff; font: 600 12px var(--font); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
 @media (max-width: 900px) {
   .menu-toggle { display: block; }
@@ -96,7 +98,7 @@ html.no-intro .intro { display: none; }
   font: 600 12px var(--font); letter-spacing: 0.14em; text-transform: uppercase;
   color: #fff; background: var(--accent); border: 1px solid var(--accent); transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
-.btn:hover, .more:hover { background: #ff6f57; border-color: #ff6f57; }
+.btn:hover, .more:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn.big { min-height: 54px; padding: 0 40px; }
 .btn.small { min-height: 34px; padding: 0 16px; font-size: 11px; }
 .btn.ghost, .back { background: transparent; border-color: rgba(255, 255, 255, 0.35); color: #fff; }
@@ -112,7 +114,7 @@ html.no-intro .intro { display: none; }
 .on-paper .discover:hover i { background: #000; color: #fff; }
 
 /* ── Portada a pantalla completa con diapositivas ────────────────────────── */
-.hero { position: relative; height: 100vh; min-height: 620px; overflow: hidden; background: var(--black); }
+.hero { position: relative; height: 68vh; min-height: 480px; max-height: 760px; overflow: hidden; background: var(--black); }
 .slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 1.2s var(--ease), visibility 0s linear 1.2s; }
 .slide.on { opacity: 1; visibility: visible; transition: opacity 1.2s var(--ease); }
 .slide .media { position: absolute; inset: 0; }
@@ -390,7 +392,7 @@ footer .totop svg { width: 18px; height: 18px; }
 .usb .lock { position: absolute; right: -14%; top: 42%; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
              background: var(--accent); animation: pulse 2.4s var(--ease) infinite; }
 .usb .lock svg { width: 16px; height: 16px; }
-@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(242,94,70,0.5); } 60% { box-shadow: 0 0 0 14px rgba(242,94,70,0); } }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(147,203,227,0.5); } 60% { box-shadow: 0 0 0 14px rgba(147,203,227,0); } }
 .usb .rows { display: grid; gap: 8px; }
 .usb .head { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.16em; color: var(--text-3); margin-bottom: 6px; }
 .usb .row { display: grid; grid-template-columns: 14px 1fr 54px 34px; gap: 12px; align-items: center; padding: 9px 12px; background: rgba(255,255,255,0.04);
@@ -431,3 +433,112 @@ footer .totop svg { width: 18px; height: 18px; }
   .section-title { font-size: clamp(28px, 8.4vw, 44px); }
   .slide h2 { font-size: clamp(36px, 11vw, 60px); }
 }
+
+/* ── Atención al usuario: "¿Necesitás ayuda?" ────────────────────────────── */
+.help { background: var(--black); border-top: 1px solid var(--line); }
+.help-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: start; }
+.help-lead { font-size: clamp(20px, 2vw, 26px); line-height: 1.45; color: #fff; max-width: 540px; }
+.help-lead b { color: var(--accent); font-weight: 700; }
+.help-sub { margin-top: 18px; color: var(--text-2); max-width: 520px; }
+.promises { margin-top: 44px; border-top: 1px solid var(--line); }
+.promises li { display: grid; grid-template-columns: 190px 1fr; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.promises b { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.promises span { color: var(--text-2); font-size: 15px; }
+.now { margin-top: 40px; }
+.now-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.help-form { padding: 40px; background: var(--graphite); border: 1px solid var(--line); }
+.help-form h3 { font-size: 14px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 4px; }
+.help-form .label { font-size: 12px; }
+.help-form .btn { justify-self: start; margin-top: 6px; }
+.help-form .btn:disabled { opacity: 0.5; cursor: default; }
+.help-form .fine { font-size: 12px; color: var(--text-3); }
+.help-form .msg.ok { color: var(--ok); }
+@media (max-width: 900px) {
+  .help-grid { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+  .promises li { grid-template-columns: 1fr; gap: 4px; }
+  .help-form { padding: 28px 22px; }
+}
+
+/* Botón flotante de ayuda (todas las páginas) */
+.help-fab {
+  position: fixed; right: 24px; bottom: 24px; z-index: 40; display: inline-flex; align-items: center; gap: 10px;
+  padding: 13px 20px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); transition: transform 0.25s var(--ease), background 0.2s;
+}
+.help-fab:hover { background: var(--accent-hover); transform: translateY(-2px); }
+.help-fab .dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: online 2s ease-in-out infinite; }
+@keyframes online { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (max-width: 600px) { .help-fab { right: 14px; bottom: 14px; padding: 11px 16px; } }
+.help-fab.away { opacity: 0; pointer-events: none; transform: translateY(16px); }
+.help-fab { transition: transform 0.25s var(--ease), background 0.2s, opacity 0.3s; }
+
+/* Pedidos: solicitar un controlador / pedir una revisión */
+.asks { display: grid; gap: 3px; margin-top: 40px; }
+.ask { position: relative; display: grid; gap: 4px; padding: 20px 64px 20px 22px; background: rgba(255,255,255,0.05); border-left: 2px solid var(--accent); transition: background 0.2s; }
+.ask:hover { background: rgba(255,255,255,0.09); }
+.ask b { font-size: 15px; font-weight: 700; }
+.ask span { font-size: 14px; color: var(--text-2); }
+.ask i { position: absolute; right: 22px; top: 50%; width: 30px; height: 30px; margin-top: -15px; border: 1px solid rgba(255,255,255,0.5); border-radius: 50%; display: grid; place-items: center; }
+.ask i::before { content: ""; width: 6px; height: 6px; border-top: 1.5px solid #fff; border-right: 1.5px solid #fff; transform: translateX(-1px) rotate(45deg); }
+.ask:hover i { background: #fff; }
+.ask:hover i::before { border-color: #000; }
+.help-type { display: grid; grid-template-columns: repeat(3, auto); width: 100%; }
+.help-type button { padding: 0 10px; }
+@media (max-width: 600px) { .help-type { grid-template-columns: 1fr; } .help-type button + button { border-left: 0; border-top: 1px solid rgba(255,255,255,0.22); } }
+.ctrl-asks { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 36px; }
+.ctrl-asks .ask { flex: 1 1 320px; }
+
+
+/* ── Celeste del logo + bordes redondeados ───────────────────────────────── */
+:root { --r-btn: 12px; --r-card: 16px; --r-field: 10px; }
+.btn, .more, .back { border-radius: var(--r-btn); color: var(--on-accent); }
+.btn.big { border-radius: 14px; }
+.btn.small { border-radius: 9px; }
+.btn.ghost, .back { color: #fff; }
+.platform .btn:not(.primary) { color: #fff; }
+.platform .btn.primary { color: var(--on-accent); }
+.nav .btn-dl { border-radius: 10px; color: var(--on-accent); font-weight: 700; }
+.nav .btn-dl:hover { color: var(--on-accent); }
+.help-fab { border-radius: 999px; color: var(--on-accent); }
+.help-fab .dot { background: var(--on-accent); }
+.search, .sort, .field input, .field select, .field textarea { border-radius: var(--r-field); }
+.segmented { border-radius: var(--r-field); overflow: hidden; }
+.terminal-install .cmd { border-radius: var(--r-field); }
+.terminal-install .copy { border-radius: 7px; }
+.stage { border-radius: var(--r-card); }
+.help-form, .platform, .contact-grid > div, .step, .share, .dialog { border-radius: var(--r-card); }
+.ask { border-left: 0; border-radius: 14px; box-shadow: inset 3px 0 0 var(--accent); }
+.pad { border-radius: 10px; }
+.kb .k { border-radius: 7px; }
+.usb .row { border-radius: 8px; }
+kbd { border-radius: 6px; }
+.pill { border-radius: 999px; }
+.drop { border-radius: var(--r-field); }
+.usb .lock svg { stroke: var(--on-accent); }
+.slide .copy .discover i, .discover i { border-radius: 50%; }
+
+/* Tu controlador: solicitar / reportar (debajo de Descargar) */
+.ctrl-sec { background: var(--ink); }
+.ctrl-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ctrl-card { display: grid; gap: 12px; align-content: start; padding: 40px; border-radius: var(--r-card); background: var(--graphite);
+             border: 1px solid var(--line); transition: border-color 0.25s, transform 0.25s var(--ease); }
+.ctrl-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+.ctrl-card b { font-size: clamp(22px, 2.2vw, 30px); font-weight: 700; line-height: 1.15; }
+.ctrl-card span { color: var(--text-2); font-size: 16px; max-width: 420px; }
+.ctrl-card em { font-style: normal; justify-self: start; margin-top: 14px; }
+.ctrl-note { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 18px; color: var(--text-2); }
+@media (max-width: 860px) { .ctrl-cards { grid-template-columns: minmax(0, 1fr); } .ctrl-card { padding: 28px; } }
+
+/* Pendrive (destacado, fondo blanco) */
+.pendrive-sec.on-paper { background: var(--paper); color: var(--paper-ink); }
+.pendrive-sec .feature-grid p { color: #444; max-width: 500px; }
+.badge { display: inline-block; padding: 6px 14px; border-radius: 999px; background: var(--paper-ink); color: var(--accent);
+         font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.pend-points { margin-top: 28px; display: grid; gap: 10px; }
+.pend-points li { position: relative; padding-left: 28px; font-weight: 600; }
+.pend-points li::before { content: ""; position: absolute; left: 0; top: 0.35em; width: 16px; height: 16px; border-radius: 50%; background: var(--paper-ink);
+  box-shadow: inset 0 0 0 4px var(--paper-ink), inset 0 0 0 16px var(--accent); }
+.pendrive-sec .stage { border-color: transparent; }
+
+.hero .slide .copy { bottom: 64px; }
+@media (max-width: 600px) { .hero { height: 70vh; min-height: 440px; } }

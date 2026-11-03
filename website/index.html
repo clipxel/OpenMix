@@ -26,7 +26,7 @@
       <a href="mapeos.html">Mapeos</a>
       <a href="foro.html">Foro</a>
       <a href="#noticias">Noticias</a>
-      <a href="#contacto">Soporte</a>
+      <a href="#ayuda">Ayuda</a>
       <a class="btn-dl" href="#descarga">Descargar</a>
     </nav>
   </div>
@@ -45,22 +45,57 @@
     <span class="scroll-cue" aria-hidden="true"></span>
   </section>
 
-  
-
-  
-
-  
-
-  <section class="feature-sec" id="sync">
-    <div class="wrap feature-grid">
-      <div class="copy">
-        <span class="kicker reveal">Sync</span>
-        <h2 class="display reveal d1">En fase<br>desde el primer beat</h2>
-        <p class="reveal d2">Apretás SYNC y el tema que entra toma el tempo y la fase del que está sonando. El que está al aire nunca cambia.</p>
+  <section class="section download-band graphite" id="descarga">
+    <div class="wrap">
+      <span class="kicker reveal">Gratis para macOS, Windows y Linux</span>
+      <h2 class="section-title reveal d1">Descargá OpenMix</h2>
+      <div class="download-cta reveal d2">
+        <a class="btn big" data-download-main href="#descarga">Descargar</a>
+        <p class="meta" data-download-meta></p>
+        <p class="notice" data-download-notice></p>
       </div>
-      <div class="stage reveal d1" data-scene="sync"><canvas></canvas></div>
+      <div class="platforms reveal d3" id="platforms"></div>
     </div>
   </section>
+
+  <section class="section ctrl-sec" id="controladores">
+    <div class="wrap">
+      <span class="kicker reveal">Controladores</span>
+      <h2 class="section-title reveal d1">Tu controlador</h2>
+      <div class="ctrl-cards reveal d2">
+        <a class="ctrl-card" href="#solicitar" data-type="solicitud">
+          <b>¿Tu controlador no está?</b>
+          <span>Solicitalo acá. Decinos qué modelo es y lo agregamos.</span>
+          <em class="btn">Solicitar mi controlador</em>
+        </a>
+        <a class="ctrl-card" href="#revision" data-type="revision">
+          <b>¿Tu controlador funciona mal?</b>
+          <span>Reportalo acá. Lo revisamos y lo corregimos en menos de 24 horas.</span>
+          <em class="btn ghost">Reportar un problema</em>
+        </a>
+      </div>
+      <p class="ctrl-note reveal d3">Ya hay más de 130 controladores listos para usar. <a class="discover" href="mapeos.html">Ver mapeos <i aria-hidden="true"></i></a></p>
+    </div>
+  </section>
+
+  <section class="feature-sec on-paper pendrive-sec" id="pendrives">
+    <div class="wrap feature-grid">
+      <div class="copy">
+        <span class="badge reveal">Importante · Pendrives de rekordbox</span>
+        <h2 class="display reveal d1">Tu pendrive,<br>intacto</h2>
+        <p class="reveal d2">Tus playlists, grillas y cues de los pendrives exportados con rekordbox funcionan en OpenMix tal cual están. Y en los reproductores siguen funcionando igual que siempre: OpenMix los lee en solo lectura y no escribe nada en el pendrive.</p>
+        <ul class="pend-points reveal d3"><li>Playlists, grillas y cues de rekordbox</li><li>Solo lectura: tu pendrive no se toca</li><li>Sigue funcionando en los reproductores</li></ul>
+      </div>
+      <div class="stage reveal d1" data-scene="usb"></div>
+    </div>
+  </section>
+
+  
+
+  
+
+  
+
   <section class="feature-sec graphite" id="fx">
     <div class="wrap feature-grid flip">
       <div class="copy">
@@ -91,17 +126,7 @@
       <div class="stage reveal d1" data-scene="analysis"><canvas></canvas></div>
     </div>
   </section>
-  <section class="feature-sec" id="pendrives">
-    <div class="wrap feature-grid">
-      <div class="copy">
-        <span class="kicker reveal">Pendrives de DJ</span>
-        <h2 class="display reveal d1">Tu pendrive,<br>intacto</h2>
-        <p class="reveal d2">Playlists, grillas y cues de los pendrives exportados, en solo lectura. Nada se escribe en el pendrive.</p>
-      </div>
-      <div class="stage reveal d1" data-scene="usb"></div>
-    </div>
-  </section>
-  <section class="feature-sec graphite" id="teclado">
+  <section class="feature-sec" id="teclado">
     <div class="wrap feature-grid stack">
       <div class="copy">
         <span class="kicker reveal">Teclado</span>
@@ -143,16 +168,57 @@
     </div>
   </section>
 
-  <section class="section download-band graphite" id="descarga">
+
+  <section class="section help" id="ayuda">
     <div class="wrap">
-      <span class="kicker reveal">Gratis para macOS, Windows y Linux</span>
-      <h2 class="section-title reveal d1">Descargá OpenMix</h2>
-      <div class="download-cta reveal d2">
-        <a class="btn big" data-download-main href="#descarga">Descargar</a>
-        <p class="meta" data-download-meta></p>
-        <p class="notice" data-download-notice></p>
+      <span class="kicker reveal">Atención al usuario</span>
+      <h2 class="section-title reveal d1">¿Necesitás ayuda?</h2>
+      <div class="help-grid">
+        <div class="help-copy reveal d2">
+          <p class="help-lead">Solucionamos tu problema en <b>menos de 24 horas</b>. Decinos qué controlador tenés y qué te pasa, y lo resolvemos enseguida.</p>
+          <p class="help-sub">Estamos para escucharte. Cada mensaje lo lee y lo responde una persona del equipo de OpenMix.</p>
+          <ul class="promises">
+            <li><b>Menos de 24 h</b><span>Te respondemos y te damos una solución en menos de un día.</span></li>
+            <li><b>Tu controlador</b><span>Si no está mapeado o algo no responde, lo armamos y te lo mandamos.</span></li>
+            <li><b>Una persona, no un bot</b><span>Hablás directamente con quien hace OpenMix.</span></li>
+          </ul>
+          <div class="asks">
+            <a class="ask" href="#solicitar" data-type="solicitud"><b>¿Tu controlador no está?</b><span>Solicitalo acá: decinos qué modelo es y lo agregamos.</span><i aria-hidden="true"></i></a>
+            <a class="ask" href="#revision" data-type="revision"><b>¿Tu controlador funciona mal?</b><span>Reportalo acá: lo revisamos y lo corregimos.</span><i aria-hidden="true"></i></a>
+          </div>
+          <div class="now">
+            <span class="kicker">Respuesta inmediata</span>
+            <div class="now-links">
+              <a class="btn" href="https://chat.whatsapp.com/EfyHSpbE1KGJ3zcCKjhx4R" target="_blank" rel="noopener">WhatsApp</a>
+              <a class="btn ghost" href="https://ig.me/m/nanobrunetti" target="_blank" rel="noopener">Instagram</a>
+            </div>
+          </div>
+        </div>
+        <form class="help-form form reveal d3" id="help-form" method="post" novalidate>
+          <h3 id="help-title">Contanos qué pasa</h3>
+          <div class="segmented help-type" role="tablist" aria-label="Tipo de mensaje">
+            <button type="button" class="on" data-type="ayuda">Ayuda</button>
+            <button type="button" data-type="solicitud">Solicitar mi controlador</button>
+            <button type="button" data-type="revision">Reportar un problema</button>
+          </div>
+          <input type="hidden" name="type" value="ayuda">
+          <div class="two">
+            <label class="field"><span class="label" id="help-ctrl-label">Tu controlador</span>
+              <input type="text" name="controller" list="controllers" maxlength="80" placeholder="Ej.: DDJ-FLX4, Inpulse 500, ninguno">
+              <datalist id="controllers"></datalist></label>
+            <label class="field"><span class="label">Sistema</span>
+              <select name="system"><option>macOS</option><option>Windows</option><option>Linux</option></select></label>
+          </div>
+          <label class="field"><span class="label" id="help-problem-label">¿Qué problema tenés?</span>
+            <textarea name="problem" maxlength="4000" required placeholder="Qué pasa, cuándo pasa y qué esperabas que pase."></textarea></label>
+          <label class="field"><span class="label">¿Cómo te respondemos?</span>
+            <input type="text" name="contact" maxlength="120" required placeholder="Tu WhatsApp, Instagram o mail"></label>
+          <label class="hp">No completar <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+          <p class="msg" hidden></p>
+          <button class="btn big" type="submit" id="help-submit">Enviar</button>
+          <p class="fine">Solo usamos estos datos para responderte.</p>
+        </form>
       </div>
-      <div class="platforms reveal d3" id="platforms"></div>
     </div>
   </section>
 
@@ -200,6 +266,9 @@
   </section>
 </main>
 
+
+<a class="help-fab" href="#ayuda" aria-label="¿Necesitás ayuda?"><span class="dot"></span>¿Necesitás ayuda?</a>
+
 <footer>
   <div class="wrap">
     <div class="top"><a class="brand" href="index.html"><img src="assets/img/logo.png" alt="">OpenMix</a></div>
@@ -221,5 +290,6 @@
 <script src="assets/js/download.js"></script>
 <script src="assets/js/home.js"></script>
 <script src="assets/js/motion.js"></script>
+<script src="assets/js/support.js"></script>
 </body>
 </html>

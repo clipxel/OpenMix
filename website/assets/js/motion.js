@@ -5,7 +5,7 @@
 (() => {
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const BPM = 124;
-  const C = { a: "#2ec6e8", b: "#f29a3a", body: "#3f6be8", accent: "#f25e46", white: "#ffffff" };
+  const C = { a: "#93cbe3", b: "#dfe5e9", body: "#3f6be8", accent: "#93cbe3", white: "#ffffff" };   // paleta del logo
 
   // ── Entrada: solo la primera vez de cada visita ──────────────────────────────
   const intro = document.querySelector(".intro");
@@ -88,7 +88,7 @@
       const lh = low * laneH, hh = high * laneH * 0.9;
       ctx.fillStyle = `rgba(63,107,232,${a})`;
       ctx.fillRect(x, y - lh, BAR, lh * 2);
-      ctx.fillStyle = `rgba(242,154,58,${a * 0.9})`;
+      ctx.fillStyle = `rgba(147,203,227,${a * 0.9})`;
       ctx.fillRect(x, y - hh * 0.55, BAR, hh * 1.1);
     }
   }
@@ -104,8 +104,8 @@
       const { ctx, w, h } = s;
       ctx.clearRect(0, 0, w, h);
       const beat = t * BPM / 60;
-      const laneH = Math.min(120, h * 0.085);
-      for (const [y, seed, ph] of [[h * 0.36, 0, 0], [h * 0.58, 2, 0.003]]) {
+      const laneH = Math.min(44, h * 0.06);
+      for (const [y, seed, ph] of [[h * 0.3, 0, 0], [h * 0.3 + laneH * 2.6, 2, 0.003]]) {
         ctx.fillStyle = "rgba(255,255,255,0.10)";
         for (let k = Math.ceil(beat - (w / 2) / PX); ; k++) {
           const x = w / 2 + (k - beat) * PX;
@@ -115,7 +115,7 @@
         lane(ctx, w, y, laneH, (x) => beat + (x - w / 2) / PX + ph, seed, 0.55, 0.95);
       }
       ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.fillRect(Math.round(w / 2), h * 0.36 - laneH - 14, 2, h * 0.22 + laneH * 2 + 28);
+      ctx.fillRect(Math.round(w / 2), h * 0.3 - laneH - 10, 2, laneH * 4.6 + 20);
     };
   };
 
@@ -162,7 +162,7 @@
       const flash = synced && tc - PRESS < 0.25;
       ctx.fillStyle = synced ? (flash ? "#fff" : C.accent) : "rgba(255,255,255,0.06)";
       ctx.fillRect(bx, by, bw, bh);
-      text(ctx, "SYNC", bx + bw / 2, by + 22, { size: 12, weight: 700, color: synced && !flash ? "#fff" : flash ? "#000" : "#888", align: "center", spacing: 2 });
+      text(ctx, "SYNC", bx + bw / 2, by + 22, { size: 12, weight: 700, color: synced ? "#08161d" : "#888", align: "center", spacing: 2 });
 
       // medidor de fase
       const mx = w - 22 - 220, my = h - 41;
@@ -265,7 +265,7 @@
         const { low, high } = level(x / PX + 0.0001, 3);
         const lh = low * laneH, hh = high * laneH;
         ctx.fillStyle = "rgba(63,107,232,0.95)"; ctx.fillRect(x, cy - lh, BAR, lh * 2);
-        ctx.fillStyle = "rgba(242,154,58,0.9)"; ctx.fillRect(x, cy - hh * 0.6, BAR, hh * 1.2);
+        ctx.fillStyle = "rgba(147,203,227,0.9)"; ctx.fillRect(x, cy - hh * 0.6, BAR, hh * 1.2);
         ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillRect(x, cy - hh * 0.22, BAR, hh * 0.44);
       }
       if (tc < 3.2) { ctx.fillStyle = "#fff"; ctx.fillRect(scan, cy - laneH - 18, 2, laneH * 2 + 36); }
@@ -295,8 +295,8 @@
 
   // SAMPLES / RMX: los 8 pads tocan un patrón en la grilla.
   scenes.rmx = (el) => {
-    const PADS = [["KICK", "X-PAD", "#EE5A52"], ["SNARE", "X-PAD", "#7FD457"], ["CLAP", "X-PAD", "#3FC7E6"], ["HAT", "X-PAD", "#5C7CF0"],
-                  ["BUILD UP", "SCENE", "#f25e46"], ["BREAK DOWN", "SCENE", "#f25e46"], ["ECHO OUT", "SCENE", "#f25e46"], ["BRAKE", "SCENE", "#f25e46"]];
+    const PADS = [["KICK", "X-PAD", "#6f8ff2"], ["SNARE", "X-PAD", "#7FD457"], ["CLAP", "X-PAD", "#3FC7E6"], ["HAT", "X-PAD", "#5C7CF0"],
+                  ["BUILD UP", "SCENE", "#93cbe3"], ["BREAK DOWN", "SCENE", "#93cbe3"], ["ECHO OUT", "SCENE", "#93cbe3"], ["BRAKE", "SCENE", "#93cbe3"]];
     const grid = document.createElement("div"); grid.className = "pads";
     const pads = PADS.map(([n, sub, c]) => {
       const p = document.createElement("div"); p.className = "pad"; p.style.setProperty("--c", c);
@@ -330,12 +330,12 @@
 
   // Pendrives: las playlists entran desde el pendrive, en solo lectura.
   scenes.usb = (el) => {
-    const ROWS = [["Peak Time", "128.00", "8A", "#EE5A52"], ["Warm Up", "122.00", "5B", "#F0B347"], ["Closing", "126.00", "11A", "#7FD457"],
+    const ROWS = [["Peak Time", "128.00", "8A", "#6f8ff2"], ["Warm Up", "122.00", "5B", "#93cbe3"], ["Closing", "126.00", "11A", "#7FD457"],
                   ["Techno", "132.00", "2A", "#3FC7E6"], ["House", "124.00", "9B", "#A474F0"]];
     el.innerHTML = `<div class="usb"><div class="stick">
         <svg viewBox="0 0 120 220" fill="none" stroke="#fff" stroke-width="2"><rect x="30" y="4" width="60" height="44" rx="2" opacity=".55"/>
         <rect x="44" y="16" width="10" height="10" opacity=".55"/><rect x="66" y="16" width="10" height="10" opacity=".55"/>
-        <rect x="14" y="48" width="92" height="166" rx="10" fill="#111"/><circle cx="60" cy="182" r="6" fill="#f25e46" stroke="none"/></svg>
+        <rect x="14" y="48" width="92" height="166" rx="10" fill="#111"/><circle cx="60" cy="182" r="6" fill="#93cbe3" stroke="none"/></svg>
         <span class="lock"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg></span>
       </div><div class="rows"><div class="head"><span>PLAYLISTS</span><span>BPM · KEY</span></div></div></div>`;
     const rows = el.querySelector(".rows");
