@@ -551,3 +551,119 @@ kbd { border-radius: 6px; }
 .news-list .title small { font-size: 15px; color: #555; line-height: 1.55; max-width: 680px; }
 .news-list .tag.soon { justify-self: start; padding: 3px 10px; border-radius: 999px; background: var(--paper-ink); color: var(--accent); }
 @media (max-width: 760px) { .news-list .news-row { grid-template-columns: 1fr; gap: 6px; } }
+
+/* ── Portada: MacBook Pro con OpenMix sonando ─────────────────────────────── */
+.mbp-hero { position: relative; height: auto; min-height: 0; max-height: none; padding: 120px 0 80px; overflow: hidden;
+            background: radial-gradient(120% 90% at 70% 40%, #1a1f26 0%, #0a0b0d 55%, #000 100%); }
+.hero-light { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(40% 40% at 72% 42%, rgba(147, 203, 227, 0.16), transparent 70%); opacity: 0; transition: opacity 2s ease 1.6s; }
+.mbp-hero.go .hero-light { opacity: 1; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr); gap: 24px; align-items: center; max-width: 1480px; }
+.hero-copy { position: relative; z-index: 2; }
+.hero-copy > * { opacity: 0; transform: translateY(20px); transition: opacity 1s var(--ease), transform 1s var(--ease); }
+.mbp-hero.go .hero-copy > * { opacity: 1; transform: none; }
+.mbp-hero.go .hero-copy > *:nth-child(1) { transition-delay: 1.5s; }
+.mbp-hero.go .hero-copy > *:nth-child(2) { transition-delay: 1.65s; }
+.mbp-hero.go .hero-copy > *:nth-child(3) { transition-delay: 1.8s; }
+.mbp-hero.go .hero-copy > *:nth-child(4) { transition-delay: 1.95s; }
+.hero-title { font-stretch: 125%; font-weight: 700; text-transform: uppercase; font-size: clamp(40px, 5.2vw, 84px); line-height: 1; margin: 12px 0 22px; white-space: nowrap; }
+.hero-tag { font-size: 17px; color: var(--text-2); max-width: 380px; margin-bottom: 30px; }
+
+.mbp-stage { position: relative; perspective: 2600px; perspective-origin: 30% 20%; padding: 30px 0 min(240px, 16vw); }
+.mbp {
+  --w: min(900px, 54vw);
+  position: relative; width: var(--w); margin-left: auto; transform-style: preserve-3d;
+  transform: translate3d(0, 0, -900px) rotateX(-38deg) rotateY(-62deg) scale(0.7); opacity: 0;
+  transition: transform 2.6s cubic-bezier(0.16, 0.84, 0.24, 1), opacity 1.2s ease;
+}
+.mbp-hero.go .mbp { transform: translate3d(0, 0, 0) rotateX(-13deg) rotateY(-24deg) scale(1); opacity: 1; animation: mbp-float 9s ease-in-out 2.8s infinite; }
+@keyframes mbp-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotateX(-13deg) rotateY(-24deg); }
+  50% { transform: translate3d(0, -8px, 0) rotateX(-12deg) rotateY(-21deg); }
+}
+.mbp-lid { position: relative; transform-origin: 50% 100%; transform-style: preserve-3d; transform: rotateX(-90deg);
+           transition: transform 1.9s cubic-bezier(0.3, 0.7, 0.2, 1) 0.6s; }
+.mbp-hero.go .mbp-lid { transform: rotateX(8deg); }
+.mbp-bezel { position: relative; padding: 2.3% 1.7% 3.4%; border-radius: 22px 22px 6px 6px; background: #050506;
+             box-shadow: inset 0 0 0 2px #2a2b2f, inset 0 0 0 3px #0c0c0d; backface-visibility: hidden; }
+.mbp-notch { position: absolute; top: 0; left: 50%; width: 11%; height: 2.6%; transform: translateX(-50%); background: #050506; border-radius: 0 0 10px 10px; z-index: 2; }
+.mbp-screen { position: relative; aspect-ratio: 16 / 10; border-radius: 6px 6px 2px 2px; overflow: hidden;
+              background: #0d0e10 url("img/app-screen.jpg") center / cover no-repeat; }
+.mbp-screen::after { content: ""; position: absolute; inset: 0; background: #000; opacity: 1; transition: opacity 1.2s ease 2s; }   /* pantalla que se enciende */
+.mbp-hero.go .mbp-screen::after { opacity: 0; }
+.mbp-screen canvas.wave { position: absolute; left: 0; top: 4.22%; width: 98.26%; height: 13.45%; }
+.mbp-screen canvas.screen-fx { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mbp-glare { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 30%, transparent 46%); mix-blend-mode: screen; }
+.mbp-back { position: absolute; inset: 0; border-radius: 22px 22px 6px 6px; transform: rotateY(180deg) translateZ(1px); backface-visibility: hidden;
+  background: linear-gradient(160deg, #3b3d42, #1f2024 60%, #17181b); }
+.mbp-back::after { content: ""; position: absolute; left: 50%; top: 50%; width: 9%; aspect-ratio: 1; transform: translate(-50%, -50%);
+  background: url("img/logo.png") center / contain no-repeat; opacity: 0.55; filter: grayscale(1) brightness(1.4); }
+.mbp-base { position: absolute; left: -5.5%; top: calc(100% - 1px); width: 111%; height: calc(var(--w) * 0.66); transform-origin: 50% 0;
+  transform: rotateX(90deg); border-radius: 4px 4px 26px 26px;
+  background: linear-gradient(180deg, #2e3034 0%, #26282c 60%, #1d1e21 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,0.06); }
+.mbp-keys { position: absolute; left: 9%; right: 9%; top: 7%; height: 46%; display: grid; grid-template-columns: repeat(14, 1fr); grid-template-rows: 0.6fr repeat(5, 1fr);
+  gap: 1.1% 0.7%; padding: 1%; background: #121315; border-radius: 6px; }
+.mbp-keys i { background: #0a0a0b; border-radius: 3px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+.mbp-pad { position: absolute; left: 31%; width: 38%; top: 59%; height: 33%; border-radius: 10px; background: #2a2c30; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+.mbp-lip { position: absolute; left: -5.5%; width: 111%; top: 100%; height: 1.6%; transform-origin: 50% 0;
+  transform: translateZ(calc(var(--w) * 0.66)) rotateX(0deg); border-radius: 0 0 18px 18px;
+  background: linear-gradient(180deg, #4a4c52, #1b1c1f); }
+.mbp-shadow { position: absolute; left: 4%; right: -6%; bottom: 26px; height: 70px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0,0,0,0.75), transparent); filter: blur(10px); opacity: 0; transition: opacity 2s ease 1.4s; }
+.mbp-hero.go .mbp-shadow { opacity: 1; }
+@media (max-width: 900px) {
+  .mbp-hero { padding: 100px 0 40px; }
+  .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .mbp { --w: 88vw; margin: 0 auto; }
+  .mbp-hero.go .mbp, .mbp-hero.go .mbp { transform: rotateX(-12deg) rotateY(-14deg); }
+  @keyframes mbp-float { 0%, 100% { transform: rotateX(-12deg) rotateY(-14deg); } 50% { transform: translateY(-6px) rotateX(-11deg) rotateY(-12deg); } }
+  .hero-title { font-size: clamp(36px, 11vw, 60px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mbp, .mbp-lid, .hero-copy > *, .mbp-screen::after, .hero-light, .mbp-shadow { transition: none !important; animation: none !important; }
+}
+@media (max-width: 760px) {
+  .news-list a { grid-template-columns: minmax(0, 1fr) 20px; }
+  .news-list a .title { grid-column: 1; }
+  .news-list a .arrow { grid-column: 2; grid-row: 1; }
+}
+
+/* Proporciones reales de una MacBook Pro: base del mismo ancho que la pantalla, cámara más baja */
+.mbp-base { left: 0; width: 100%; height: calc(var(--w) * 0.6); border-radius: 3px 3px 18px 18px; }
+.mbp-lip { left: 0; width: 100%; transform: translateZ(calc(var(--w) * 0.6)); }
+.mbp-keys { left: 11%; right: 11%; top: 8%; height: 42%; }
+.mbp-pad { left: 33%; width: 34%; top: 57%; height: 32%; }
+.mbp-hero.go .mbp-lid { transform: rotateX(3deg); }
+.mbp-hero.go .mbp { transform: translate3d(0, 0, 0) rotateX(-6deg) rotateY(-24deg) scale(1); }
+@keyframes mbp-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotateX(-6deg) rotateY(-24deg); }
+  50% { transform: translate3d(0, -8px, 0) rotateX(-5deg) rotateY(-21deg); }
+}
+.mbp-stage { padding: 30px 0 min(150px, 10vw); }
+@media (max-width: 900px) {
+  .mbp-hero.go .mbp { transform: rotateX(-6deg) rotateY(-14deg); }
+  @keyframes mbp-float { 0%, 100% { transform: rotateX(-6deg) rotateY(-14deg); } 50% { transform: translateY(-6px) rotateX(-5deg) rotateY(-12deg); } }
+}
+
+/* Entrada: la MacBook llega cerrada (sin girar), después se abre la tapa y se enciende la pantalla */
+.mbp { transform: translate3d(0, 70px, -420px) rotateX(-6deg) rotateY(-24deg) scale(0.92); opacity: 0;
+       transition: transform 1.5s cubic-bezier(0.16, 0.84, 0.24, 1), opacity 0.9s ease; }
+.mbp-lid { transform: rotateX(-89deg); transition: transform 1.7s cubic-bezier(0.45, 0.05, 0.2, 1) 1.2s; }
+.mbp-hero.go .mbp-lid { transform: rotateX(3deg); }
+.mbp-screen::after { transition: opacity 1s ease 2.7s; }
+.mbp-hero.go .mbp { animation: mbp-float 9s ease-in-out 3.2s infinite; }
+.mbp-back { transform: rotateY(180deg) translateZ(2px); }
+@media (max-width: 900px) {
+  .mbp { transform: translate3d(0, 50px, -300px) rotateX(-6deg) rotateY(-14deg) scale(0.92); }
+}
+
+/* Entrada desde afuera del plano: la MacBook cerrada se desliza desde la derecha, sin aparecer de a poco */
+.mbp { transform: translate3d(75vw, 30px, 0) rotateX(-6deg) rotateY(-24deg); opacity: 1;
+       transition: transform 1.8s cubic-bezier(0.22, 0.75, 0.2, 1); }
+.mbp-lid { transition: transform 1.7s cubic-bezier(0.45, 0.05, 0.2, 1) 1.7s; }
+.mbp-screen::after { transition: opacity 1s ease 3.2s; }
+.mbp-hero.go .mbp { animation: mbp-float 9s ease-in-out 3.6s infinite; }
+@media (max-width: 900px) {
+  .mbp { transform: translate3d(110vw, 20px, 0) rotateX(-6deg) rotateY(-14deg); }
+}

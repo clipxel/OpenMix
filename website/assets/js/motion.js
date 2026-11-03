@@ -22,6 +22,22 @@
     }
   }
 
+  // ── Entrada de la MacBook: cuando termina el logo (o enseguida si no hay intro) ──
+  const mbpHero = document.querySelector(".mbp-hero");
+  if (mbpHero) {
+    const keys = mbpHero.querySelector(".mbp-keys");
+    if (keys) for (let i = 0; i < 14 * 6; i++) keys.appendChild(document.createElement("i"));
+    const go = () => mbpHero.classList.add("go");
+    if (reduce) go();
+    else {
+      const img = new Image();
+      img.src = "assets/img/app-screen.jpg";
+      const delay = document.querySelector(".intro") ? 1700 : 150;
+      Promise.race([img.decode().catch(() => {}), new Promise((r) => setTimeout(r, 2500))])
+        .then(() => setTimeout(go, delay));
+    }
+  }
+
   // ── Barra superior ──────────────────────────────────────────────────────────
   const bar = document.querySelector(".topbar");
   const hero = document.querySelector(".hero");
@@ -96,26 +112,163 @@
   // ── Escenas ─────────────────────────────────────────────────────────────────
   const scenes = {};
 
-  // Portada: la forma de onda de los dos decks pasando en vivo.
+  // Portada: la pantalla de la MacBook. Sobre la captura real de OpenMix, la franja de formas de onda
+  // corre como en el programa (8 s a la vista, dos decks a 124 BPM, cabezal fijo en el centro).
   scenes.hero = (el) => {
     const s = canvasFor(el);
-    const PX = 120;
+    const BG = "rgb(13,14,16)", BLUE = "rgb(44,95,212)", WHITE = "rgb(213,215,219)", ORANGE = "rgb(192,128,64)";
+    function column(ctx, x, cy, half, b, seed) {
+      const f = b - Math.floor(b);
+      const barN = Math.floor(b / 4);
+      const brk = ((Math.floor(barN / 8) + seed) % 4 + 4) % 4 === 3;
+      const grain = hash(Math.floor(b * 48) + seed * 777);
+      if (brk) {                                              // break: solo agudos y algún golpe suave
+        const a = (0.1 + 0.12 * grain) * half;
+        ctx.fillStyle = ORANGE; ctx.fillRect(x, cy - a, 2, a * 2);
+        if (f < 0.08 && Math.floor(b) % 2) { const p = (1 - f / 0.08) * 0.55 * half; ctx.fillStyle = WHITE; ctx.fillRect(x, cy - p, 2, p * 2); }
+        return;
+      }
+      const env = Math.exp(-f * 6.5);
+      const amp = (0.12 + 0.84 * env + 0.05 * grain) * half;
+      ctx.fillStyle = BLUE;
+      ctx.fillRect(x, cy - amp, 2, amp * 2);
+      const hatF = Math.abs(f - 0.5);                         // hats en el contratiempo
+      if (hatF < 0.06) { const hA = (0.32 - hatF * 3) * half; ctx.fillStyle = ORANGE; ctx.fillRect(x, cy - hA, 2, hA * 2); }
+      const core = Math.max(0, (env - 0.45) / 0.55);
+      if (core > 0) { const c = amp * (0.35 + 0.65 * core); ctx.fillStyle = WHITE; ctx.fillRect(x, cy - c, 2, c * 2); }
+    }
     return (t) => {
       const { ctx, w, h } = s;
-      ctx.clearRect(0, 0, w, h);
-      const beat = t * BPM / 60;
-      const laneH = Math.min(44, h * 0.06);
-      for (const [y, seed, ph] of [[h * 0.3, 0, 0], [h * 0.3 + laneH * 2.6, 2, 0.003]]) {
-        ctx.fillStyle = "rgba(255,255,255,0.10)";
-        for (let k = Math.ceil(beat - (w / 2) / PX); ; k++) {
+      if (!w || !h) return;
+      ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
+      const PX = w / (8 * BPM / 60);                          // 8 s de tema a lo ancho
+      const beat = t * BPM / 60 + 32;
+      const lanes = [[h * 0.248, 0, "#2ec6e8", "1"], [h * 0.752, 1, "#f29a3a", "2"]];
+      const half = h * 0.2;
+      for (const [cy, seed, col, n] of lanes) {
+        for (let k = Math.ceil(beat - (w / 2) / PX); ; k++) {           // grilla
           const x = w / 2 + (k - beat) * PX;
           if (x > w) break;
-          ctx.fillRect(Math.round(x), y - laneH, 1, laneH * 2);
+          ctx.fillStyle = k % 4 === 0 ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.13)";
+          ctx.fillRect(Math.round(x), cy - half - h * 0.04, 1, half * 2 + h * 0.08);
         }
-        lane(ctx, w, y, laneH, (x) => beat + (x - w / 2) / PX + ph, seed, 0.55, 0.95);
+        for (let x = 0; x < w; x += 2) column(ctx, x, cy, half, beat + (x - w / 2) / PX + seed * 0.001, seed);
+        const tag = Math.max(8, h * 0.11);                               // número de deck
+        ctx.fillStyle = col; ctx.fillRect(4, cy - half - h * 0.02, tag, tag);
+        text(ctx, n, 4 + tag / 2, cy - half - h * 0.02 + tag * 0.8, { size: Math.max(6, tag * 0.75), weight: 700, color: "#0b0b0b", align: "center" });
       }
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.fillRect(Math.round(w / 2), h * 0.3 - laneH - 10, 2, laneH * 4.6 + 20);
+      ctx.fillStyle = "rgb(232,233,235)";                                // cabezal
+      ctx.fillRect(Math.round(w / 2) - 1, 0, 2, h);
+      const tr = Math.max(3, h * 0.035);
+      ctx.beginPath(); ctx.moveTo(w / 2 - tr, 0); ctx.lineTo(w / 2 + tr, 0); ctx.lineTo(w / 2, tr * 1.6); ctx.fill();   // ▼ arriba
+      ctx.beginPath(); ctx.moveTo(w / 2 - tr, h); ctx.lineTo(w / 2 + tr, h); ctx.lineTo(w / 2, h - tr * 1.6); ctx.fill(); // ▲ abajo
+    };
+  };
+
+  // Portada: el resto de la pantalla también vive. Coordenadas en píxeles de la captura (2000 × 1250):
+  // platos que giran, tiempos que corren, vúmetros, PLAY que late, hot cues y el ON/OFF de Beat FX.
+  scenes.screenfx = (el) => {
+    const s = canvasFor(el);
+    const DX = 1271;                                          // del deck 1 al deck 2
+    const FONT = '-apple-system, "Helvetica Neue", Arial, sans-serif';
+    const CUES = ["#EE5A52", "#7FD457", "#3FC7E6", "#5C7CF0", "#E064C4", "#F0B347", "#2ED1B0", "#A474F0"];
+    const PADX = [[12, 180], [190, 357], [368, 535], [546, 713]], PADY = [[669, 721], [730, 782]];
+    const fmt = (sec, sign) => {
+      const m = Math.floor(sec / 60), r = sec - m * 60;
+      return (sign ? "-" : "") + m + ":" + r.toFixed(1).padStart(4, "0");
+    };
+    const round = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); };
+    // Energía en el cabezal (el mismo tema que corre en la franja de arriba)
+    const energy = (beat, seed) => {
+      const f = beat - Math.floor(beat);
+      const barN = Math.floor(beat / 4);
+      const brk = ((Math.floor(barN / 8) + seed) % 4 + 4) % 4 === 3;
+      const env = Math.exp(-f * 6.5);
+      const hat = Math.abs(f - 0.5) < 0.06 ? 0.25 : 0;
+      return brk ? 0.25 + 0.15 * hat * 4 : 0.45 + 0.5 * env + hat * 0.3;
+    };
+    function meter(ctx, k, x, y0, y1, w, lvl) {
+      const segH = 3, gap = 1.6;
+      const n = Math.floor((y1 - y0) / (segH + gap));
+      const lit = Math.round(n * Math.max(0, Math.min(1, lvl)));
+      for (let i = 0; i < n; i++) {
+        const y = y1 - (i + 1) * (segH + gap);
+        const frac = i / n;
+        ctx.fillStyle = i < lit ? (frac > 0.9 ? "#ff5a4f" : frac > 0.72 ? "#f2c94c" : "#3ccb8b") : "rgba(255,255,255,0.05)";
+        ctx.fillRect(x * k, y * k, w * k, segH * k);
+      }
+    }
+    const peaks = [0, 0, 0, 0, 0, 0];
+    return (t) => {
+      const { ctx, w, h } = s;
+      if (!w || !h) return;
+      const k = w / 2000;
+      ctx.clearRect(0, 0, w, h);
+      const beat = t * BPM / 60 + 32;
+      const f = beat - Math.floor(beat);
+      const pulse = Math.exp(-f * 8);
+      for (const [d, seed] of [[0, 0], [1, 1]]) {
+        const ox = d * DX;
+        // Plato: tapar la marca fija y dibujarla girando (33⅓ rpm)
+        ctx.fillStyle = "rgb(23,24,27)";
+        ctx.fillRect((ox + 391) * k, 395 * k, 9 * k, 26 * k);
+        const ang = t * 2 * Math.PI * 0.555 + d * 1.3;
+        const cx = (ox + 395.5) * k, cy = 476 * k;
+        ctx.save();
+        ctx.translate(cx, cy); ctx.rotate(ang);
+        ctx.fillStyle = "rgb(211,212,215)";
+        ctx.fillRect(-1.7 * k, -79 * k, 3.4 * k, 21 * k);
+        ctx.restore();
+        // Tiempos: restante y transcurrido en la cabecera, restante en el centro del plato
+        const total = 150, el = (45 + t * (d ? 1.0 : 1.0) + d * 6) % total, rem = total - el;
+        ctx.fillStyle = "rgb(23,24,27)";
+        ctx.fillRect((ox + 484) * k, 271 * k, 92 * k, 29 * k);
+        ctx.fillRect((ox + 512) * k, 300 * k, 64 * k, 19 * k);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "rgb(232,233,235)"; ctx.font = `400 ${24 * k}px ${FONT}`;
+        ctx.fillText(fmt(rem, true), (ox + 568) * k, 294 * k);
+        ctx.fillStyle = "rgb(170,172,176)"; ctx.font = `400 ${16 * k}px ${FONT}`;
+        ctx.fillText(fmt(el, false), (ox + 568) * k, 315 * k);
+        ctx.fillStyle = "rgb(29,30,34)";
+        ctx.fillRect((ox + 368) * k, 465 * k, 56 * k, 23 * k);
+        ctx.textAlign = "center"; ctx.fillStyle = "rgb(232,233,235)"; ctx.font = `400 ${16 * k}px ${FONT}`;
+        ctx.fillText(fmt(rem, true).replace(/\.\d$/, ""), (ox + 395.5) * k, 482 * k);
+        // PLAY late con cada golpe
+        round(ctx, (ox + 13) * k, 529 * k, 122 * k, 56 * k, 7 * k);
+        ctx.strokeStyle = `rgba(60,203,139,${0.35 + 0.55 * pulse})`; ctx.lineWidth = 2 * k; ctx.stroke();
+        ctx.fillStyle = `rgba(60,203,139,${0.05 + 0.12 * pulse})`; ctx.fill();
+        // Hot cues: cada 4 compases se dispara uno, se ilumina un beat
+        const barN = Math.floor(beat / 4);
+        const which = (Math.floor(barN / 2) + d * 3) % 8;
+        const inBar = beat - barN * 4;
+        if ((barN + d) % 2 === 0 && inBar < 1) {
+          const [x0, x1] = PADX[which % 4], [y0, y1] = PADY[Math.floor(which / 4)];
+          const a = 1 - inBar * 0.6;
+          round(ctx, (ox + x0) * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, 6 * k);
+          ctx.globalAlpha = a; ctx.fillStyle = CUES[which]; ctx.fill(); ctx.globalAlpha = 1;
+          ctx.fillStyle = "#0b0b0b"; ctx.font = `600 ${15 * k}px ${FONT}`; ctx.textAlign = "center";
+          ctx.fillText(String(which + 1), (ox + (x0 + x1) / 2) * k, ((y0 + y1) / 2 + 5) * k);
+        }
+      }
+      // Vúmetros: dos por canal y el master, con caída suave y pico
+      const l1 = energy(beat, 0), l2 = energy(beat + 0.003, 1);
+      const targets = [l1 * 0.95, l1 * 0.9, l2 * 0.92, l2 * 0.88, (l1 + l2) * 0.47, (l1 + l2) * 0.45];
+      for (let i = 0; i < 6; i++) peaks[i] = Math.max(targets[i], peaks[i] - 0.025);
+      ctx.fillStyle = "rgb(13,14,16)";
+      meter(ctx, k, 959, 443, 605, 3, peaks[0]);
+      meter(ctx, k, 964, 443, 605, 3, peaks[1]);
+      meter(ctx, k, 977, 443, 605, 3, peaks[2]);
+      meter(ctx, k, 982, 443, 605, 3, peaks[3]);
+      meter(ctx, k, 770, 413, 475, 5, peaks[4]);
+      meter(ctx, k, 778, 413, 475, 5, peaks[5]);
+      // Beat FX: ECHO se prende 4 compases de cada 8
+      const fxOn = Math.floor(beat / 16) % 2 === 1;
+      if (fxOn) {
+        round(ctx, 1131 * k, 734 * k, 130 * k, 46 * k, 7 * k);
+        ctx.fillStyle = `rgba(147,203,227,${0.75 + 0.2 * pulse})`; ctx.fill();
+        ctx.fillStyle = "#0b0b0b"; ctx.font = `600 ${16 * k}px ${FONT}`; ctx.textAlign = "center";
+        ctx.fillText("ON/OFF", 1196 * k, 763 * k);
+      }
     };
   };
 
@@ -410,6 +563,8 @@
   }
   const heroCanvas = document.querySelector(".hero canvas.wave");
   if (heroCanvas) attach(heroCanvas, scenes.hero);
+  const screenFx = document.querySelector(".hero canvas.screen-fx");
+  if (screenFx) attach(screenFx, scenes.screenfx);
   document.querySelectorAll("[data-scene]").forEach((el) => {
     const make = scenes[el.dataset.scene];
     if (make) attach(el, make);
