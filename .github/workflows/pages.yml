@@ -31,7 +31,7 @@ jobs:
       - name: Armar sitio estático (sin servidor ni datos)
         run: |
           mkdir -p _site
-          cp -R website/index.html website/mapeos.html website/foro.html website/assets website/config website/official website/install.sh website/robots.txt website/sitemap.xml _site/
+          cp -R website/index.html website/mapeos.html website/foro.html website/assets website/config website/official website/install.sh website/robots.txt website/sitemap.xml website/google3da5878248462e4a.html _site/
       - uses: actions/setup-node@v4
         with:
           node-version: 22
