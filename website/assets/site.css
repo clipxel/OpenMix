@@ -673,3 +673,16 @@ kbd { border-radius: 6px; }
 .download-cta > * { min-width: 0; max-width: 100%; }
 .terminal-install code { min-width: 0; }
 @media (max-width: 860px) { .forum { grid-template-columns: minmax(0, 1fr); } .forum > * { min-width: 0; } }
+
+/* Preguntas frecuentes y controladores compatibles */
+.faq-sec .faq-lead { max-width: 640px; margin: 0 0 32px; color: rgba(255,255,255,0.7); font-size: 18px; line-height: 1.55; }
+.faq-sec .faq { display: grid; gap: 10px; max-width: 860px; }
+.faq-sec details { border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 18px 22px; background: rgba(255,255,255,0.03); }
+.faq-sec summary { cursor: pointer; font-weight: 700; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq-sec summary::-webkit-details-marker { display: none; }
+.faq-sec summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+.faq-sec details[open] summary::after { content: "–"; }
+.faq-sec details p { margin-top: 12px; color: rgba(255,255,255,0.7); line-height: 1.6; }
+.faq-sec .ctrl-list-title { margin: 56px 0 16px; font-size: 18px; }
+.faq-sec .ctrl-list { list-style: none; padding: 0; display: grid; gap: 10px; columns: auto; font-size: 14px; line-height: 1.6; color: rgba(255,255,255,0.6); }
+.faq-sec .ctrl-list b { color: #fff; margin-right: 4px; }
