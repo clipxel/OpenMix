@@ -148,6 +148,7 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
             else if (error.isEmpty())
             {
                 deck (deckIndex).setTrack (result);
+                if (stemAuto.load()) separateStems (deckIndex);
                 // Auto-gain sits under the GAIN knob: the knob keeps its place (a controller's centred knob
                 // and the screen agree) and its 0 is the level auto-gain chose; turning it adds or takes away.
                 channel (deckIndex).autoTrimDb = autoGain.load() ? autoGainTrimFor (*result) : 0.0f;
@@ -162,6 +163,28 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
             sendChangeMessage();
         });
     });
+}
+
+bool AudioEngine::separateStems (int d)
+{
+    if (! juce::isPositiveAndBelow (d, numDecks)) return false;
+    auto& k = deck (d);
+    const auto t = k.getTrack();
+    const auto mode = (StemMode) stemMode.load();
+    if (t == nullptr || ! StemSeparator::runtimeAvailable() || ! separator.modelInstalled (mode))
+        return false;
+    if (const auto s = k.getStems(); s != nullptr && s->mode == mode && ! s->hasFailed())
+        return true;
+    k.setStems (separator.separate (t, mode, [this, d] { return deck (d).getPosition(); }));
+    return true;
+}
+
+void AudioEngine::setStemMode (StemMode m)
+{
+    stemMode = (int) m;
+    for (int d = 0; d < numDecks; ++d)
+        if (deck (d).getStems() != nullptr || stemAuto.load())
+            separateStems (d);
 }
 
 void AudioEngine::setAutoGain (bool on)
@@ -539,9 +562,11 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
         float* l = deckBuf.getWritePointer (0);
         float* r = deckBuf.getWritePointer (1);
 
-        decks[(size_t) i]->render (l, r, numSamples);
-        sampleBank.mix (i, l, r, numSamples, currentRate.load());
         auto& ch = channels[(size_t) i];
+        decks[(size_t) i]->setStemEq (stemEq.load(), ch.eqLow.load(), ch.eqMid.load(), ch.eqHigh.load());
+        decks[(size_t) i]->render (l, r, numSamples);
+        ch.eqFlat = decks[(size_t) i]->isStemEqActive();     // with stems the knobs act on them, not on frequencies
+        sampleBank.mix (i, l, r, numSamples, currentRate.load());
         ch.processPreFader (l, r, numSamples, decks[(size_t) i]->getRenderedBpm());
 
         ch.meter.push (l, r, numSamples);              // channel meter: pre-fader, as on a club mixer

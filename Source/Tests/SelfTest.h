@@ -29,5 +29,7 @@ namespace om
     /** The mapping assistant on a file of phrases ("phrase<TAB>action<TAB>deck<TAB>shift"), or the list of functions. */
     int intentCheck (const juce::File& phrases);
 
+    /** Separates a file with the real models (installed in the data folder) and writes the stems as WAV. */
+    int runStemsTest (const juce::File& audio, bool fast, const juce::File& outDir);
     int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce::File& usbRoot = {});
 }

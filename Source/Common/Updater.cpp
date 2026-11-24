@@ -298,6 +298,10 @@ void Updater::installAndRelaunch()
         "while kill -0 " + pid + " 2>/dev/null; do sleep 0.2; done\n"
         "cp " + staged.getChildFile ("openmix").getFullPathName().quoted() + " " + exe.getFullPathName().quoted() + "\n"
         "chmod +x " + exe.getFullPathName().quoted() + "\n"
+        // The stems engine (2.7+) goes next to the program, where OpenMix looks for it.
+        "[ -f " + staged.getChildFile ("libonnxruntime.so").getFullPathName().quoted() + " ] && cp "
+            + staged.getChildFile ("libonnxruntime.so").getFullPathName().quoted() + " "
+            + exe.getParentDirectory().getChildFile ("libonnxruntime.so").getFullPathName().quoted() + "\n"
         "nohup " + exe.getFullPathName().quoted() + " >/dev/null 2>&1 &\n", false, false, "\n");
     juce::ChildProcess launcher;
     launcher.start (juce::StringArray { "/bin/sh", "-c", "nohup /bin/sh " + script.getFullPathName().quoted() + " >/dev/null 2>&1 &" });

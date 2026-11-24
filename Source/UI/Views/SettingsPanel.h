@@ -47,6 +47,8 @@ public:
     // Layout section talks to the main window through these.
     std::function<Workspace&()> currentWorkspace;
     std::function<void()> onWorkspaceEdited;
+    std::function<void()> onStemsChanged;
+    void refreshLayoutControls()                  { syncLayoutControls(); }
     std::function<void()> onResetSizes;
     std::function<void()> onClosed;
     std::function<void()> onAudioRoutingChanged;
@@ -81,6 +83,9 @@ private:
     Segmented xfCurve { { "SUAVE", "CORTE", "POTENCIA" } };
     Segmented limCeiling { { "-0.1 dBTP", "-0.5 dBTP", "-1.0 dBTP" } };
     Button helpCommunity { "Unirme a la comunidad (WhatsApp)" }, helpInstagram { "Escribir por Instagram" }, helpReport { "Escribinos un comentario o reporte" }, helpDonate { juce::String::fromUTF8 ("♥  Apoyá OpenMix con una donación") };
+    Segmented stemMode { { "CALIDAD", juce::String::fromUTF8 ("RÁPIDO") } };
+    Segmented eqMode { { "FRECUENCIAS", "STEMS" } };
+    juce::ToggleButton stemAutoToggle { juce::String::fromUTF8 ("Separar cada tema al cargarlo (si el modelo ya está bajado)") };
     juce::ToggleButton autoCueToggle { "Auto cue: al cargar un tema sin cue, ponerlo en el primer golpe" };
     juce::ToggleButton autoGainToggle { juce::String::fromUTF8 ("Auto-gain: igualar sonoridad al cargar (objetivo -14 LUFS; la perilla GAIN en el centro = nivel automático)") };
 

@@ -54,6 +54,8 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     deckB.onLoadRequest = [this] (const juce::File& f) { loadFileToDeck (f, 1); };
     deckC.onLoadRequest = [this] (const juce::File& f) { loadFileToDeck (f, 2); };
     deckD.onLoadRequest = [this] (const juce::File& f) { loadFileToDeck (f, 3); };
+    for (auto* dv : { &deckA, &deckB, &deckC, &deckD })
+        dv->onStemSettings = [this] { if (settings != nullptr) saveSettings(); settingsPanel.refreshLayoutControls(); };
 
     libraryView.onLoadToDeck = [this] (const TrackPtr& t, int side) { loadToDeck (t, side < 0 ? -1 : engine.visibleDeck (side)); };
     cleanDriveCache (true);                  // copies left by a previous session
@@ -105,6 +107,8 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     };
     settingsPanel.onClosed = [this] { grabKeyboardFocus(); };
     settingsPanel.onAudioRoutingChanged = [this] { if (settings != nullptr) saveSettings(); };
+    settingsPanel.onStemsChanged = [this] { if (settings != nullptr) saveSettings(); };
+    mixer.onStemEqChanged = [this] { if (settings != nullptr) saveSettings(); settingsPanel.refreshLayoutControls(); };
     libraryView.onSidebarResized = [this] { if (settings != nullptr) saveSettings(); };
 
     // Persist cue edits to the library so they survive reloads.
@@ -204,6 +208,7 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
 
         // Updates: a quiet check a few seconds after start (only asks if there is something new).
         settingsPanel.updateToggle.setToggleState (settings->getBoolValue ("updateCheck", true), juce::dontSendNotification);
+        settingsReady = true;
         if (settingsPanel.updateToggle.getToggleState())
             juce::Timer::callAfterDelay (3000, [safe = juce::Component::SafePointer<MainComponent> (this)] { if (safe) safe->updater.checkForUpdates(); });
 
@@ -812,12 +817,17 @@ void MainComponent::loadSettings()
     engine.splitMono = settings->getBoolValue ("splitMono", false);
     engine.limiter().ceilingDb = (float) settings->getDoubleValue ("limiterCeiling", -0.5);
     engine.autoGain = settings->getBoolValue ("autoGain", true);
+    engine.stemMode = juce::jlimit (0, 1, settings->getIntValue ("stemMode", (int) om::StemMode::quality));
+    engine.stemAuto = settings->getBoolValue ("stemAuto", true);
+    engine.stemEq = settings->getBoolValue ("stemEq", false);
     for (int d = 0; d < AudioEngine::numDecks; ++d) engine.deck (d).setAutoCue (settings->getBoolValue ("autoCue", true));
 }
 
 void MainComponent::saveSettings()
 {
-    if (settings == nullptr)
+    // Never while the settings are being read: a control set during loading (sidebar width, text size…)
+    // would write the defaults of everything not read yet (updates were saved as "off" that way).
+    if (settings == nullptr || ! settingsReady)
         return;
 
     for (int i = 0; i < Sampler::numSlots; ++i)
@@ -867,6 +877,9 @@ void MainComponent::saveSettings()
     settings->setValue ("splitMono", engine.splitMono.load());
     settings->setValue ("limiterCeiling", engine.limiter().ceilingDb.load());
     settings->setValue ("autoGain", engine.autoGain.load());
+    settings->setValue ("stemMode", engine.stemMode.load());
+    settings->setValue ("stemAuto", engine.stemAuto.load());
+    settings->setValue ("stemEq", engine.stemEq.load());
     settings->setValue ("autoCue", engine.deck (0).isAutoCue());
     if (auto xml = engine.getDeviceManager().createStateXml())
         settings->setValue ("audioDevice", xml.get());

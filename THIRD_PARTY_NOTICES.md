@@ -136,6 +136,41 @@ No se incluye en este repositorio: se descarga del sitio del fabricante al compi
 - Vestax VCI-100MKII — Takeshi Soejima
 - Vestax VCI-400 — Owen Williams, Tobias Rafreider
 
+## ONNX Runtime (stems)
+
+Motor que ejecuta los modelos de separación. Se incluye la biblioteca compilada por Microsoft (paquete Microsoft.ML.OnnxRuntime 1.32.0) y sus encabezados.
+
+```
+MIT License
+
+Copyright (c) Microsoft Corporation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Modelos de separación (se bajan al usarlos por primera vez)
+
+- **Rápido:** Spleeter 4 stems, de Deezer (Hennequin, Khlif, Voituret y Moussallam, JOSS 5(50):2154, 2020). Pesos con licencia MIT. Conversión a ONNX de Best-Practice/spleeter-4stems-onnx, licencia Apache-2.0, derivada de la reimplementación de sherpa-onnx (Apache-2.0).
+- **Calidad:** HT-Demucs, de Meta (Défossez, Rouard y otros), licencia MIT. Conversión a ONNX de StemSplitio/htdemucs-onnx, licencia MIT.
+
+Los modelos no van dentro de OpenMix: se bajan desde Hugging Face en revisiones fijas y se verifican con SHA-256.
+
 ## Signalsmith Stretch
 
 ```

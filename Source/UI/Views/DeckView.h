@@ -71,6 +71,7 @@ public:
     void showMessage (const juce::String& text, bool isError);
 
     std::function<void (const juce::File&)> onLoadRequest;
+    std::function<void()> onStemSettings;          // the stems mode or "separate on load" changed (to save)
 
     /** Keyboard / MIDI: PAD 1–8 of the current pad page, and the next page. */
     void externalPad (int pad, float velocity, bool shifted) { if (velocity > 0.0f) padDown (pad, shifted, velocity); else if (! shifted) padUp (pad); }
@@ -99,8 +100,8 @@ public:
     void itemDragExit (const SourceDetails&) override                  { dragOver = false; repaint(); }
 
 private:
-    enum class PadMode { hotCue = 0, roll, loop, savedLoop, jump, cueLoop, slicer, slicerLoop, sampler, velocitySampler };
-    static constexpr int numPadModes = 10;
+    enum class PadMode { hotCue = 0, roll, loop, savedLoop, jump, cueLoop, slicer, slicerLoop, sampler, velocitySampler, stems };
+    static constexpr int numPadModes = 11;
     static constexpr std::array padPageOrder { PadMode::hotCue, PadMode::roll, PadMode::slicer, PadMode::sampler,
                                                PadMode::cueLoop, PadMode::savedLoop, PadMode::slicerLoop, PadMode::velocitySampler };
     static constexpr int padPageRowHeight = 18;
@@ -115,6 +116,10 @@ private:
     void padRightClick (int index);
     void updatePads();
     void cyclePitchRange();
+    /** Stems of the loaded track: true when they exist or are being made; otherwise offers the download. */
+    bool ensureStems();
+    void stemsMenu (juce::Component* target);
+    void stemPad (int pad, bool shift);
 
     AudioEngine& engine;
     Deck& deck;

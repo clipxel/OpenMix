@@ -65,9 +65,10 @@ juce::String ChannelStrip::colorName (Color c)
 void ChannelStrip::processPreFader (float* l, float* r, int n, double deckBpm)
 {
     gTrim.setTargetValue (juce::Decibels::decibelsToGain (trimDb.load() + autoTrimDb.load()));
-    gLow.setTargetValue  (eqKnobToGain (eqLow.load()));
-    gMid.setTargetValue  (eqKnobToGain (eqMid.load()));
-    gHigh.setTargetValue (eqKnobToGain (eqHigh.load()));
+    const bool flat = eqFlat.load();
+    gLow.setTargetValue  (flat ? 1.0f : eqKnobToGain (eqLow.load()));
+    gMid.setTargetValue  (flat ? 1.0f : eqKnobToGain (eqMid.load()));
+    gHigh.setTargetValue (flat ? 1.0f : eqKnobToGain (eqHigh.load()));
 
     // Sound Color: each colour also uses part of the filter (as on club mixers).
     const auto color = (Color) colorType.load();

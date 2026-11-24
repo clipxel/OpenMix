@@ -127,6 +127,18 @@ SettingsPanel::SettingsPanel (AudioEngine& e, Library& l) : engine (e), library 
     limCeiling.setCompact (true);
     limCeiling.onChange = [this] (int i) { engine.limiter().ceilingDb = i == 0 ? -0.1f : i == 1 ? -0.5f : -1.0f; };
     addChildComponent (limCeiling);
+    stemMode.setCompact (true);
+    stemMode.onChange = [this] (int i)
+    {
+        engine.setStemMode (i == 0 ? StemMode::quality : StemMode::fast);
+        if (onStemsChanged) onStemsChanged();
+    };
+    addChildComponent (stemMode);
+    eqMode.setCompact (true);
+    eqMode.onChange = [this] (int i) { engine.setStemEq (i == 1); if (onStemsChanged) onStemsChanged(); };
+    addChildComponent (eqMode);
+    stemAutoToggle.onClick = [this] { engine.setStemAuto (stemAutoToggle.getToggleState()); if (onStemsChanged) onStemsChanged(); };
+    addChildComponent (stemAutoToggle);
     autoGainToggle.onClick = [this] { engine.setAutoGain (autoGainToggle.getToggleState()); };
     addChildComponent (autoGainToggle);
     helpCommunity.onClick = [] { Contact::open (Contact::community()); };
@@ -492,7 +504,7 @@ void SettingsPanel::setSection (int s)
     if (s == audio) audioView.refresh();
     for (auto& b : swatches) b->setVisible (s == appearance);
     hexField.setVisible (s == appearance);
-    for (auto* c : std::initializer_list<juce::Component*> { &laneSlider, &resetSizes, &xfCurve, &limCeiling, &autoGainToggle, &autoCueToggle })
+    for (auto* c : std::initializer_list<juce::Component*> { &laneSlider, &resetSizes, &xfCurve, &limCeiling, &autoGainToggle, &autoCueToggle, &stemMode, &stemAutoToggle, &eqMode })
         c->setVisible (s == layout);
     for (auto* c : std::initializer_list<juce::Component*> { &ctrlTab, &vinylToggle, &learnShift, &learnBtn, &cancelLearnBtn, &bindingBox })
         c->setVisible (s == controllers);
@@ -524,6 +536,9 @@ void SettingsPanel::syncLayoutControls()
     }
     autoGainToggle.setToggleState (engine.autoGain.load(), juce::dontSendNotification);
     autoCueToggle.setToggleState (engine.deck (0).isAutoCue(), juce::dontSendNotification);
+    stemMode.setSelected (engine.stemMode.load() == (int) StemMode::quality ? 0 : 1);
+    stemAutoToggle.setToggleState (engine.stemAuto.load(), juce::dontSendNotification);
+    eqMode.setSelected (engine.stemEq.load() ? 1 : 0);
     hexField.setText ("#" + accent().toDisplayString (false), false);
 }
 
@@ -616,13 +631,18 @@ void SettingsPanel::resized()
     {
         c.removeFromTop (28);
         laneSlider.setBounds (c.removeFromTop (24).withWidth (300));
-        c.removeFromTop (Space::lg + 16);
+        c.removeFromTop (Space::lg + 28);                    // room for the painted titles
         xfCurve.setBounds (c.removeFromTop (24).withWidth (300));
-        c.removeFromTop (Space::lg + 16);
+        c.removeFromTop (Space::lg + 28);
         limCeiling.setBounds (c.removeFromTop (24).withWidth (300));
         c.removeFromTop (Space::md);
         autoGainToggle.setBounds (c.removeFromTop (24).withWidth (460));
         autoCueToggle.setBounds (c.removeFromTop (24).withWidth (460));
+        c.removeFromTop (Space::lg + 32);
+        stemMode.setBounds (c.removeFromTop (24).withWidth (300));
+        stemAutoToggle.setBounds (c.removeFromTop (26).withWidth (460));
+        c.removeFromTop (Space::lg + 32);
+        eqMode.setBounds (c.removeFromTop (24).withWidth (300));
         c.removeFromTop (Space::xl + 4);
         resetSizes.setBounds (c.removeFromTop (Size::controlMd + 2).withWidth (240));
     }
@@ -669,11 +689,17 @@ void SettingsPanel::paint (juce::Graphics& g)
             break;
 
         case layout:
-            title ("Altura de las waveforms (también se arrastra la línea bajo las waveforms)");
+            title ("Altura de las waveforms (también se arrastra la línea bajo las waveforms)"_u);
             c.removeFromTop (24.0f + Space::lg);
             title ("Curva del crossfader");
             c.removeFromTop (24.0f + Space::lg);
             title ("Limitador master (true peak): techo");
+            if (stemMode.isVisible())
+                drawSectionTitle (g, stemMode.getBounds().toFloat().translated (0.0f, -28.0f).withHeight (20.0f).withWidth (560.0f),
+                                  juce::String::fromUTF8 ("Stems: Calidad (más limpio, unos 20 s por tema) o Rápido (unos 3 s por tema)"));
+            if (eqMode.isVisible())
+                drawSectionTitle (g, eqMode.getBounds().toFloat().translated (0.0f, -28.0f).withHeight (20.0f).withWidth (760.0f),
+                                  juce::String::fromUTF8 ("Ecualizador: STEMS = graves beat (bombo y bajo) · medios voz ↔ melodía · agudos hi-hats"));
             break;
 
         case controllers:

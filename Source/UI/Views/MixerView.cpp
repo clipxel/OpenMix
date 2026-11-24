@@ -136,6 +136,14 @@ MixerView::MixerView (AudioEngine& e) : engine (e)
     limBtn.setTooltip ("Limitador master true-peak (look-ahead). Techo en Configuración › Interfaz");
     limBtn.onClick = [this] { engine.limiter().enabled = ! engine.limiter().enabled.load(); };
 
+    eqModeBtn.setTextType (Type::micro, Weight::bold);
+    eqModeBtn.setFitCaption (true);
+    eqModeBtn.setLitColour (accent());
+    eqModeBtn.setTooltip ("Encendido: las perillas de EQ mueven los stems. Graves: beat (bombo y bajo). "
+                          "Medios: a la izquierda saca la voz, a la derecha la melodía. Agudos: hi-hats. Apagado: EQ de frecuencias."_u);
+    eqModeBtn.onClick = [this] { engine.setStemEq (! engine.stemEq.load()); if (onStemEqChanged) onStemEqChanged(); };
+    addAndMakeVisible (eqModeBtn);
+
     // SOUND COLOR FX: one button lit for the whole mixer; each channel's COLOR knob applies it.
     using C = ChannelStrip::Color;
     const C order[] = { C::space, C::dubEcho, C::sweep, C::noise, C::crush, C::filter };
@@ -400,6 +408,17 @@ void MixerView::refresh()
     masterMeter.update();
 
     limBtn.setToggleState (engine.limiter().enabled.load(), juce::dontSendNotification);
+    if (const bool se = engine.stemEq.load(); se != shownStemEq || eqModeBtn.getToggleState() != se)
+    {
+        shownStemEq = se;
+        eqModeBtn.setToggleState (se, juce::dontSendNotification);
+        for (auto& sp : strips)
+        {
+            sp->hi.setTooltip (se ? "Stems: hi-hats"_u : "EQ de agudos (High)"_u);
+            sp->mid.setTooltip (se ? "Stems: a la izquierda saca la voz, a la derecha la melodía"_u : "EQ de medios (Mid)"_u);
+            sp->low.setTooltip (se ? "Stems: beat (bombo y bajo)"_u : "EQ de graves (Low)"_u);
+        }
+    }
     const float gr = engine.limiter().drainReductionDb();
     const float newGr = juce::jmax (gr, grDb - 0.4f);            // ~24 dB/s fall
     if (std::abs (newGr - grDb) > 0.01f) { grDb = juce::jmax (0.0f, newGr); repaint (grArea); }
@@ -475,6 +494,11 @@ void MixerView::resized()
         const auto& f1 = side (1).fader;
         const int left = f0.getX() - 6, right = f1.getRight() + 6;
         logoArea = juce::Rectangle<int> (left, side (0).trim.getY(), right - left, juce::jmin (f0.getY(), f1.getY()) - side (0).trim.getY() - Space::sm);
+        // EQ STEMS just under the mark, between the two channels' EQ knobs.
+        const int bw = juce::jmin (juce::jmax (44, logoArea.getWidth()), 84), bh = Size::controlSm;
+        auto btn = logoArea.removeFromBottom (bh).withSizeKeepingCentre (bw, bh);
+        eqModeBtn.setBounds (btn);
+        eqModeBtn.setVisible (logoArea.getWidth() > 0);
     }
 
     // SOUND COLOR FX: six buttons (two rows) and PARAMETER

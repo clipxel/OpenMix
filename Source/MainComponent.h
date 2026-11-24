@@ -47,7 +47,11 @@ public:
     void showAutoMixForSnapshot()                 { automixOpen = true; automix.add (libraryView.visibleTracks()); resized(); frame(); }
     void setViewForSnapshot (int value)           { current.layout = (om::ViewLayout) juce::jlimit (0, (int) om::viewLayoutNames.size() - 1, value); resized(); }
     void setFxModeForSnapshot (int m)             { setFxMode (m); }
-    void showPadPageForSnapshot (int pages)       { for (int i = 0; i < pages; ++i) { deckA.nextPadPage(); deckB.nextPadPage(); } }
+    void showPadPageForSnapshot (int pages)       // 100 + page: that page directly (also the ones off the rows)
+    {
+        if (pages >= 100) { deckA.showPadPage (pages - 100); deckB.showPadPage (pages - 100); return; }
+        for (int i = 0; i < pages; ++i) { deckA.nextPadPage(); deckB.nextPadPage(); }
+    }
     /** Snapshot mode: open a settings section (and controllers tab) for the picture. */
     void showSettingsForSnapshot (int section, int tab)
     {
@@ -79,6 +83,7 @@ private:
 
     void applyLayout();
     void loadSettings();
+    bool settingsReady = false;                  // loadSettings() finished: saving is allowed
     void saveSettings();
 
     const bool snapshotMode;

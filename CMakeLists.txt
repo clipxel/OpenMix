@@ -5,7 +5,7 @@ if(NOT CMAKE_OSX_ARCHITECTURES)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Universal macOS build" FORCE)
 endif()
 
-project(OpenMix VERSION 2.6.0 LANGUAGES C CXX)
+project(OpenMix VERSION 2.7.0 LANGUAGES C CXX)
 if(APPLE)
     enable_language(OBJCXX)
 endif()
@@ -37,7 +37,8 @@ juce_add_binary_data(OpenMixAssets SOURCES Resources/logo-mark.png Resources/map
 target_include_directories(OpenMix PRIVATE Source)
 target_include_directories(OpenMix SYSTEM PRIVATE
     external/signalsmith-stretch
-    external/signalsmith-linear/include)
+    external/signalsmith-linear/include
+    external/onnxruntime/include)
 
 target_compile_definitions(OpenMix PRIVATE
     JUCE_WEB_BROWSER=0
@@ -66,6 +67,21 @@ configure_file(Source/Library/GoogleDriveClient.h.in "${CMAKE_CURRENT_BINARY_DIR
 target_include_directories(OpenMix PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/google-oauth.local")
 
+# Stems: ONNX Runtime is loaded at run time (never linked). Pass the folder holding the platform's library
+# (libonnxruntime.dylib / onnxruntime.dll / libonnxruntime.so, from the Microsoft.ML.OnnxRuntime package)
+# with -DOPENMIX_ONNXRUNTIME_LIB=<file> and it is copied next to the app; without it, stems are unavailable.
+set(OPENMIX_ONNXRUNTIME_LIB "" CACHE FILEPATH "ONNX Runtime shared library to bundle (stems)")
+if(OPENMIX_ONNXRUNTIME_LIB)
+    if(APPLE)
+        add_custom_command(TARGET OpenMix POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_CONTENT_DIR:OpenMix>/Frameworks"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${OPENMIX_ONNXRUNTIME_LIB}" "$<TARGET_BUNDLE_CONTENT_DIR:OpenMix>/Frameworks/libonnxruntime.dylib")
+    else()
+        get_filename_component(ORT_NAME "${OPENMIX_ONNXRUNTIME_LIB}" NAME)
+        add_custom_command(TARGET OpenMix POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${OPENMIX_ONNXRUNTIME_LIB}" "$<TARGET_FILE_DIR:OpenMix>/${ORT_NAME}")
+    endif()
+endif()
 
 if(APPLE)
     target_link_libraries(OpenMix PRIVATE "-framework AudioToolbox")

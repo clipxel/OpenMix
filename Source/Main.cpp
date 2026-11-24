@@ -58,7 +58,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit") || cl.contains ("--intent-check");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit") || cl.contains ("--intent-check") || cl.contains ("--stems-test");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -286,6 +286,15 @@ public:
             auto args = juce::StringArray::fromTokens (commandLine, true);
             const auto i = args.indexOf ("--inspect-usb");
             setApplicationReturnValue (om::inspectUsbExport (juce::File (args[i + 1].unquoted())));
+            quit();
+            return;
+        }
+
+        if (commandLine.contains ("--stems-test"))
+        {
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            auto arg = [&args] (const juce::String& key) { auto i = args.indexOf (key); return i >= 0 ? args[i + 1].unquoted() : juce::String(); };
+            setApplicationReturnValue (om::runStemsTest (juce::File (arg ("--file")), arg ("--mode") == "fast", juce::File (arg ("--out"))));
             quit();
             return;
         }

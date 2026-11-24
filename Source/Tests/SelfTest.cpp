@@ -928,6 +928,55 @@ int inspectUsbExport (const juce::File& root)
     return same ? 0 : 1;
 }
 
+int runStemsTest (const juce::File& audio, bool fast, const juce::File& outDir)
+{
+    AudioEngine engine;
+    const auto t = decode (engine, audio);
+    if (t == nullptr) { std::cout << "No se pudo leer el audio" << std::endl; return 1; }
+    if (! StemSeparator::runtimeAvailable()) { std::cout << StemSeparator::runtimeError() << std::endl; return 1; }
+    auto& sep = engine.stemSeparator();
+    const auto mode = fast ? StemMode::fast : StemMode::quality;
+    if (! sep.modelInstalled (mode))
+    {
+        std::cout << "Bajando el modelo (" << sep.downloadSize (mode) / 1000000 << " MB)..." << std::endl;
+        const double d0 = juce::Time::getMillisecondCounterHiRes();
+        sep.install (mode, nullptr, nullptr);
+        while (sep.isInstalling()) juce::Thread::sleep (50);
+        std::cout << "Descarga terminada en " << (juce::Time::getMillisecondCounterHiRes() - d0) / 1000.0 << " s" << std::endl;
+    }
+    if (! sep.modelInstalled (mode)) { std::cout << "Falta el modelo en " << StemSeparator::folder().getFullPathName() << std::endl; return 1; }
+    const double t0 = juce::Time::getMillisecondCounterHiRes();
+    double first = -1.0;
+    auto st = sep.separate (t, mode, [] { return 30.0; });
+    while (! st->isComplete() && ! st->hasFailed())
+    {
+        juce::Thread::sleep (5);
+        if (first < 0.0 && st->readyAt (30.0 * StemData::rate)) first = juce::Time::getMillisecondCounterHiRes() - t0;
+    }
+    if (st->hasFailed()) { std::cout << st->getError() << std::endl; return 1; }
+    const double total = (juce::Time::getMillisecondCounterHiRes() - t0) / 1000.0;
+    std::cout << (fast ? "Rapido" : "Calidad") << ": el segundo 30 listo en " << first / 1000.0 << " s, tema entero ("
+              << t->lengthSeconds() / 60.0 << " min) en " << total << " s" << std::endl;
+    if (outDir != juce::File())
+    {
+        outDir.createDirectory();
+        const char* names[] { "vocals", "drums", "bass" };
+        juce::WavAudioFormat wav;
+        for (int p = 0; p < StemData::numStored; ++p)
+        {
+            auto f = outDir.getChildFile (juce::String (names[p]) + ".wav");
+            f.deleteFile();
+            std::unique_ptr<juce::OutputStream> os (f.createOutputStream().release());
+            if (auto w = std::unique_ptr<juce::AudioFormatWriter> (wav.createWriterFor (os.get(), StemData::rate, 2, 32, {}, 0)))
+            {
+                os.release();
+                w->writeFromAudioSampleBuffer (st->parts[(size_t) p], 0, st->n);
+            }
+        }
+    }
+    return 0;
+}
+
 int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce::File& usbRoot)
 {
     Report rep;
@@ -2120,6 +2169,146 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
             rep.check (bad.isEmpty(), "Loop de 1/32: la onda queda sobre el loop (no se corre al achicarlo)"_u, bad);
         }
 
+        // Stems: the separation arithmetic with stand-in networks (no model needed).
+        {
+            auto errDb = [] (const float* a, const std::vector<float>& ref)
+            {
+                double e = 0.0, sg = 0.0;
+                for (size_t i = 0; i < ref.size(); ++i) { e += (a[i] - ref[i]) * (double) (a[i] - ref[i]); sg += ref[i] * (double) ref[i]; }
+                return 10.0 * std::log10 (juce::jmax (1e-30, e) / juce::jmax (1e-30, sg));
+            };
+            auto makeMix = [] (int n)
+            {
+                std::array<std::vector<float>, 2> m { std::vector<float> ((size_t) n), std::vector<float> ((size_t) n) };
+                juce::Random rnd (7);
+                for (int i = 0; i < n; ++i)
+                {
+                    const double t = i / 44100.0;
+                    m[0][(size_t) i] = (float) (0.3 * std::sin (2 * juce::MathConstants<double>::pi * 220 * t) + 0.1 * (rnd.nextFloat() - 0.5f));
+                    m[1][(size_t) i] = (float) (0.3 * std::sin (2 * juce::MathConstants<double>::pi * 3300 * t) + 0.1 * (rnd.nextFloat() - 0.5f));
+                }
+                return m;
+            };
+
+            // Quality (HT-Demucs layout): a network that hears everything as voice gives back the track itself,
+            // across the 25 % overlaps.
+            {
+                const int n = 900000;
+                auto m = makeMix (n);
+                const float* mix[2] { m[0].data(), m[1].data() };
+                StemData out (n, StemMode::quality);
+                StemDsp::Nets nets;
+                nets.demucs = [] (const float* in, float* o)
+                {
+                    constexpr int N = StemDsp::demucsLen;
+                    std::fill (o, o + 8 * N, 0.0f);
+                    std::copy_n (in, 2 * N, o + 6 * N);        // stem 3 = vocals
+                };
+                StemDsp::separateAll (mix, n, out, nets);
+                const double e = juce::jmax (errDb (out.read[StemData::vocals][0], m[0]), errDb (out.read[StemData::vocals][1], m[1]));
+                float rest = 0.0f;
+                for (int p : { (int) StemData::drums, (int) StemData::bass })
+                    rest = juce::jmax (rest, out.parts[(size_t) p].getMagnitude (0, n));
+                rep.check (e < -100.0 && rest == 0.0f && out.isComplete(),
+                           "Stems Calidad: los tramos superpuestos reconstruyen el tema y todo queda listo"_u,
+                           juce::String (e, 1) + " dB, resto " + juce::String (rest));
+            }
+
+            // Fast (Spleeter layout): STFT, masks and inverse STFT. All energy given to the voice → the voice is the track.
+            {
+                const int n = 44100 * 26 + 123;
+                auto m = makeMix (n);
+                const float* mix[2] { m[0].data(), m[1].data() };
+                StemData out (n, StemMode::fast);
+                StemDsp::Nets nets;
+                nets.spleeter = [] (int stem, const float* in, float* o)
+                {
+                    const size_t c = (size_t) 2 * StemDsp::splitFrames * StemDsp::netBins;
+                    if (stem == 0) std::copy_n (in, c, o); else std::fill (o, o + c, 0.0f);
+                };
+                StemDsp::separateAll (mix, n, out, nets);
+                const double e = juce::jmax (errDb (out.read[StemData::vocals][0], m[0]), errDb (out.read[StemData::vocals][1], m[1]));
+                const float rest = out.parts[StemData::drums].getMagnitude (0, n);
+                rep.check (e < -60.0 && rest < 1.0e-3f && out.isComplete(),
+                           "Stems Rápido: STFT, máscaras e inversa devuelven el tema por la voz"_u,
+                           juce::String (e, 1) + " dB, resto " + juce::String (rest, 6));
+            }
+
+            // Deck: muting the voice removes it (a 48 kHz track with 44.1 kHz stems), and untouched stems leave
+            // the track bit for bit.
+            for (bool lock : { false, true })
+            {
+                const double fs = 48000.0, secs = 6.0;
+                auto t = std::make_shared<LoadedTrack>();
+                t->sampleRate = fs;
+                const int n = (int) (fs * secs);
+                t->audio.setSize (2, n);
+                for (int i = 0; i < n; ++i)
+                {
+                    const double x = i / fs;
+                    const float v = (float) (0.3 * std::sin (juce::MathConstants<double>::twoPi * 300.0 * x)
+                                             + 0.3 * std::sin (juce::MathConstants<double>::twoPi * 2000.0 * x)
+                                             + 0.2 * std::sin (juce::MathConstants<double>::twoPi * 100.0 * x));   // the "beat"
+                    t->audio.setSample (0, i, v);
+                    t->audio.setSample (1, i, v);
+                }
+                const int n44 = (int) std::ceil (n * 44100.0 / fs);
+                auto st = std::make_shared<StemData> (n44, StemMode::fast);
+                for (int i = 0; i < n44; ++i)
+                    for (int ch = 0; ch < 2; ++ch)
+                    {
+                        st->write[StemData::vocals][(size_t) ch][i] = (float) (0.3 * std::sin (juce::MathConstants<double>::twoPi * 2000.0 * i / 44100.0));
+                        st->write[StemData::drums][(size_t) ch][i] = (float) (0.2 * std::sin (juce::MathConstants<double>::twoPi * 100.0 * i / 44100.0));
+                    }
+                for (int b = 0; b < st->numBlocks; ++b) st->ready[(size_t) b] = true;
+                st->readyCount = st->numBlocks;
+
+                auto tone = [] (const std::vector<float>& y, double f)
+                {
+                    double re = 0.0, im = 0.0;
+                    for (size_t i = 0; i < y.size(); ++i)
+                    {
+                        const double ph = juce::MathConstants<double>::twoPi * f * (double) i / sr;
+                        re += y[i] * std::cos (ph); im += y[i] * std::sin (ph);
+                    }
+                    return std::sqrt (re * re + im * im) * 2.0 / (double) y.size();
+                };
+
+                Deck plain (0), dk (1);
+                for (auto* k : { &plain, &dk }) { k->prepare (sr); k->setKeyLock (lock); k->setTrack (t); }
+                dk.setStems (st);
+                plain.setPlaying (true);
+                dk.setPlaying (true);
+                const auto a = capture (plain, 1.0), b = capture (dk, 1.0);
+                rep.check (a == b, juce::String ("Stems sin tocar: el deck suena igual que el tema, muestra por muestra") + (lock ? " (key lock)" : ""));
+
+                dk.setStemMute (Deck::stemVocals, true);
+                run (dk, 0.2);
+                const auto c = capture (dk, 1.0);
+                const double voice = tone (c, 2000.0), keep = tone (c, 300.0);
+                rep.check (voice < 0.003 && keep > 0.25,
+                           juce::String ("Stems: apagar la voz la saca y deja el resto (pista 48 kHz, stems 44,1 kHz)") + (lock ? " (key lock)" : ""),
+                           "voz " + juce::String (voice, 4) + " · resto " + juce::String (keep, 3));
+
+                // Stem EQ: MID left = no voice, MID right = only the voice; HIGH / LOW leave both alone here.
+                dk.setStemMute (Deck::stemVocals, false);
+                dk.setStemEq (true, 0.5f, 0.0f, 0.5f);
+                run (dk, 0.2);
+                const auto e1 = capture (dk, 1.0);
+                dk.setStemEq (true, 0.5f, 1.0f, 0.5f);
+                run (dk, 0.2);
+                const auto e2 = capture (dk, 1.0);
+                dk.setStemEq (false, 0.5f, 0.5f, 0.5f);
+                run (dk, 0.2);
+                const auto e3 = capture (dk, 1.0);
+                rep.check (tone (e1, 2000.0) < 0.003 && tone (e1, 300.0) > 0.25 && tone (e2, 300.0) < 0.003 && tone (e2, 2000.0) > 0.25
+                               && tone (e1, 100.0) > 0.17 && tone (e2, 100.0) > 0.17
+                               && tone (e3, 2000.0) > 0.25 && tone (e3, 300.0) > 0.25,
+                           juce::String ("EQ de stems: medios a la izquierda sin voz, a la derecha sin melodía; apagado vuelve al tema"_u) + (lock ? " (key lock)" : ""),
+                           juce::String (tone (e1, 2000.0), 4) + " / " + juce::String (tone (e2, 300.0), 4));
+            }
+        }
+
         // TAP once: a bar of the grid starts where it was pressed (same BPM).
         {
             Deck dk (0);
@@ -2412,6 +2601,53 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         actions.trigger ("beat_fx_on_deck", 1, 1.0f);                        // again: off
         rep.check (onLeft && levelLeft && movedRight && ! bx.on.load() && actions.find ("beat_fx_on") != nullptr && ! actions.find ("beat_fx_on")->perDeck,
                    "BEAT FX por deck: ON lo manda a ese deck, la perilla de cada deck solo mueve el nivel cuando el efecto está en su deck"_u);
+
+        // The FX unit of each side works on the deck shown there: on deck 3 the left unit is deck 3's.
+        {
+            for (int d = 0; d < AudioEngine::numDecks; ++d) engine.deckFx (d, 0).enabled = false;
+            engine.showDeck (2);
+            actions.trigger ("effect_active_1", 0, 1.0f);
+            actions.trigger ("effect_wet_1", 0, 0.3f);
+            const bool onThree = engine.deckFx (2, 0).enabled.load() && ! engine.deckFx (0, 0).enabled.load()
+                                 && std::abs (engine.deckFx (2, 0).wet.load() - 0.3f) < 1e-6f;
+            engine.showDeck (0);
+            actions.trigger ("effect_active_1", 0, 1.0f);
+            const bool onOne = engine.deckFx (0, 0).enabled.load() && engine.deckFx (2, 0).enabled.load();
+            for (int d = 0; d < AudioEngine::numDecks; ++d) engine.deckFx (d, 0).enabled = false;
+            rep.check (onThree && onOne, "Efectos del controlador: con el deck 3 a la vista actúan sobre el deck 3"_u);
+        }
+        midi.setBindings (b);
+    }
+
+    if (auto mcx = ControllerLibrary::findBundled ("Denon MCX8000"))
+    {
+        // MCX8000 on decks 3 / 4: its FX knobs work on the deck shown and never send the screen back to 1 / 2.
+        midi.setBindings (mcx->second);
+        engine.showDeck (2);
+        engine.showDeck (3);
+        engine.deckFx (2, 0).wet = 0.0f;
+        engine.deckFx (0, 0).wet = 0.0f;
+        midi.inject ("Test", juce::MidiMessage::controllerEvent (9, 0, 100));        // left FX 1 level
+        midi.inject ("Test", juce::MidiMessage::controllerEvent (10, 1, 90));        // right FX 2 level
+        const bool stayed = engine.visibleDeck (0) == 2 && engine.visibleDeck (1) == 3;
+        const bool onShown = engine.deckFx (2, 0).wet.load() > 0.7f && engine.deckFx (0, 0).wet.load() == 0.0f
+                             && engine.deckFx (3, 1).wet.load() > 0.6f;
+        rep.check (stayed && onShown, "MCX8000 en decks 3 y 4: las perillas de efectos actúan ahí y no vuelven la pantalla a 1 y 2"_u,
+                   "lado izq. " + juce::String (engine.visibleDeck (0) + 1) + ", der. " + juce::String (engine.visibleDeck (1) + 1));
+        engine.showDeck (0);
+        engine.showDeck (1);
+        bool stemsPage = false;
+        {
+            Actions::Hooks hk;
+            hk.padMode = [&] (int d, int page, const juce::String&) { stemsPage = d == 0 && page == 10; };
+            Actions a2 (engine, hk);
+            MidiEngine m2 (a2);
+            m2.setBindings (mcx->second);
+            m2.inject ("Test", juce::MidiMessage::noteOn (5, 11, (juce::uint8) 127));   // SAMPLER (deck 1)
+            m2.inject ("Test", juce::MidiMessage::noteOff (5, 11));
+            m2.setBindings ({});
+        }
+        rep.check (stemsPage, "MCX8000: el botón SAMPLER abre la página STEMS"_u);
         midi.setBindings (b);
     }
 

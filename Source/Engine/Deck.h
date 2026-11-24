@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LoadedTrack.h"
+#include "Stems.h"
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <atomic>
 
@@ -172,6 +173,28 @@ public:
 
     std::function<void()> onCuesChanged;          // persists cue edits to the library
 
+    // Stems: vocals, drums, bass and melody (everything else), each with its level and mute.
+    // Until a part of the track is separated it plays as it is; the change crossfades in.
+    enum StemPart { stemVocals = 0, stemDrums, stemBass, stemMelody, numStemParts };
+    void setStems (StemDataPtr);
+    StemDataPtr getStems() const                  { return stems; }
+    void  setStemLevel (int part, float level);   // 0…1
+    float getStemLevel (int part) const noexcept  { return juce::isPositiveAndBelow (part, (int) numStemParts) ? stemLevel[(size_t) part].load() : 1.0f; }
+    void  setStemMute (int part, bool muted);
+    void  toggleStemMute (int part)               { setStemMute (part, ! isStemMuted (part)); }
+    bool  isStemMuted (int part) const noexcept   { return juce::isPositiveAndBelow (part, (int) numStemParts) && stemMute[(size_t) part].load(); }
+    /** Only this part sounds (pressing it again brings all back). */
+    void  soloStem (int part);
+    void  resetStems();
+    bool  stemsTouched() const noexcept;
+    /** Stem EQ (audio thread, before render): the channel's EQ knobs act on the stems — LOW kick and bass,
+        MID voice ↔ melody (left: no voice, right: no melody; beat and hi-hats stay), HIGH hi-hats. Applies only while the
+        track has stems; isStemEqActive() says whether it did in the last block. */
+    void  setStemEq (bool on, float low, float mid, float high) noexcept { stemEqWanted = on; eqKnob = { low, mid, high }; }
+    bool  isStemEqActive() const noexcept         { return stemEqActive; }
+    /** Gain of a stem EQ knob: 0 kill, centre 1, right up to 2 (+6 dB). */
+    static float stemEqGain (float v) noexcept    { return v >= 0.5f ? 1.0f + (v - 0.5f) * 2.0f : (2.0f * v) * (2.0f * v); }
+
     //==== Audio thread ========================================================
     void prepare (double outputSampleRate);
     void beginBlock();
@@ -273,8 +296,19 @@ private:
     std::atomic<double> publishedRate { 0.0 };
     std::atomic<double> publishedAtMs { 0.0 };
 
+    StemDataPtr stems;
+    std::array<std::atomic<float>, 4> stemLevel { 1.0f, 1.0f, 1.0f, 1.0f };
+    std::array<std::atomic<bool>, 4> stemMute {};
+
     // Audio-thread state
     juce::SpinLock trackLock;
+    const StemData* audioStems = nullptr;
+    std::array<float, 5> stemGain { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };   // vocals, drums (low), bass, melody, hi-hats
+    float stemBlend = 0.0f, stemStep = 0.002f;
+    bool stemEqWanted = false, stemEqActive = false;
+    std::array<float, 3> eqKnob { 0.5f, 0.5f, 0.5f };
+    std::array<double, 5> hatCoef {};              // hi-hats: drums above ≈ 5 kHz (biquad high-pass)
+    std::array<std::array<double, 4>, 2> hatState {};
     const LoadedTrack* audioTrack = nullptr;
     double outRate = 48000.0;
     double pos = 0.0;          // in source samples

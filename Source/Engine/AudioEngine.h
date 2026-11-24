@@ -108,6 +108,17 @@ public:
     /** Auto-gain switched on or off: the loaded tracks take (or drop) their auto level now. */
     void setAutoGain (bool on);
 
+    // Stems: separated in the background, the part playing first. Settings are read from any thread.
+    StemSeparator& stemSeparator() noexcept       { return separator; }
+    std::atomic<int>  stemMode { (int) StemMode::quality };
+    std::atomic<bool> stemAuto { true };          // separate every track as it loads (once the model is there)
+    std::atomic<bool> stemEq { false };           // EQ knobs on the stems (LOW kick + bass, MID voice ↔ instrumental, HIGH hi-hats)
+    void setStemEq (bool on)                      { stemEq = on; if (on) for (int d = 0; d < numDecks; ++d) separateStems (d); }
+    /** Starts (or keeps) the stems of the deck's track in the current mode. False when the model is missing. */
+    bool separateStems (int deck);
+    void setStemMode (StemMode);
+    void setStemAuto (bool on)                    { stemAuto = on; if (on) for (int d = 0; d < numDecks; ++d) separateStems (d); }
+
     static float masterDbToGain (float db) noexcept { return db <= -39.9f ? 0.0f : juce::Decibels::decibelsToGain (db); }
 
     //==========================================================================
@@ -194,6 +205,7 @@ private:
     Recorder rec;
 
     juce::AudioBuffer<float> deckBuf, cueBuf, masterBuf, sepBuf;
+    StemSeparator separator;          // after the decks: stopped before them (its workers read their playheads)
     juce::ThreadPool loaderPool { juce::ThreadPoolOptions{}.withNumberOfThreads (2).withThreadName ("OpenMix loader") };
     std::array<std::atomic<bool>, numDecks> loading {}, analysingOnLoad {};
     std::array<int, numDecks> loadGeneration {};

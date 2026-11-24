@@ -463,7 +463,7 @@ DeckView::DeckView (AudioEngine& e, int i)
 
     // Pads -------------------------------------------------------------------
     const char* tabNames[] = { "HOT CUE", "ROLL", "LOOP", "SAVED LOOP", "BEAT JUMP", "CUE LOOP",
-                               "SLICER", "SLICER LOOP", "SAMPLER", "VEL. SAMPLER" };
+                               "SLICER", "SLICER LOOP", "SAMPLER", "VEL. SAMPLER", "STEMS" };
     for (size_t i = 0; i < padPageOrder.size(); ++i)
     {
         const auto mode = padPageOrder[i];
@@ -491,6 +491,8 @@ DeckView::DeckView (AudioEngine& e, int i)
                       [safe] { if (safe != nullptr) safe->setPadMode (PadMode::loop); });
         menu.addItem ("Beat Jump", true, padMode == PadMode::jump,
                       [safe] { if (safe != nullptr) safe->setPadMode (PadMode::jump); });
+        menu.addItem ("Stems (voz, batería, bajo, melodía)"_u, true, padMode == PadMode::stems,
+                      [safe] { if (safe != nullptr) safe->setPadMode (PadMode::stems); });
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&morePadPages));
     };
     addAndMakeVisible (morePadPages);
@@ -533,7 +535,7 @@ void DeckView::setPadMode (PadMode m)
     padMode = m;
     for (int t = 0; t < numPadModes; ++t)
         if (auto& tab = padTabs[(size_t) t]) tab->setToggleState (t == (int) m, juce::dontSendNotification);
-    morePadPages.setToggleState (m == PadMode::loop || m == PadMode::jump, juce::dontSendNotification);
+    morePadPages.setToggleState (m == PadMode::loop || m == PadMode::jump || m == PadMode::stems, juce::dontSendNotification);
     updatePads();
     resized();
 }
@@ -579,7 +581,98 @@ void DeckView::padDown (int p, bool shift, float velocity)
             if (shift) engine.sampler().stop (p);
             else engine.sampler().trigger (p, index, padMode == PadMode::velocitySampler ? velocity : 1.0f);
             break;
+        case PadMode::stems:
+            stemPad (p, shift);
+            break;
     }
+}
+
+static const char* const stemNames[4] = { "VOZ", "BATERÍA", "BAJO", "MELODÍA" };
+
+void DeckView::stemPad (int p, bool shift)
+{
+    if (! deck.hasTrack() || ! ensureStems())
+        return;
+    if (p < 4)
+    {
+        if (shift) deck.soloStem (p);           // SHIFT: only this part
+        else       deck.toggleStemMute (p);
+        return;
+    }
+    switch (p)
+    {
+        case 4: deck.soloStem (Deck::stemVocals); break;                     // ACAPELLA
+        case 5:                                                              // INSTRUMENTAL
+        {
+            const bool on = deck.isStemMuted (Deck::stemVocals) && ! deck.isStemMuted (Deck::stemDrums)
+                            && ! deck.isStemMuted (Deck::stemBass) && ! deck.isStemMuted (Deck::stemMelody);
+            deck.resetStems();
+            if (! on) deck.setStemMute (Deck::stemVocals, true);
+            break;
+        }
+        case 6: deck.soloStem (Deck::stemDrums); break;                      // BEAT
+        default: deck.resetStems(); break;                                   // TODO
+    }
+}
+
+bool DeckView::ensureStems()
+{
+    if (auto s = deck.getStems(); s != nullptr && ! s->hasFailed())
+        return true;
+    if (! StemSeparator::runtimeAvailable())
+    {
+        showMessage (StemSeparator::runtimeError(), true);
+        return false;
+    }
+    auto& sep = engine.stemSeparator();
+    const auto mode = (StemMode) engine.stemMode.load();
+    if (engine.separateStems (index))
+        return true;
+    if (sep.isInstalling())
+    {
+        showMessage ("Bajando el modelo de stems…"_u, false);
+        return false;
+    }
+    const auto mb = juce::String ((double) sep.downloadSize (mode) / 1.0e6, 0);
+    const auto name = mode == StemMode::quality ? juce::String ("Calidad") : "Rápido"_u;
+    auto safe = juce::Component::SafePointer<DeckView> (this);
+    juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Stems · "_u + name,
+        "Para separar voz, batería, bajo y melodía hace falta bajar el modelo "_u + name + " ("_u + mb
+            + " MB) una sola vez. Se guarda en la carpeta de datos de OpenMix."_u,
+        "Bajar", "Cancelar", nullptr,
+        juce::ModalCallbackFunction::create ([safe, mode] (int r)
+        {
+            if (r == 0 || safe == nullptr) return;
+            safe->engine.stemSeparator().install (mode,
+                [safe] (float p) { if (safe != nullptr) safe->showMessage ("Bajando el modelo de stems: "_u + juce::String (juce::roundToInt (p * 100.0f)) + " %", false); },
+                [safe] (juce::String error)
+                {
+                    if (safe == nullptr) return;
+                    if (error.isNotEmpty()) { safe->showMessage (error, true); return; }
+                    safe->showMessage ("Modelo listo. Separando…"_u, false);
+                    for (int d = 0; d < AudioEngine::numDecks; ++d)
+                        if (safe->engine.stemAuto.load() || d == safe->index)
+                            safe->engine.separateStems (d);
+                });
+        }));
+    return false;
+}
+
+void DeckView::stemsMenu (juce::Component* target)
+{
+    juce::PopupMenu m;
+    const auto mode = (StemMode) engine.stemMode.load();
+    auto safe = juce::Component::SafePointer<DeckView> (this);
+    m.addSectionHeader ("Stems");
+    m.addItem ("Calidad (HT-Demucs, unos 20 s por tema)", true, mode == StemMode::quality,
+               [safe] { if (safe != nullptr) { safe->engine.setStemMode (StemMode::quality); safe->ensureStems(); if (safe->onStemSettings) safe->onStemSettings(); } });
+    m.addItem ("Rápido (Spleeter, unos 3 s por tema)"_u, true, mode == StemMode::fast,
+               [safe] { if (safe != nullptr) { safe->engine.setStemMode (StemMode::fast); safe->ensureStems(); if (safe->onStemSettings) safe->onStemSettings(); } });
+    m.addSeparator();
+    m.addItem ("Separar al cargar cada tema", true, engine.stemAuto.load(),
+               [safe] { if (safe != nullptr) { safe->engine.setStemAuto (! safe->engine.stemAuto.load()); if (safe->onStemSettings) safe->onStemSettings(); } });
+    m.addItem ("Todo encendido", deck.stemsTouched(), false, [safe] { if (safe != nullptr) safe->deck.resetStems(); });
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (target));
 }
 
 void DeckView::padUp (int p)
@@ -621,6 +714,11 @@ void DeckView::padRightClick (int p)
         m.addItem ("Reemplazar con el loop actual", [this, p] { deck.saveLoop (p); });
         m.addItem ("Borrar", [this, p] { deck.clearSavedLoop (p); });
     }
+    else if (padMode == PadMode::stems)
+    {
+        stemsMenu (pads[(size_t) p].get());
+        return;
+    }
     else if (padMode == PadMode::sampler || padMode == PadMode::velocitySampler)
     {
         auto safe = juce::Component::SafePointer<DeckView> (this);
@@ -648,6 +746,16 @@ int DeckView::padLed (int pad) const
 
     const auto track = deck.getTrack();
     if (track == nullptr) return 0;
+    if (padMode == PadMode::stems)
+    {
+        if (deck.getStems() == nullptr) return 1;
+        if (pad < 4) return deck.isStemMuted (pad) ? 1 : 2;
+        const bool v = deck.isStemMuted (Deck::stemVocals), dr = deck.isStemMuted (Deck::stemDrums),
+                   b = deck.isStemMuted (Deck::stemBass), mel = deck.isStemMuted (Deck::stemMelody);
+        const bool lit = pad == 4 ? (! v && dr && b && mel) : pad == 5 ? (v && ! dr && ! b && ! mel)
+                       : pad == 6 ? (v && ! dr && b && mel) : false;
+        return lit ? 3 : 1;
+    }
     if (padMode == PadMode::hotCue) return deck.getHotCue (pad) >= 0.0 ? 2 : 0;
     if (padMode == PadMode::savedLoop)
     {
@@ -695,6 +803,8 @@ juce::Colour DeckView::padColour (int pad, int level) const
             return Theme::hotCueColour (pad);
         case PadMode::savedLoop:
             return Theme::hotCueColour (pad).withMultipliedSaturation (0.6f);
+        case PadMode::stems:
+            return pad < 4 ? Theme::hotCueColour (pad * 2) : Theme::get().deckColour (index);
         default:
             return Theme::get().deckColour (index);
     }
@@ -787,6 +897,27 @@ void DeckView::updatePads()
                 b.setTooltip (hasGrid ? juce::String::fromUTF8 ("Mantener: repetir el beat ") + juce::String (p + 1)
                                             + juce::String::fromUTF8 (" de la frase de 8; al soltar sigue donde iba")
                                       : "Requiere BPM analizado");
+                break;
+            }
+            case PadMode::stems:
+            {
+                static const char* const actions[4] = { "ACAPELLA", "INSTRUMENTAL", "BEAT", "TODO" };
+                const auto stems = deck.getStems();
+                b.setButtonText (juce::String::fromUTF8 (p < 4 ? stemNames[p] : actions[p - 4]));
+                juce::String sub;
+                if (stems != nullptr && stems->hasFailed()) sub = "ERROR";
+                else if (stems != nullptr && ! stems->isComplete()) sub = juce::String (juce::roundToInt (stems->progress() * 100.0f)) + " %";
+                else if (p < 4 && stems != nullptr) sub = deck.isStemMuted (p) ? "APAGADO" : juce::String();
+                else if (p >= 4) sub = engine.stemMode.load() == (int) StemMode::quality ? "CALIDAD" : "RÁPIDO"_u;
+                b.setSubText (sub);
+                b.setEnabled (hasTrack);
+                b.setTooltip (stems != nullptr && stems->hasFailed() ? stems->getError()
+                              : p < 4 ? juce::String::fromUTF8 ("Encender / apagar ") + juce::String::fromUTF8 (stemNames[p]).toLowerCase()
+                                            + juce::String::fromUTF8 (" · Shift: solo esta parte · clic derecho: modo Calidad o Rápido")
+                              : p == 4 ? juce::String::fromUTF8 ("Solo la voz")
+                              : p == 5 ? juce::String::fromUTF8 ("Todo menos la voz")
+                              : p == 6 ? juce::String::fromUTF8 ("Solo la batería")
+                                       : juce::String::fromUTF8 ("Todas las partes encendidas"));
                 break;
             }
             case PadMode::jump:

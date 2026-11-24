@@ -54,6 +54,21 @@ jobs:
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
             libgl1-mesa-dev libcurl4-openssl-dev xvfb
 
+      - name: Motor de stems (ONNX Runtime 1.32.0, licencia MIT, verificado por SHA-256)
+        run: |
+          curl -sL -o ort.nupkg https://www.nuget.org/api/v2/package/Microsoft.ML.OnnxRuntime/1.32.0
+          echo "a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db  ort.nupkg" | sha256sum -c -
+          case "$RUNNER_OS" in
+            macOS)   F=runtimes/osx-arm64/native/libonnxruntime.dylib ;;   # Apple Silicon (en Intel no hay stems)
+            Windows) F=runtimes/win-x64/native/onnxruntime.dll ;;
+            Linux)   F=runtimes/linux-x64/native/libonnxruntime.so ;;
+          esac
+          mkdir -p ort
+          python3 -c "import sys, zipfile, os; z = zipfile.ZipFile('ort.nupkg'); [open(os.path.join('ort', os.path.basename(n)), 'wb').write(z.read(n)) for n in (sys.argv[1], 'LICENSE')]" "$F"
+          ls -la ort
+          echo "ORT_LIB=$(pwd)/ort/$(basename "$F")" >> "$GITHUB_ENV"
+          [ "$RUNNER_OS" = "Windows" ] && echo "ORT_LIB=$(pwd -W)/ort/$(basename "$F")" >> "$GITHUB_ENV" || true
+
       - name: Versión
         run: echo "VERSION=$(sed -n 's/^project(OpenMix VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)" >> "$GITHUB_ENV"
 
@@ -70,7 +85,7 @@ jobs:
           OPENMIX_GOOGLE_CLIENT_SECRET: ${{ secrets.OPENMIX_GOOGLE_CLIENT_SECRET }}
         if: runner.os == 'Windows'
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DOPENMIX_ASIO_SDK="$(pwd -W)/external/ASIOSDK"
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DOPENMIX_ASIO_SDK="$(pwd -W)/external/ASIOSDK" -DOPENMIX_ONNXRUNTIME_LIB="$ORT_LIB"
           cmake --build build --config Release --parallel
           echo "EXE=build/OpenMix_artefacts/Release/OpenMix.exe" >> "$GITHUB_ENV"
 
@@ -81,7 +96,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then brew list ninja >/dev/null 2>&1 || brew install ninja; fi
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DOPENMIX_ONNXRUNTIME_LIB="$ORT_LIB"
           cmake --build build --parallel
           if [ "$RUNNER_OS" = "macOS" ]; then
             echo "EXE=build/OpenMix_artefacts/Release/OpenMix.app/Contents/MacOS/OpenMix" >> "$GITHUB_ENV"
@@ -116,6 +131,7 @@ jobs:
           codesign --force --deep -s - "$APP"
           mkdir -p dmg && cp -R "$APP" dmg/ && ln -s /Applications dmg/Applications
           lipo -archs "$APP/Contents/MacOS/OpenMix"                      # arm64 x86_64
+          test -f "$APP/Contents/Frameworks/libonnxruntime.dylib"        # stems
           # hdiutil a veces falla con "Resource busy" en los runners: reintentar.
           for i in 1 2 3 4 5; do
             hdiutil create -volname "OpenMix $VERSION" -srcfolder dmg -ov -format UDZO "OpenMix-$VERSION-macOS-universal.dmg" && break
@@ -129,6 +145,7 @@ jobs:
         run: |
           mkdir OpenMix
           cp "$EXE" OpenMix/
+          cp ort/onnxruntime.dll OpenMix/
           cp LICENSE OpenMix/LICENSE.txt
           cp THIRD_PARTY_NOTICES.md OpenMix/
           # Instalador (Inno Setup): menú Inicio, acceso directo opcional y desinstalador.
@@ -146,6 +163,7 @@ jobs:
         run: |
           mkdir -p OpenMix
           cp "$EXE" OpenMix/openmix
+          cp ort/libonnxruntime.so OpenMix/
           cp Resources/AppIcon.png OpenMix/openmix.png
           cp LICENSE THIRD_PARTY_NOTICES.md OpenMix/
           cat > OpenMix/openmix.desktop <<EOF
@@ -164,12 +182,14 @@ jobs:
           cd "$(dirname "$0")"
           mkdir -p ~/.local/bin ~/.local/share/applications ~/.local/share/openmix
           install -m 755 openmix ~/.local/bin/openmix
+          install -m 644 libonnxruntime.so ~/.local/share/openmix/libonnxruntime.so
           install -m 644 openmix.png ~/.local/share/openmix/openmix.png
           sed -e "s|^Exec=.*|Exec=$HOME/.local/bin/openmix|" -e "s|^Icon=.*|Icon=$HOME/.local/share/openmix/openmix.png|" \
               openmix.desktop > ~/.local/share/applications/openmix.desktop
           echo "Listo: buscá OpenMix en tus aplicaciones (o ejecutá ~/.local/bin/openmix)."
           EOF
           chmod +x OpenMix/openmix OpenMix/instalar.sh
+          test -f OpenMix/libonnxruntime.so
           tar -czf "OpenMix-$VERSION-Linux-x86_64.tar.gz" OpenMix
           echo "ASSET=OpenMix-$VERSION-Linux-x86_64.tar.gz" >> "$GITHUB_ENV"
 

@@ -42,6 +42,9 @@ void Deck::setTrack (LoadedTrackPtr t)
     {
         const juce::SpinLock::ScopedLockType sl (trackLock);
         audioTrack = t.get();
+        audioStems = nullptr;
+        stemBlend = 0.0f;
+        stemGain = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
         pos = 0.0;
         gain = 0.0f;
         pendingSeek = -1.0;
@@ -67,6 +70,8 @@ void Deck::setTrack (LoadedTrackPtr t)
 
     // Old track (if any) is released here, on the message thread, never on the audio thread.
     track = std::move (t);
+    stems.reset();
+    resetStems();
 
     cuePoint = track ? juce::jlimit (0.0, track->lengthSeconds(), track->meta.cuePoint) : 0.0;
     hotCues = track ? track->meta.hotCues : std::array<double, 8> { -1, -1, -1, -1, -1, -1, -1, -1 };
@@ -327,6 +332,8 @@ void Deck::cloneFrom (const Deck& o)
     if (o.track == nullptr || isPlaying())
         return;
     setTrack (o.track);                         // shares the decoded audio — no reload
+    setStems (o.stems);
+    for (size_t k = 0; k < stemLevel.size(); ++k) { stemLevel[k] = o.stemLevel[k].load(); stemMute[k] = o.stemMute[k].load(); }
     hotCues = o.hotCues;
     savedLoops = o.savedLoops;
     cuePoint = o.cuePoint;
@@ -342,6 +349,56 @@ void Deck::cloneFrom (const Deck& o)
     requestJump (Jump::absolute, o.getPosition());
     playRequested = o.isPlaying();
     notifyCues();
+}
+
+void Deck::setStems (StemDataPtr s)
+{
+    {
+        const juce::SpinLock::ScopedLockType sl (trackLock);
+        audioStems = s.get();
+        stemBlend = 0.0f;
+    }
+    stems = std::move (s);        // the previous ones are released here, never on the audio thread
+}
+
+void Deck::setStemLevel (int part, float level)
+{
+    if (juce::isPositiveAndBelow (part, (int) numStemParts))
+        stemLevel[(size_t) part] = juce::jlimit (0.0f, 1.0f, level);
+}
+
+void Deck::setStemMute (int part, bool muted)
+{
+    if (juce::isPositiveAndBelow (part, (int) numStemParts))
+        stemMute[(size_t) part] = muted;
+}
+
+void Deck::soloStem (int part)
+{
+    if (! juce::isPositiveAndBelow (part, (int) numStemParts))
+        return;
+    bool alreadySolo = ! isStemMuted (part);
+    for (int k = 0; k < numStemParts; ++k)
+        if (k != part && ! isStemMuted (k)) alreadySolo = false;
+    for (int k = 0; k < numStemParts; ++k)
+        setStemMute (k, alreadySolo ? false : k != part);
+}
+
+void Deck::resetStems()
+{
+    for (int k = 0; k < numStemParts; ++k)
+    {
+        stemLevel[(size_t) k] = 1.0f;
+        stemMute[(size_t) k] = false;
+    }
+}
+
+bool Deck::stemsTouched() const noexcept
+{
+    for (int k = 0; k < numStemParts; ++k)
+        if (stemMute[(size_t) k].load() || stemLevel[(size_t) k].load() < 1.0f)
+            return true;
+    return false;
 }
 
 void Deck::clearHotCue (int slot)
@@ -763,6 +820,11 @@ void Deck::prepare (double sr)
 {
     outRate = sr;
     rampStep = (float) (1.0 / (0.004 * sr));
+    stemStep = (float) (1.0 / (0.012 * sr));     // a stem fades in or out over ≈ 12 ms
+    {
+        const auto c = juce::IIRCoefficients::makeHighPass (sr, juce::jmin (5000.0, sr * 0.45), 0.7071);
+        hatCoef = { c.coefficients[0], c.coefficients[1], c.coefficients[2], c.coefficients[3], c.coefficients[4] };
+    }
 
     SincResampler::get();   // build filter tables here, never on the audio thread
 
@@ -983,6 +1045,79 @@ void Deck::render (float* left, float* right, int numSamples)
     const float* R = t.audio.getReadPointer (1);
     const auto& sinc = SincResampler::get();
 
+    // Stems: out = melody·track + Σ (part − melody)·stem (the melody is the track minus the other three),
+    // so with every part at full it is the track itself, bit for bit — and then nothing extra is computed.
+    const StemData* sd = audioStems;
+    std::array<float, 5> stemTarget {};
+    for (size_t k = 0; k < 4; ++k)
+        stemTarget[k] = stemMute[k].load() ? 0.0f : stemLevel[k].load();
+    stemTarget[4] = stemTarget[1];
+    const bool eqWasActive = stemEqActive;
+    stemEqActive = stemEqWanted && sd != nullptr;
+    if (stemEqActive)
+    {
+        const float low = stemEqGain (eqKnob[0]), high = stemEqGain (eqKnob[2]), mid = eqKnob[1];
+        const float voice = mid < 0.5f ? (2.0f * mid) * (2.0f * mid) : 1.0f;
+        const float melody = mid > 0.5f ? (2.0f * (1.0f - mid)) * (2.0f * (1.0f - mid)) : 1.0f;
+        // MID only trades voice and melody: the beat (LOW) and the hi-hats (HIGH) stay as they are.
+        stemTarget[0] *= voice;
+        stemTarget[1] *= low;
+        stemTarget[2] *= low;
+        stemTarget[3] *= melody;
+        stemTarget[4] *= high;
+    }
+    if (! eqWasActive && stemEqActive)
+        for (auto& st : hatState) st.fill (0.0);
+    bool stemsMoving = false;
+    for (size_t k = 0; k < stemTarget.size(); ++k)
+        if (stemTarget[k] != 1.0f || stemGain[k] != 1.0f) stemsMoving = true;
+    const bool useStems = sd != nullptr && stemsMoving;
+    const double k44 = sd != nullptr ? StemData::rate / t.sampleRate : 1.0;
+    auto fetch = [&] (double p, double r, float& oL, float& oR)
+    {
+        oL = sinc.interpolate (L, n, p, r);
+        oR = sinc.interpolate (R, n, p, r);
+        if (! useStems)
+            return;
+        for (size_t k = 0; k < stemGain.size(); ++k)
+            stemGain[k] += juce::jlimit (-stemStep, stemStep, stemTarget[k] - stemGain[k]);
+        const double q = p * k44;
+        stemBlend += juce::jlimit (-stemStep * 4.0f, stemStep * 4.0f, (sd->readyAt (q) ? 1.0f : 0.0f) - stemBlend);
+        if (stemBlend <= 0.0f)
+            return;
+        const float gm = stemGain[3];
+        float sL = gm * oL, sR = gm * oR;
+        const double rq = r * k44;
+        for (int s = 0; s < StemData::numStored; ++s)
+        {
+            const float d = stemGain[(size_t) s] - gm;
+            const bool hats = s == StemData::drums && stemEqActive;
+            if (d == 0.0f && ! hats) continue;
+            const float xL = sinc.interpolate (sd->read[(size_t) s][0], sd->n, q, rq);
+            const float xR = sinc.interpolate (sd->read[(size_t) s][1], sd->n, q, rq);
+            sL += d * xL;
+            sR += d * xR;
+            if (hats)
+            {
+                // Hi-hats: the drums' top (a running high-pass, so kick + hats always add up to the drums).
+                const float dh = stemGain[4] - stemGain[(size_t) s];
+                const float x[2] { xL, xR };
+                float h[2];
+                for (size_t c = 0; c < 2; ++c)
+                {
+                    auto& z = hatState[c];
+                    const double y = hatCoef[0] * x[c] + hatCoef[1] * z[0] + hatCoef[2] * z[1] - hatCoef[3] * z[2] - hatCoef[4] * z[3];
+                    z[1] = z[0]; z[0] = x[c]; z[3] = z[2]; z[2] = y;
+                    h[c] = (float) y;
+                }
+                sL += dh * h[0];
+                sR += dh * h[1];
+            }
+        }
+        oL += (sL - oL) * stemBlend;
+        oR += (sR - oR) * stemBlend;
+    };
+
     bool hitEnd = false;
 
     // Key lock / key shift path: read the track at its natural pitch, let the
@@ -1008,8 +1143,7 @@ void Deck::render (float* left, float* right, int numSamples)
         auto readSample = [&] (double p, float& outL, float& outR)
         {
             p = juce::jlimit (0.0, (double) n - 1.0, p);
-            outL = sinc.interpolate (L, n, p, srcToOut);
-            outR = sinc.interpolate (R, n, p, srcToOut);
+            fetch (p, srcToOut, outL, outR);
         };
 
         // Reads the stretcher's next input sample at p and advances p, following the loop:
@@ -1143,8 +1277,9 @@ void Deck::render (float* left, float* right, int numSamples)
         float outL = 0.0f, outR = 0.0f;
         if (advancing)
         {
-            outL = sinc.interpolate (L, n, pos, rate) * gain;
-            outR = sinc.interpolate (R, n, pos, rate) * gain;
+            fetch (pos, rate, outL, outR);
+            outL *= gain;
+            outR *= gain;
         }
 
         if (fadeLeft > 0)
@@ -1152,8 +1287,10 @@ void Deck::render (float* left, float* right, int numSamples)
             // Raised-cosine crossfade from the pre-jump position (at its own level).
             const float w = 0.5f - 0.5f * std::cos (juce::MathConstants<float>::pi * (float) fadeLeft / (float) jumpFadeLen);
             const double fr = advancing ? rate : t.sampleRate / outRate;
-            outL = outL * (1.0f - w) + sinc.interpolate (L, n, fadeFrom, fr) * w * fadeGain;
-            outR = outR * (1.0f - w) + sinc.interpolate (R, n, fadeFrom, fr) * w * fadeGain;
+            float fl, frr;
+            fetch (fadeFrom, fr, fl, frr);
+            outL = outL * (1.0f - w) + fl * w * fadeGain;
+            outR = outR * (1.0f - w) + frr * w * fadeGain;
             fadeFrom += fr;
             --fadeLeft;
         }

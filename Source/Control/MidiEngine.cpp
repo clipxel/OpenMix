@@ -217,6 +217,16 @@ void MidiEngine::load()
             b.deck = b.channel - 9;
             changed = true;
         }
+    // 2.7: the MCX8000's SAMPLER button opens the STEMS page (SHIFT + SAMPLER still opens the sampler).
+    // Once: the file then says version 2, so a later choice of the DJ stays.
+    if (json["version"].isVoid() || (int) json["version"] < 2)
+    {
+        for (auto& b : map)
+            if ((b.action == "pad_mode_sampler" || b.action == "pad_mode_velocity_sampler") && b.device.containsIgnoreCase ("MCX8000")
+                && ! b.shift && b.kind == MidiBinding::Kind::note && (b.number == 11 || b.number == 12) && b.channel >= 5 && b.channel <= 8)
+                b.action = "pad_mode_stems";
+        changed = changed || ! map.empty();
+    }
     if (changed) save();
 }
 
@@ -225,7 +235,7 @@ void MidiEngine::save() const
     juce::Array<juce::var> arr;
     for (auto& b : map) arr.add (b.toVar());
     auto root = std::make_unique<juce::DynamicObject>();
-    root->setProperty ("version", 1);
+    root->setProperty ("version", 2);
     root->setProperty ("bindings", arr);
     Library::dataFolder().getChildFile ("midi.json").replaceWithText (juce::JSON::toString (juce::var (root.release())));
 }
@@ -533,12 +543,14 @@ void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMess
 
     const int deck = info->perDeck ? deckFor (b) : -1;
     // A controller with its own deck buttons played a deck that is not on screen: show it. Only the deck's
-    // own controls (play, jog, pads…): a 4-channel mixer's knobs and faders belong to every deck, and what the
+    // own controls (play, jog, pads…): a 4-channel mixer's knobs and faders belong to every deck, the FX unit and
+    // TAP of each side work on whichever deck is shown there, and what the
     // controller reports when it connects never moves the screen.
     const auto sync = syncUntil.find (b.device);
     const bool reporting = sync != syncUntil.end() && juce::Time::getMillisecondCounterHiRes() < sync->second;
     if (info->perDeck && deck >= 0 && deck == b.deck && ! actions.getEngine().isVisible (deck)
         && sideCache[b.device] && info->category != "Mixer" && ! reporting
+        && info->category != "Efectos" && b.action != "tap_tempo_side"     // a side's FX unit / TAP: the deck shown there
         && (m.isController() || (m.isNoteOn() && m.getVelocity() > 0)))
         actions.getEngine().showDeck (deck);
 

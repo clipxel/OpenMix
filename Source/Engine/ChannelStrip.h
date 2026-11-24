@@ -19,6 +19,7 @@ public:
     std::atomic<float> trimDb { 0.0f };          // −12 … +12: the GAIN knob (screen and controller)
     std::atomic<float> autoTrimDb { 0.0f };      // auto-gain of the loaded track, added under the knob: knob at 0 = auto level
     std::atomic<float> eqLow { 0.5f }, eqMid { 0.5f }, eqHigh { 0.5f };  // 0 = kill, .5 = 0 dB, 1 = +6 dB
+    std::atomic<bool>  eqFlat { false };         // the deck's stems take the EQ knobs (stem EQ): no frequency EQ here
     std::atomic<float> filter { 0.0f };          // −1 LPF … 0 off … +1 HPF
     std::atomic<float> fader { 1.0f };           // 0 … 1
     std::atomic<int>   xfAssign { (int) XfAssign::thru };

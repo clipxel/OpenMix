@@ -219,6 +219,36 @@ void Actions::build()
          [=] (int d, float v) { if (pressed (v)) deck (d).setSlip (! deck (d).isSlip()); },
          [=] (int d) { return deck (d).isSlip(); });
 
+    // Stems (the separation starts if it had not; with no model the press does nothing).
+    for (auto [id, label, part] : { std::tuple { "stem_vocals", "Stems: voz (encender / apagar)", 0 },
+                                    std::tuple { "stem_drums", "Stems: batería (encender / apagar)", 1 },
+                                    std::tuple { "stem_bass", "Stems: bajo (encender / apagar)", 2 },
+                                    std::tuple { "stem_melody", "Stems: melodía (encender / apagar)", 3 } })
+    {
+        add ({ id, juce::String::fromUTF8 (label), "Stems", T::button },
+             [=] (int d, float v) { if (pressed (v) && engine.separateStems (d)) deck (d).toggleStemMute (part); },
+             [=] (int d) { return deck (d).getStems() != nullptr && ! deck (d).isStemMuted (part); });
+        add ({ juce::String (id) + "_level", juce::String::fromUTF8 (label).upToFirstOccurrenceOf (" (", false, false) + ": nivel", "Stems", T::absolute },
+             [=] (int d, float v) { engine.separateStems (d); deck (d).setStemLevel (part, v); });
+    }
+    add ({ "stem_acapella", "Stems: acapella (solo la voz)", "Stems", T::button },
+         [=] (int d, float v) { if (pressed (v) && engine.separateStems (d)) deck (d).soloStem (Deck::stemVocals); });
+    add ({ "stem_instrumental", "Stems: instrumental (todo menos la voz)", "Stems", T::button },
+         [=] (int d, float v)
+         {
+             if (! pressed (v) || ! engine.separateStems (d)) return;
+             auto& k = deck (d);
+             const bool on = k.isStemMuted (Deck::stemVocals) && ! k.isStemMuted (Deck::stemDrums);
+             k.resetStems();
+             if (! on) k.setStemMute (Deck::stemVocals, true);
+         },
+         [=] (int d) { return deck (d).isStemMuted (Deck::stemVocals); });
+    add ({ "eq_stems", "Ecualizador de stems (graves: bombo y bajo · medios: voz ↔ melodía · agudos: hi-hats)"_u, "Stems", T::button, false },
+         [=] (int, float v) { if (pressed (v)) engine.setStemEq (! engine.stemEq.load()); },
+         [=] (int) { return engine.stemEq.load(); });
+    add ({ "stem_reset", "Stems: todo encendido", "Stems", T::button },
+         [=] (int d, float v) { if (pressed (v)) deck (d).resetStems(); });
+
     add ({ "key_lock", "Key lock (master tempo)", "Tonalidad", T::button },
          [=] (int d, float v) { if (pressed (v)) deck (d).setKeyLock (! deck (d).isKeyLock()); },
          [=] (int d) { return deck (d).isKeyLock(); });
@@ -430,7 +460,8 @@ void Actions::build()
                                           std::tuple { "pad_mode_key", "Modo de pads: TONO (TONE PLAY)", -1, "TONO: los pads suben y bajan la tonalidad" },
                                           std::tuple { "pad_mode_fx", "Modo de pads: FX", -1, "FX: pads 1-3 = efectos del deck · 4 reverse · 5 censor · 6 brake · 7 backspin" },
                                           std::tuple { "pad_mode_sampler", "Modo de pads: SAMPLER", 8, "" },
-                                          std::tuple { "pad_mode_velocity_sampler", "Modo de pads: VELOCITY SAMPLER", 9, "" } })
+                                          std::tuple { "pad_mode_velocity_sampler", "Modo de pads: VELOCITY SAMPLER", 9, "" },
+                                          std::tuple { "pad_mode_stems", "Modo de pads: STEMS", 10, "" } })
         add ({ id, juce::String::fromUTF8 (label), "Pads", T::button },
              [this, page, note = juce::String::fromUTF8 (note)] (int d, float v) { if (v > 0.5f && hooks.padMode) hooks.padMode (d, page, note); },
              [this, page] (int d) { return page >= 0 && hooks.isPadPage && hooks.isPadPage (d, page); });
@@ -480,24 +511,26 @@ void Actions::build()
          [this] (int d, float v) { if (v > 0.5f) engine.channel (d).pfl = ! engine.channel (d).pfl.load(); },
          [this] (int d) { return engine.channel (d).pfl.load(); });
 
-    // Deck effects (controllers with an FX unit on each side): 3 per deck.
+    // Deck effects (controllers with an FX unit on each side): 3 per deck. A unit bound to deck 1 or 2 is that side's
+    // unit and works on the deck shown there (1 / 3, 2 / 4), as the screen's effect panels do.
+    auto fxDeck = [this] (int d) { return d < 2 ? engine.visibleDeck (d) : d; };
     for (int u = 0; u < AudioEngine::numDeckFx; ++u)
     {
         const auto n = juce::String (u + 1);
         add ({ "effect_active_" + n, "FX " + n + " del deck on/off", "Efectos", T::button },
-             [this, u] (int d, float v) { if (v > 0.5f) engine.deckFx (d, u).enabled = ! engine.deckFx (d, u).enabled.load(); },
-             [this, u] (int d) { return engine.deckFx (d, u).enabled.load(); });
+             [this, u, fxDeck] (int d, float v) { if (v > 0.5f) engine.deckFx (fxDeck (d), u).enabled = ! engine.deckFx (fxDeck (d), u).enabled.load(); },
+             [this, u, fxDeck] (int d) { return engine.deckFx (fxDeck (d), u).enabled.load(); });
         add ({ "effect_wet_" + n, "FX " + n + " del deck: nivel", "Efectos", T::absolute },
-             [this, u] (int d, float v) { engine.deckFx (d, u).wet = v; }, {},
-             [this, u] (int d) { return engine.deckFx (d, u).wet.load(); });
+             [this, u, fxDeck] (int d, float v) { engine.deckFx (fxDeck (d), u).wet = v; }, {},
+             [this, u, fxDeck] (int d) { return engine.deckFx (fxDeck (d), u).wet.load(); });
         add ({ "effect_param_" + n, "FX " + n + " del deck: beats", "Efectos", T::absolute },
-             [this, u] (int d, float v) { engine.deckFx (d, u).param = v; }, {},
-             [this, u] (int d) { return engine.deckFx (d, u).param.load(); });
+             [this, u, fxDeck] (int d, float v) { engine.deckFx (fxDeck (d), u).param = v; }, {},
+             [this, u, fxDeck] (int d) { return engine.deckFx (fxDeck (d), u).param.load(); });
         add ({ "effect_select_" + n, "FX " + n + " del deck: siguiente efecto", "Efectos", T::button },
-             [this, u] (int d, float v)
+             [this, u, fxDeck] (int d, float v)
              {
                  if (v < 0.5f) return;
-                 auto& f = engine.deckFx (d, u);
+                 auto& f = engine.deckFx (fxDeck (d), u);
                  f.enabled = false;
                  const auto next = (BeatFx::Type) ((f.type.load() + 1) % (int) BeatFx::Type::numTypes);
                  f.type = (int) next;
@@ -778,6 +811,7 @@ void Actions::build()
          [=] (int d, float v)
          {
              if (v == 0.0f) return;
+             d = d < 2 ? engine.visibleDeck (d) : d;          // the side's unit: the deck shown there
              // The effects that are on; with none on, the ones timed in beats (REVERB's amount and PITCH stay put).
              bool anyOn = false;
              for (int u = 0; u < AudioEngine::numDeckFx; ++u) anyOn = anyOn || engine.deckFx (d, u).enabled.load();
