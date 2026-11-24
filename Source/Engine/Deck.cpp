@@ -71,7 +71,8 @@ void Deck::setTrack (LoadedTrackPtr t)
     cuePoint = track ? juce::jlimit (0.0, track->lengthSeconds(), track->meta.cuePoint) : 0.0;
     hotCues = track ? track->meta.hotCues : std::array<double, 8> { -1, -1, -1, -1, -1, -1, -1, -1 };
     savedLoops = track ? track->meta.savedLoops : std::array<std::pair<double, double>, 8> {};
-    reverse = censor = scratching = rollActive = brake = false;
+    reverse = censor = scratching = rollActive = brake = slicing = phraseLoop = false;
+    phraseStart = phraseEnd = -1.0;
 
     // Auto cue (club player): with no stored cue, park on the first audible sound (≈ −36 dB of the peak).
     if (track && autoCue && cuePoint <= 0.0 && ! track->wave.isEmpty())
@@ -169,6 +170,14 @@ double Deck::getPosition() const noexcept
         const auto elapsed = juce::jlimit (0.0, 0.08, (juce::Time::getMillisecondCounterHiRes() - publishedAtMs.load()) * 0.001);
         p += elapsed * publishedRate.load();
     }
+    // In a loop shorter than the smoothing (1/32 beat ≈ 15 ms) or than the delay to the speakers, the
+    // estimate falls outside it: fold it back in, so the waveform stays on the loop.
+    if (loopActive.load())
+    {
+        const double s = loopStart.load(), e = loopEnd.load(), len = e - s;
+        if (len > 1.0e-4 && ((p > e && p < e + 0.25) || (p < s && p > s - 0.25)))
+            p = s + std::fmod (std::fmod (p - s, len) + len, len);
+    }
     return juce::jlimit (0.0, getLength(), p);
 }
 
@@ -218,6 +227,44 @@ void Deck::setSync (bool on)
         syncStamp = (juce::int64) juce::Time::getHighResolutionTicks();
         syncEngaged = true;
     }
+}
+
+void Deck::syncPress()
+{
+    syncPressedAt = juce::Time::getMillisecondCounterHiRes();
+    syncWasOnAtPress = syncOn.load();
+    if (syncWasOnAtPress)
+    {
+        syncStamp = (juce::int64) juce::Time::getHighResolutionTicks();
+        syncEngaged = true;                     // the engine jumps the phase into place on its next block
+    }
+    else
+        setSync (true);
+}
+
+void Deck::pitchFader (double p)
+{
+    const double before = lastFaderPitch;
+    lastFaderPitch = p;
+    if (syncOn.load())
+    {
+        // Caught: the fader reached the tempo sync set (within 5 % of the range: ½ % pitch at ±10 %),
+        // or went across it between two readings (a fast move).
+        const double cur = getPitch();
+        const double near = juce::jmax (0.001, getPitchRange() * 0.05);
+        const bool crossed = std::isfinite (before) && (before - cur) * (p - cur) <= 0.0 && std::abs (p - before) < getPitchRange() * 0.5
+                           && std::abs (p - before) > getPitchRange() * 0.002;      // a real move, not fader noise
+        if (std::abs (p - cur) > near && ! crossed) return;
+        setSync (false);
+    }
+    setPitch (p);
+}
+
+void Deck::syncRelease()
+{
+    if (syncWasOnAtPress && juce::Time::getMillisecondCounterHiRes() - syncPressedAt >= 600.0)
+        setSync (false);
+    syncWasOnAtPress = false;
 }
 
 double Deck::snap (double seconds) const
@@ -334,7 +381,7 @@ void Deck::loopOut()
     }
 }
 
-void Deck::exitLoop() { loopActive = false; }
+void Deck::exitLoop() { loopActive = false; phraseLoop = false; phraseStart = phraseEnd = -1.0; }
 
 void Deck::reloop()
 {
@@ -414,6 +461,18 @@ void Deck::tapTempo()
     if (! taps.empty() && now - taps.back() > 2.0) taps.clear();
     taps.push_back (now);
     if (taps.size() > 8) taps.erase (taps.begin());
+    if (taps.size() == 1)
+    {
+        // One tap: the grid moves so a bar starts right here (same BPM). More taps in time: the BPM.
+        auto g = getGrid();
+        if (track && g.isValid())
+        {
+            const double bar = 4.0 * g.beatLengthSeconds();
+            const double here = getPosition();
+            g.firstBeatSeconds = here - std::floor (here / bar) * bar;
+            setGrid (g);
+        }
+    }
     if (taps.size() >= 4)
         setBpmKeepingPlayhead (std::round (60.0 * (double) (taps.size() - 1) / (taps.back() - taps.front()) * 100.0) / 100.0);
 }
@@ -512,6 +571,77 @@ void Deck::loopRoll (double beats, bool pressed)
     }
 }
 
+std::pair<double, double> Deck::slicerPhrase() const
+{
+    if (! track || ! track->grid().isValid()) return { -1.0, -1.0 };
+    if (phraseLoop.load() && phraseStart.load() >= 0.0) return { phraseStart.load(), phraseEnd.load() };
+    const auto g = track->grid();
+    const double where = slipDisplaced.load() ? publishedSlipPos.load() : getPosition();
+    const double first = std::floor (g.beatAt (where) / 8.0 + 1.0e-7) * 8.0;
+    return { g.timeOfBeat (first), g.timeOfBeat (first + 8.0) };
+}
+
+int Deck::slicePlaying() const
+{
+    const auto [a, b] = slicerPhrase();
+    if (a < 0.0 || b <= a) return -1;
+    const double p = getPosition();
+    if (p < a || p >= b) return -1;
+    return juce::jlimit (0, 7, (int) ((p - a) / (b - a) * 8.0));
+}
+
+void Deck::slice (int n, bool pressed)
+{
+    if (! track || ! track->grid().isValid() || ! juce::isPositiveAndBelow (n, 8)) return;
+    if (pressed)
+    {
+        const auto g = track->grid();
+        rollBeats = -1.0 - n;                                    // a slice, not a roll size
+        rollActive = true;
+        slicing = true;
+        requestJump (Jump::slice, g.beatAt (slicerPhrase().first) + n);
+    }
+    else if (slicing.load() && std::abs (rollBeats - (-1.0 - n)) < 1e-9)
+    {
+        slicing = false;
+        rollActive = false;
+        rollBeats = 0.0;
+        if (phraseLoop.load() && phraseStart.load() >= 0.0)
+        {
+            loopStart = phraseStart.load();                      // back to the phrase loop
+            loopEnd = phraseEnd.load();
+        }
+        else
+            loopActive = false;
+    }
+}
+
+void Deck::setPhraseLoop (bool on)
+{
+    if (! track || ! track->grid().isValid()) return;
+    if (on) requestJump (Jump::phraseLoop, 8.0);
+    else if (phraseLoop.load())
+    {
+        phraseLoop = false;
+        phraseStart = phraseEnd = -1.0;
+        loopActive = false;
+    }
+}
+
+void Deck::cueLoop (int slot)
+{
+    if (! track || ! track->grid().isValid() || ! juce::isPositiveAndBelow (slot, 8)) return;
+    const double c = hotCues[(size_t) slot];
+    if (c < 0.0)
+    {
+        hotCue (slot);                                           // set here, loop from here
+        setAutoLoop (autoLoopBeats);
+        return;
+    }
+    if (loopActive.load() && std::abs (loopStart.load() - c) < 0.01) { exitLoop(); return; }
+    requestJump (Jump::cueLoop, c);
+}
+
 void Deck::jogBend (double amount)      { bend = juce::jlimit (-1.0, 1.0, amount) * 0.12; }
 void Deck::jogScrub (double seconds)    { if (! isPlaying()) seek (getPosition() + seconds); }
 
@@ -567,6 +697,42 @@ void Deck::applyJump (const LoadedTrack& t)
             loopStart = ls;
             loopEnd = juce::jmin ((double) n / t.sampleRate, ls + v * g.beatLengthSeconds());
             loopActive = true;
+            break;
+        }
+
+        case Jump::slice:
+        {
+            if (! g.isValid()) break;
+            // The ghost keeps the track's place from what is being heard; the slice plays in a one-beat loop.
+            if (! wasDisplaced) { slipPos = heardPos; wasDisplaced = true; slipWillReturn = true; }
+            const double ls = juce::jmax (0.0, g.timeOfBeat (v));
+            loopStart = ls;
+            loopEnd = juce::jmin ((double) n / t.sampleRate, ls + g.beatLengthSeconds());
+            loopActive = true;
+            target = ls;
+            break;
+        }
+
+        case Jump::phraseLoop:
+        {
+            if (! g.isValid()) break;
+            const double first = std::floor (g.beatAt (cur) / v + 1.0e-7) * v;
+            phraseStart = juce::jmax (0.0, g.timeOfBeat (first));
+            phraseEnd = juce::jmin ((double) n / t.sampleRate, g.timeOfBeat (first + v));
+            loopStart = phraseStart.load();
+            loopEnd = phraseEnd.load();
+            loopActive = true;
+            phraseLoop = true;
+            break;
+        }
+
+        case Jump::cueLoop:
+        {
+            if (! g.isValid()) break;
+            loopStart = v;
+            loopEnd = juce::jmin ((double) n / t.sampleRate, v + autoLoopBeats * g.beatLengthSeconds());
+            loopActive = true;
+            target = v;
             break;
         }
 

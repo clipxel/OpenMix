@@ -19,7 +19,8 @@
    "encoding": "button",
    "action": "play_pause",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -40,7 +41,8 @@
    "encoding": "button",
    "action": "cue_button",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -61,7 +63,8 @@
    "encoding": "button",
    "action": "sync",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -71,7 +74,8 @@
    "encoding": "button",
    "action": "master",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -81,7 +85,9 @@
    "encoding": "button",
    "action": "jog_touch",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "led": false
   },
   {
    "device": "*",
@@ -91,7 +97,8 @@
    "encoding": "button",
    "action": "vinyl_mode",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -101,7 +108,8 @@
    "encoding": "button",
    "action": "deck_select_1",
    "deck": -1,
-   "shift": false
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -111,7 +119,8 @@
    "encoding": "button",
    "action": "pitch_bend_plus",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -121,7 +130,8 @@
    "encoding": "button",
    "action": "pitch_bend_minus",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -153,7 +163,8 @@
    "encoding": "button",
    "action": "key_lock",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -163,7 +174,8 @@
    "encoding": "button",
    "action": "key_match",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -173,7 +185,8 @@
    "encoding": "button",
    "action": "slip_mode",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -183,7 +196,8 @@
    "encoding": "button",
    "action": "censor",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -204,7 +218,8 @@
    "encoding": "button",
    "action": "pfl",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -318,7 +333,8 @@
    "encoding": "button",
    "action": "pad_mode_hot_cue",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -326,9 +342,21 @@
    "kind": "note",
    "number": 3,
    "encoding": "button",
-   "action": "pad_mode_loop",
+   "action": "pad_mode_cue_loop",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
+  },
+  {
+   "device": "*",
+   "channel": 5,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "pad_mode_cue_loop",
+   "deck": 0,
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -338,7 +366,8 @@
    "encoding": "button",
    "action": "pad_mode_roll",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -348,7 +377,8 @@
    "encoding": "button",
    "action": "pad_mode_saved_loop",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -356,9 +386,10 @@
    "kind": "note",
    "number": 9,
    "encoding": "button",
-   "action": "pad_mode_saved_loop",
+   "action": "pad_mode_slicer",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -366,9 +397,10 @@
    "kind": "note",
    "number": 10,
    "encoding": "button",
-   "action": "pad_mode_jump",
+   "action": "pad_mode_slicer_loop",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -378,7 +410,8 @@
    "encoding": "button",
    "action": "pad_mode_sampler",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -386,9 +419,10 @@
    "kind": "note",
    "number": 12,
    "encoding": "button",
-   "action": "pad_mode_sampler",
+   "action": "pad_mode_velocity_sampler",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -396,9 +430,10 @@
    "kind": "note",
    "number": 15,
    "encoding": "button",
-   "action": "pad_mode_key",
+   "action": "pad_mode_velocity_sampler",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -408,7 +443,9 @@
    "encoding": "button",
    "action": "pad_1",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -416,7 +453,7 @@
    "kind": "note",
    "number": 28,
    "encoding": "button",
-   "action": "delete_hot_cue_1",
+   "action": "pad_shift_1",
    "deck": 0,
    "shift": false,
    "led": false
@@ -429,7 +466,9 @@
    "encoding": "button",
    "action": "pad_2",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -437,7 +476,7 @@
    "kind": "note",
    "number": 29,
    "encoding": "button",
-   "action": "delete_hot_cue_2",
+   "action": "pad_shift_2",
    "deck": 0,
    "shift": false,
    "led": false
@@ -450,7 +489,9 @@
    "encoding": "button",
    "action": "pad_3",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -458,7 +499,7 @@
    "kind": "note",
    "number": 30,
    "encoding": "button",
-   "action": "delete_hot_cue_3",
+   "action": "pad_shift_3",
    "deck": 0,
    "shift": false,
    "led": false
@@ -471,7 +512,9 @@
    "encoding": "button",
    "action": "pad_4",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -479,7 +522,7 @@
    "kind": "note",
    "number": 31,
    "encoding": "button",
-   "action": "delete_hot_cue_4",
+   "action": "pad_shift_4",
    "deck": 0,
    "shift": false,
    "led": false
@@ -492,7 +535,9 @@
    "encoding": "button",
    "action": "pad_5",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -500,7 +545,7 @@
    "kind": "note",
    "number": 32,
    "encoding": "button",
-   "action": "delete_hot_cue_5",
+   "action": "pad_shift_5",
    "deck": 0,
    "shift": false,
    "led": false
@@ -513,7 +558,9 @@
    "encoding": "button",
    "action": "pad_6",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -521,7 +568,7 @@
    "kind": "note",
    "number": 33,
    "encoding": "button",
-   "action": "delete_hot_cue_6",
+   "action": "pad_shift_6",
    "deck": 0,
    "shift": false,
    "led": false
@@ -534,7 +581,9 @@
    "encoding": "button",
    "action": "pad_7",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -542,7 +591,7 @@
    "kind": "note",
    "number": 34,
    "encoding": "button",
-   "action": "delete_hot_cue_7",
+   "action": "pad_shift_7",
    "deck": 0,
    "shift": false,
    "led": false
@@ -555,7 +604,9 @@
    "encoding": "button",
    "action": "pad_8",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -563,7 +614,7 @@
    "kind": "note",
    "number": 35,
    "encoding": "button",
-   "action": "delete_hot_cue_8",
+   "action": "pad_shift_8",
    "deck": 0,
    "shift": false,
    "led": false
@@ -576,7 +627,8 @@
    "encoding": "button",
    "action": "loop",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -586,7 +638,8 @@
    "encoding": "button",
    "action": "reloop",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -596,7 +649,8 @@
    "encoding": "button",
    "action": "loop_half",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -606,7 +660,8 @@
    "encoding": "button",
    "action": "loop_in",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -616,7 +671,8 @@
    "encoding": "button",
    "action": "loop_double",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -626,7 +682,8 @@
    "encoding": "button",
    "action": "loop_out",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -636,7 +693,8 @@
    "encoding": "button",
    "action": "pad_jump_1",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -646,7 +704,8 @@
    "encoding": "button",
    "action": "pad_jump_5",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -656,7 +715,8 @@
    "encoding": "button",
    "action": "play_pause",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -677,7 +737,8 @@
    "encoding": "button",
    "action": "cue_button",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -698,7 +759,8 @@
    "encoding": "button",
    "action": "sync",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -708,7 +770,8 @@
    "encoding": "button",
    "action": "master",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -718,7 +781,9 @@
    "encoding": "button",
    "action": "jog_touch",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "led": false
   },
   {
    "device": "*",
@@ -728,7 +793,8 @@
    "encoding": "button",
    "action": "vinyl_mode",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -738,7 +804,8 @@
    "encoding": "button",
    "action": "deck_select_2",
    "deck": -1,
-   "shift": false
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -748,7 +815,8 @@
    "encoding": "button",
    "action": "pitch_bend_plus",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -758,7 +826,8 @@
    "encoding": "button",
    "action": "pitch_bend_minus",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -790,7 +859,8 @@
    "encoding": "button",
    "action": "key_lock",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -800,7 +870,8 @@
    "encoding": "button",
    "action": "key_match",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -810,7 +881,8 @@
    "encoding": "button",
    "action": "slip_mode",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -820,7 +892,8 @@
    "encoding": "button",
    "action": "censor",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -841,7 +914,8 @@
    "encoding": "button",
    "action": "pfl",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -955,7 +1029,8 @@
    "encoding": "button",
    "action": "pad_mode_hot_cue",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -963,9 +1038,21 @@
    "kind": "note",
    "number": 3,
    "encoding": "button",
-   "action": "pad_mode_loop",
+   "action": "pad_mode_cue_loop",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
+  },
+  {
+   "device": "*",
+   "channel": 6,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "pad_mode_cue_loop",
+   "deck": 1,
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -975,7 +1062,8 @@
    "encoding": "button",
    "action": "pad_mode_roll",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -985,7 +1073,8 @@
    "encoding": "button",
    "action": "pad_mode_saved_loop",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -993,9 +1082,10 @@
    "kind": "note",
    "number": 9,
    "encoding": "button",
-   "action": "pad_mode_saved_loop",
+   "action": "pad_mode_slicer",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1003,9 +1093,10 @@
    "kind": "note",
    "number": 10,
    "encoding": "button",
-   "action": "pad_mode_jump",
+   "action": "pad_mode_slicer_loop",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1015,7 +1106,8 @@
    "encoding": "button",
    "action": "pad_mode_sampler",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1023,9 +1115,10 @@
    "kind": "note",
    "number": 12,
    "encoding": "button",
-   "action": "pad_mode_sampler",
+   "action": "pad_mode_velocity_sampler",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1033,9 +1126,10 @@
    "kind": "note",
    "number": 15,
    "encoding": "button",
-   "action": "pad_mode_key",
+   "action": "pad_mode_velocity_sampler",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1045,7 +1139,9 @@
    "encoding": "button",
    "action": "pad_1",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1053,7 +1149,7 @@
    "kind": "note",
    "number": 28,
    "encoding": "button",
-   "action": "delete_hot_cue_1",
+   "action": "pad_shift_1",
    "deck": 1,
    "shift": false,
    "led": false
@@ -1066,7 +1162,9 @@
    "encoding": "button",
    "action": "pad_2",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1074,7 +1172,7 @@
    "kind": "note",
    "number": 29,
    "encoding": "button",
-   "action": "delete_hot_cue_2",
+   "action": "pad_shift_2",
    "deck": 1,
    "shift": false,
    "led": false
@@ -1087,7 +1185,9 @@
    "encoding": "button",
    "action": "pad_3",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1095,7 +1195,7 @@
    "kind": "note",
    "number": 30,
    "encoding": "button",
-   "action": "delete_hot_cue_3",
+   "action": "pad_shift_3",
    "deck": 1,
    "shift": false,
    "led": false
@@ -1108,7 +1208,9 @@
    "encoding": "button",
    "action": "pad_4",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1116,7 +1218,7 @@
    "kind": "note",
    "number": 31,
    "encoding": "button",
-   "action": "delete_hot_cue_4",
+   "action": "pad_shift_4",
    "deck": 1,
    "shift": false,
    "led": false
@@ -1129,7 +1231,9 @@
    "encoding": "button",
    "action": "pad_5",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1137,7 +1241,7 @@
    "kind": "note",
    "number": 32,
    "encoding": "button",
-   "action": "delete_hot_cue_5",
+   "action": "pad_shift_5",
    "deck": 1,
    "shift": false,
    "led": false
@@ -1150,7 +1254,9 @@
    "encoding": "button",
    "action": "pad_6",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1158,7 +1264,7 @@
    "kind": "note",
    "number": 33,
    "encoding": "button",
-   "action": "delete_hot_cue_6",
+   "action": "pad_shift_6",
    "deck": 1,
    "shift": false,
    "led": false
@@ -1171,7 +1277,9 @@
    "encoding": "button",
    "action": "pad_7",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1179,7 +1287,7 @@
    "kind": "note",
    "number": 34,
    "encoding": "button",
-   "action": "delete_hot_cue_7",
+   "action": "pad_shift_7",
    "deck": 1,
    "shift": false,
    "led": false
@@ -1192,7 +1300,9 @@
    "encoding": "button",
    "action": "pad_8",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1200,7 +1310,7 @@
    "kind": "note",
    "number": 35,
    "encoding": "button",
-   "action": "delete_hot_cue_8",
+   "action": "pad_shift_8",
    "deck": 1,
    "shift": false,
    "led": false
@@ -1213,7 +1323,8 @@
    "encoding": "button",
    "action": "loop",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1223,7 +1334,8 @@
    "encoding": "button",
    "action": "reloop",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1233,7 +1345,8 @@
    "encoding": "button",
    "action": "loop_half",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1243,7 +1356,8 @@
    "encoding": "button",
    "action": "loop_in",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1253,7 +1367,8 @@
    "encoding": "button",
    "action": "loop_double",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1263,7 +1378,8 @@
    "encoding": "button",
    "action": "loop_out",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1273,7 +1389,8 @@
    "encoding": "button",
    "action": "pad_jump_1",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1283,7 +1400,8 @@
    "encoding": "button",
    "action": "pad_jump_5",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1293,7 +1411,8 @@
    "encoding": "button",
    "action": "play_pause",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1314,7 +1433,8 @@
    "encoding": "button",
    "action": "cue_button",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1335,7 +1455,8 @@
    "encoding": "button",
    "action": "sync",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1345,7 +1466,8 @@
    "encoding": "button",
    "action": "master",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1355,7 +1477,9 @@
    "encoding": "button",
    "action": "jog_touch",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "led": false
   },
   {
    "device": "*",
@@ -1365,7 +1489,8 @@
    "encoding": "button",
    "action": "vinyl_mode",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1375,7 +1500,8 @@
    "encoding": "button",
    "action": "deck_select_3",
    "deck": -1,
-   "shift": false
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -1385,7 +1511,8 @@
    "encoding": "button",
    "action": "pitch_bend_plus",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1395,7 +1522,8 @@
    "encoding": "button",
    "action": "pitch_bend_minus",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1427,7 +1555,8 @@
    "encoding": "button",
    "action": "key_lock",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1437,7 +1566,8 @@
    "encoding": "button",
    "action": "key_match",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1447,7 +1577,8 @@
    "encoding": "button",
    "action": "slip_mode",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1457,7 +1588,8 @@
    "encoding": "button",
    "action": "censor",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1478,7 +1610,8 @@
    "encoding": "button",
    "action": "pfl",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1592,7 +1725,8 @@
    "encoding": "button",
    "action": "pad_mode_hot_cue",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1600,9 +1734,21 @@
    "kind": "note",
    "number": 3,
    "encoding": "button",
-   "action": "pad_mode_loop",
+   "action": "pad_mode_cue_loop",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "pad_mode_cue_loop",
+   "deck": 2,
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -1612,7 +1758,8 @@
    "encoding": "button",
    "action": "pad_mode_roll",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1622,7 +1769,8 @@
    "encoding": "button",
    "action": "pad_mode_saved_loop",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1630,9 +1778,10 @@
    "kind": "note",
    "number": 9,
    "encoding": "button",
-   "action": "pad_mode_saved_loop",
+   "action": "pad_mode_slicer",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1640,9 +1789,10 @@
    "kind": "note",
    "number": 10,
    "encoding": "button",
-   "action": "pad_mode_jump",
+   "action": "pad_mode_slicer_loop",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1652,7 +1802,8 @@
    "encoding": "button",
    "action": "pad_mode_sampler",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1660,9 +1811,10 @@
    "kind": "note",
    "number": 12,
    "encoding": "button",
-   "action": "pad_mode_sampler",
+   "action": "pad_mode_velocity_sampler",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1670,9 +1822,10 @@
    "kind": "note",
    "number": 15,
    "encoding": "button",
-   "action": "pad_mode_key",
+   "action": "pad_mode_velocity_sampler",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1682,7 +1835,9 @@
    "encoding": "button",
    "action": "pad_1",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1690,7 +1845,7 @@
    "kind": "note",
    "number": 28,
    "encoding": "button",
-   "action": "delete_hot_cue_1",
+   "action": "pad_shift_1",
    "deck": 2,
    "shift": false,
    "led": false
@@ -1703,7 +1858,9 @@
    "encoding": "button",
    "action": "pad_2",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1711,7 +1868,7 @@
    "kind": "note",
    "number": 29,
    "encoding": "button",
-   "action": "delete_hot_cue_2",
+   "action": "pad_shift_2",
    "deck": 2,
    "shift": false,
    "led": false
@@ -1724,7 +1881,9 @@
    "encoding": "button",
    "action": "pad_3",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1732,7 +1891,7 @@
    "kind": "note",
    "number": 30,
    "encoding": "button",
-   "action": "delete_hot_cue_3",
+   "action": "pad_shift_3",
    "deck": 2,
    "shift": false,
    "led": false
@@ -1745,7 +1904,9 @@
    "encoding": "button",
    "action": "pad_4",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1753,7 +1914,7 @@
    "kind": "note",
    "number": 31,
    "encoding": "button",
-   "action": "delete_hot_cue_4",
+   "action": "pad_shift_4",
    "deck": 2,
    "shift": false,
    "led": false
@@ -1766,7 +1927,9 @@
    "encoding": "button",
    "action": "pad_5",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1774,7 +1937,7 @@
    "kind": "note",
    "number": 32,
    "encoding": "button",
-   "action": "delete_hot_cue_5",
+   "action": "pad_shift_5",
    "deck": 2,
    "shift": false,
    "led": false
@@ -1787,7 +1950,9 @@
    "encoding": "button",
    "action": "pad_6",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1795,7 +1960,7 @@
    "kind": "note",
    "number": 33,
    "encoding": "button",
-   "action": "delete_hot_cue_6",
+   "action": "pad_shift_6",
    "deck": 2,
    "shift": false,
    "led": false
@@ -1808,7 +1973,9 @@
    "encoding": "button",
    "action": "pad_7",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1816,7 +1983,7 @@
    "kind": "note",
    "number": 34,
    "encoding": "button",
-   "action": "delete_hot_cue_7",
+   "action": "pad_shift_7",
    "deck": 2,
    "shift": false,
    "led": false
@@ -1829,7 +1996,9 @@
    "encoding": "button",
    "action": "pad_8",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -1837,7 +2006,7 @@
    "kind": "note",
    "number": 35,
    "encoding": "button",
-   "action": "delete_hot_cue_8",
+   "action": "pad_shift_8",
    "deck": 2,
    "shift": false,
    "led": false
@@ -1850,7 +2019,8 @@
    "encoding": "button",
    "action": "loop",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1860,7 +2030,8 @@
    "encoding": "button",
    "action": "reloop",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1870,7 +2041,8 @@
    "encoding": "button",
    "action": "loop_half",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1880,7 +2052,8 @@
    "encoding": "button",
    "action": "loop_in",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1890,7 +2063,8 @@
    "encoding": "button",
    "action": "loop_double",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1900,7 +2074,8 @@
    "encoding": "button",
    "action": "loop_out",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1910,7 +2085,8 @@
    "encoding": "button",
    "action": "pad_jump_1",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1920,7 +2096,8 @@
    "encoding": "button",
    "action": "pad_jump_5",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1930,7 +2107,8 @@
    "encoding": "button",
    "action": "play_pause",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1951,7 +2129,8 @@
    "encoding": "button",
    "action": "cue_button",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1972,7 +2151,8 @@
    "encoding": "button",
    "action": "sync",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1982,7 +2162,8 @@
    "encoding": "button",
    "action": "master",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -1992,7 +2173,9 @@
    "encoding": "button",
    "action": "jog_touch",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "led": false
   },
   {
    "device": "*",
@@ -2002,7 +2185,8 @@
    "encoding": "button",
    "action": "vinyl_mode",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2012,7 +2196,8 @@
    "encoding": "button",
    "action": "deck_select_4",
    "deck": -1,
-   "shift": false
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -2022,7 +2207,8 @@
    "encoding": "button",
    "action": "pitch_bend_plus",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2032,7 +2218,8 @@
    "encoding": "button",
    "action": "pitch_bend_minus",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2064,7 +2251,8 @@
    "encoding": "button",
    "action": "key_lock",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2074,7 +2262,8 @@
    "encoding": "button",
    "action": "key_match",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2084,7 +2273,8 @@
    "encoding": "button",
    "action": "slip_mode",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2094,7 +2284,8 @@
    "encoding": "button",
    "action": "censor",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2115,7 +2306,8 @@
    "encoding": "button",
    "action": "pfl",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2229,7 +2421,8 @@
    "encoding": "button",
    "action": "pad_mode_hot_cue",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2237,9 +2430,21 @@
    "kind": "note",
    "number": 3,
    "encoding": "button",
-   "action": "pad_mode_loop",
+   "action": "pad_mode_cue_loop",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
+  },
+  {
+   "device": "*",
+   "channel": 8,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "pad_mode_cue_loop",
+   "deck": 3,
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -2249,7 +2454,8 @@
    "encoding": "button",
    "action": "pad_mode_roll",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2259,7 +2465,8 @@
    "encoding": "button",
    "action": "pad_mode_saved_loop",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2267,9 +2474,10 @@
    "kind": "note",
    "number": 9,
    "encoding": "button",
-   "action": "pad_mode_saved_loop",
+   "action": "pad_mode_slicer",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2277,9 +2485,10 @@
    "kind": "note",
    "number": 10,
    "encoding": "button",
-   "action": "pad_mode_jump",
+   "action": "pad_mode_slicer_loop",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2289,7 +2498,8 @@
    "encoding": "button",
    "action": "pad_mode_sampler",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2297,9 +2507,10 @@
    "kind": "note",
    "number": 12,
    "encoding": "button",
-   "action": "pad_mode_sampler",
+   "action": "pad_mode_velocity_sampler",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2307,9 +2518,10 @@
    "kind": "note",
    "number": 15,
    "encoding": "button",
-   "action": "pad_mode_key",
+   "action": "pad_mode_velocity_sampler",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2319,7 +2531,9 @@
    "encoding": "button",
    "action": "pad_1",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -2327,7 +2541,7 @@
    "kind": "note",
    "number": 28,
    "encoding": "button",
-   "action": "delete_hot_cue_1",
+   "action": "pad_shift_1",
    "deck": 3,
    "shift": false,
    "led": false
@@ -2340,7 +2554,9 @@
    "encoding": "button",
    "action": "pad_2",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -2348,7 +2564,7 @@
    "kind": "note",
    "number": 29,
    "encoding": "button",
-   "action": "delete_hot_cue_2",
+   "action": "pad_shift_2",
    "deck": 3,
    "shift": false,
    "led": false
@@ -2361,7 +2577,9 @@
    "encoding": "button",
    "action": "pad_3",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -2369,7 +2587,7 @@
    "kind": "note",
    "number": 30,
    "encoding": "button",
-   "action": "delete_hot_cue_3",
+   "action": "pad_shift_3",
    "deck": 3,
    "shift": false,
    "led": false
@@ -2382,7 +2600,9 @@
    "encoding": "button",
    "action": "pad_4",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -2390,7 +2610,7 @@
    "kind": "note",
    "number": 31,
    "encoding": "button",
-   "action": "delete_hot_cue_4",
+   "action": "pad_shift_4",
    "deck": 3,
    "shift": false,
    "led": false
@@ -2403,7 +2623,9 @@
    "encoding": "button",
    "action": "pad_5",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -2411,7 +2633,7 @@
    "kind": "note",
    "number": 32,
    "encoding": "button",
-   "action": "delete_hot_cue_5",
+   "action": "pad_shift_5",
    "deck": 3,
    "shift": false,
    "led": false
@@ -2424,7 +2646,9 @@
    "encoding": "button",
    "action": "pad_6",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -2432,7 +2656,7 @@
    "kind": "note",
    "number": 33,
    "encoding": "button",
-   "action": "delete_hot_cue_6",
+   "action": "pad_shift_6",
    "deck": 3,
    "shift": false,
    "led": false
@@ -2445,7 +2669,9 @@
    "encoding": "button",
    "action": "pad_7",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -2453,7 +2679,7 @@
    "kind": "note",
    "number": 34,
    "encoding": "button",
-   "action": "delete_hot_cue_7",
+   "action": "pad_shift_7",
    "deck": 3,
    "shift": false,
    "led": false
@@ -2466,7 +2692,9 @@
    "encoding": "button",
    "action": "pad_8",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1,
+   "rgb": "denon_mcx"
   },
   {
    "device": "*",
@@ -2474,7 +2702,7 @@
    "kind": "note",
    "number": 35,
    "encoding": "button",
-   "action": "delete_hot_cue_8",
+   "action": "pad_shift_8",
    "deck": 3,
    "shift": false,
    "led": false
@@ -2487,7 +2715,8 @@
    "encoding": "button",
    "action": "loop",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2497,7 +2726,8 @@
    "encoding": "button",
    "action": "reloop",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2507,7 +2737,8 @@
    "encoding": "button",
    "action": "loop_half",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2517,7 +2748,8 @@
    "encoding": "button",
    "action": "loop_in",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2527,7 +2759,8 @@
    "encoding": "button",
    "action": "loop_double",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2537,7 +2770,8 @@
    "encoding": "button",
    "action": "loop_out",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2547,7 +2781,8 @@
    "encoding": "button",
    "action": "pad_jump_1",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2557,7 +2792,8 @@
    "encoding": "button",
    "action": "pad_jump_5",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2567,7 +2803,8 @@
    "encoding": "button",
    "action": "effect_active_1",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2598,7 +2835,8 @@
    "encoding": "button",
    "action": "effect_active_2",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2629,7 +2867,8 @@
    "encoding": "button",
    "action": "effect_active_3",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2658,9 +2897,10 @@
    "kind": "note",
    "number": 4,
    "encoding": "button",
-   "action": "beat_fx_tap",
-   "deck": -1,
-   "shift": false
+   "action": "tap_tempo_side",
+   "deck": 0,
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2670,7 +2910,8 @@
    "encoding": "button",
    "action": "effect_active_1",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2701,7 +2942,8 @@
    "encoding": "button",
    "action": "effect_active_2",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2732,7 +2974,8 @@
    "encoding": "button",
    "action": "effect_active_3",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2761,9 +3004,10 @@
    "kind": "note",
    "number": 4,
    "encoding": "button",
-   "action": "beat_fx_tap",
-   "deck": -1,
-   "shift": false
+   "action": "tap_tempo_side",
+   "deck": 1,
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2813,9 +3057,10 @@
    "kind": "note",
    "number": 2,
    "encoding": "button",
-   "action": "load",
+   "action": "load_or_enter",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2823,9 +3068,10 @@
    "kind": "note",
    "number": 3,
    "encoding": "button",
-   "action": "load",
+   "action": "load_or_enter",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2833,9 +3079,10 @@
    "kind": "note",
    "number": 4,
    "encoding": "button",
-   "action": "load",
+   "action": "load_or_enter",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2843,9 +3090,10 @@
    "kind": "note",
    "number": 5,
    "encoding": "button",
-   "action": "load",
+   "action": "load_or_enter",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2864,9 +3112,10 @@
    "kind": "note",
    "number": 7,
    "encoding": "button",
-   "action": "browser_show_folders",
+   "action": "browser_back",
    "deck": -1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2887,7 +3136,8 @@
    "encoding": "button",
    "action": "automix",
    "deck": -1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2939,7 +3189,8 @@
    "encoding": "button",
    "action": "hot_cue_prev",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2949,7 +3200,8 @@
    "encoding": "button",
    "action": "hot_cue_next",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2980,7 +3232,8 @@
    "encoding": "button",
    "action": "hot_cue_prev",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -2990,7 +3243,8 @@
    "encoding": "button",
    "action": "hot_cue_next",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -3021,7 +3275,8 @@
    "encoding": "button",
    "action": "hot_cue_prev",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -3031,7 +3286,8 @@
    "encoding": "button",
    "action": "hot_cue_next",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -3062,7 +3318,8 @@
    "encoding": "button",
    "action": "hot_cue_prev",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -3072,7 +3329,8 @@
    "encoding": "button",
    "action": "hot_cue_next",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -3112,7 +3370,8 @@
    "encoding": "button",
    "action": "waveform_zoom_in",
    "deck": -1,
-   "shift": false
+   "shift": false,
+   "off": 1
   },
   {
    "device": "*",
@@ -3133,7 +3392,63 @@
    "encoding": "button",
    "action": "automix_queue",
    "deck": -1,
-   "shift": false
+   "shift": false,
+   "off": 1
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "platter_ring",
+   "deck": 0,
+   "shift": false,
+   "on": 97,
+   "off": 1,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "platter_ring",
+   "deck": 1,
+   "shift": false,
+   "on": 97,
+   "off": 1,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "platter_ring",
+   "deck": 2,
+   "shift": false,
+   "on": 97,
+   "off": 1,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "platter_ring",
+   "deck": 3,
+   "shift": false,
+   "on": 97,
+   "off": 1,
+   "output_only": true
   }
+ ],
+ "state_request": [
+  "F000207F0301F7"
  ]
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../../Library/GoogleDrive.h"
+
 #include "../Components/Controls.h"
 #include "../../Library/Library.h"
 #include "../../Library/DeviceMonitor.h"
@@ -25,14 +27,20 @@ public:
     void moveSelection (int delta);                 // controller browse knob: in the list it is on
     /** Browse knob pushed: switches between the track list and the sidebar (playlists, folders…). */
     void browseFocusToggle();
+    /** BACK on the sidebar: the folder (or device) the browse knob stands on opens or closes. */
+    void toggleFolder();
     bool isBrowsingSidebar() const noexcept        { return browseSidebar; }
     void setBrowsingSidebar (bool s)               { browseSidebar = s && showSidebar; repaint(); }
     TrackPtr selectedTrack() const;
     std::vector<TrackPtr> selectedTracks() const;
     const std::vector<TrackPtr>& visibleTracks() const noexcept { return rows; }
+    int selectedIndex() const                      { return table.getSelectedRow(); }
 
     juce::String getColumnState() const            { return table.getHeader().toString(); }
     int  getSidebarWidth() const noexcept          { return sidebarWidth; }
+    /** Size of the song list text: 0 normal, 1 large, 2 very large (to read it from far away). */
+    int  getTextSize() const noexcept              { return textSize; }
+    void setTextSize (int s);
     void setSidebarWidth (int w)                   { sidebarWidth = juce::jlimit (minSidebar, maxSidebar, w); resized(); }
     static constexpr int minSidebar = 150, maxSidebar = 640;
     void setColumnState (const juce::String& s)    { if (s.isNotEmpty()) table.getHeader().restoreFromString (s); }
@@ -49,7 +57,7 @@ public:
 
     struct Source
     {
-        enum class Kind { collection, folder, playlist, history, historyDay, device, explorer, computer } kind = Kind::collection;
+        enum class Kind { collection, folder, playlist, history, historyDay, device, explorer, computer, drive } kind = Kind::collection;
         int index = 0;
         juce::String day;
         int sub = -1;   // device: playlist id (−1 = all tracks)
@@ -64,8 +72,11 @@ private:
     friend class SourceTree;
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
+    /** The browse knob goes back to the song list (a song clicked, or a search typed). */
+    void browseTracks();
     void textEditorTextChanged (juce::TextEditor&) override
     {
+        browseTracks();
         if (source.kind == Source::Kind::computer) searchComputer (search.getText());
         else rebuildRows();
     }
@@ -122,6 +133,9 @@ public:
     std::function<void()> onSidebarResized;            // persist the width
 private:
     juce::TextEditor search;
+    Button textSizeBtn { "Aa", Icon::none, Button::Style::ghost };
+    int textSize = 0;
+    float textScale() const noexcept               { return textSize == 2 ? 1.8f : textSize == 1 ? 1.4f : 1.0f; }
     Button addFolderBtn { "Carpeta", Icon::plus, Button::Style::ghost };
     Button newListBtn   { "Playlist", Icon::plus, Button::Style::ghost };
     juce::TableListBox table { {}, this };
@@ -138,6 +152,43 @@ private:
     juce::StringArray playedThisSession;
 
     juce::Rectangle<int> sidebarArea, toolbarArea, statusArea;
+
+    // Google Drive: linked folders, their listings (sub-folders and songs) and the songs as tracks.
+public:
+    void setDrive (GoogleDrive* d);
+    void driveConnect();
+    void driveAddFolder();
+    void driveSaveToCollection (const std::vector<TrackPtr>&);
+private:
+    GoogleDrive* drive = nullptr;
+    std::map<juce::String, std::vector<GoogleDrive::Entry>> driveListing;     // folder id → contents
+    std::set<juce::String> driveListing_pending;
+    std::map<juce::String, TrackPtr> driveTracks;                             // file id → track
+    juce::String driveError, driveStatus;
+    std::map<juce::String, juce::String> driveNames;                          // folder id → name
+    void driveRequest (const juce::String& folderId);
+    TrackPtr driveTrack (const GoogleDrive::Entry&);
+    /** The linked folder that holds `folderId` (itself, or one whose index contains it). */
+    juce::String driveRootFor (const juce::String& folderId);
+    /** Starts indexing a linked folder when it has no index yet, or it is older than a few hours. */
+    void driveEnsureIndex (const juce::String& rootId, bool force = false);
+    /** A Drive folder with everything inside (sub-folders too) downloaded into Música › OpenMix › Google Drive
+        › <folder>, which becomes one of the collection's folders. Asks first (how many songs, how big). */
+    void driveSaveFolder (const juce::String& folderId);
+    juce::String driveFolderToSave;                                           // waiting for the index
+    int driveIndexFound = 0;
+    /** For fast typing in a big Drive folder: names and folder paths in lower case, and the folders
+        under the one shown, worked out once per index (not per key). */
+    struct DriveSearchCache
+    {
+        const void* index = nullptr;
+        juce::String under, root;
+        std::set<juce::String> folders;                   // the folder shown and everything below it
+        std::map<juce::String, juce::String> paths;        // folder id → "A / B" (as shown)
+        std::vector<juce::String> lowerNames;              // per index file
+        std::map<juce::String, juce::String> lowerPaths;
+    } driveSearch;
+    std::map<juce::String, juce::int64> driveIndexFailed;                    // root → when it last failed                                                  // songs found while indexing
 
     std::vector<TrackPtr> explorerTracks;
     juce::String explorerShown, computerQuery;

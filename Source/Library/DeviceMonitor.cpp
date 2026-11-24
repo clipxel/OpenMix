@@ -18,6 +18,13 @@ DeviceMonitor::~DeviceMonitor()
     scanPool.removeAllJobs (true, 1000);
 }
 
+juce::String DeviceMonitor::lastError() const
+{
+    if (deniedVolumes.isNotEmpty()) return deniedVolumes;
+    if (! errors.empty()) return errors.begin()->second;
+    return {};
+}
+
 TrackPtr DeviceMonitor::findByPath (const juce::String& path) const
 {
     for (auto& d : list)
@@ -54,14 +61,20 @@ void DeviceMonitor::timerCallback()
         {
             mounted = Volumes::mounted();
         }
+        juce::StringArray denied;
         for (auto& f : mounted)
-            if (UsbExport::isExportVolume (f))
-                roots.add (f);
-        juce::MessageManager::callAsync ([this, aliveFlag, roots, mounted]
+        {
+            if (Volumes::accessDenied (f)) denied.add (f.getFileName());
+            else if (UsbExport::isExportVolume (f)) roots.add (f);
+        }
+        const auto message = denied.isEmpty() ? juce::String()
+            : juce::String::fromUTF8 ("Sin permiso para leer: ") + denied.joinIntoString (", ");
+        juce::MessageManager::callAsync ([this, aliveFlag, roots, mounted, message]
         {
             if (! aliveFlag->load()) return;
             scanning = false;
             if (mounted != allVolumes) { allVolumes = mounted; ++rev; sendChangeMessage(); }
+            if (message != deniedVolumes) { deniedVolumes = message; sendChangeMessage(); }
             applyRoots (roots);
         });
     });
@@ -76,6 +89,9 @@ void DeviceMonitor::applyRoots (const juce::Array<juce::File>& roots)
         return ! roots.contains (d->ex->root);
     }), list.end());
     if (list.size() != before) { ++rev; sendChangeMessage(); }
+
+    if (std::erase_if (errors, [&roots] (const auto& entry) { return ! roots.contains (juce::File (entry.first)); }) > 0)
+        sendChangeMessage();
 
     // Parse new ones in the background.
     for (auto& root : roots)
@@ -133,10 +149,20 @@ void DeviceMonitor::applyRoots (const juce::Array<juce::File>& roots)
             {
                 if (! aliveFlag->load()) return;
                 loadingRoots.removeString (root.getFullPathName());
-                if (dev->ex != nullptr) list.push_back (dev);
-                else error = root.getFileName() + ": " + err;
-                ++rev;
-                sendChangeMessage();
+                if (! allVolumes.contains (root)) return;
+                const auto path = root.getFullPathName();
+                if (dev->ex != nullptr)
+                {
+                    errors.erase (path);
+                    list.push_back (dev);
+                    ++rev;
+                    sendChangeMessage();
+                }
+                else if (const auto message = root.getFileName() + ": " + err; errors[path] != message)
+                {
+                    errors[path] = message;
+                    sendChangeMessage();
+                }
             });
         });
     }

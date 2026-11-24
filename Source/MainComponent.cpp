@@ -56,6 +56,8 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     deckD.onLoadRequest = [this] (const juce::File& f) { loadFileToDeck (f, 3); };
 
     libraryView.onLoadToDeck = [this] (const TrackPtr& t, int side) { loadToDeck (t, side < 0 ? -1 : engine.visibleDeck (side)); };
+    cleanDriveCache (true);                  // copies left by a previous session
+    libraryView.setDrive (&drive);
     libraryView.onAddFolder = [this] { addFolder(); };
     libraryView.onReanalyse = [this] (const std::vector<TrackPtr>& sel) { reanalyse (sel); };
     library.onAnalysed = [this] (const TrackPtr& t)
@@ -67,6 +69,7 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     };
     libraryView.onAddToAutoMix = [this] (const std::vector<TrackPtr>& t) { automix.add (t); automixOpen = true; resized(); };
     topBar.onToggleAutoMix = [this] { automixOpen = ! automixOpen; resized(); };
+    topBar.onOpenView = [this] (juce::Component& button) { showViewMenu (button); };
     topBar.onFxModeChange = [this] (int m) { setFxMode (m); if (settings != nullptr) saveSettings(); };
     topBar.onOpenFeedback = [this] { showFeedback (FeedbackCard::Kind::report); };
     settingsPanel.onOpenFeedback = [this] { showFeedback (FeedbackCard::Kind::report); };
@@ -93,7 +96,13 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
 
     settingsPanel.currentWorkspace = [this]() -> Workspace& { return current; };
     settingsPanel.onWorkspaceEdited = [this] { applyLayout(); };
-    settingsPanel.onResetSizes = [this] { current = Workspace::defaults(); applyLayout(); };
+    settingsPanel.onResetSizes = [this]
+    {
+        const auto layout = current.layout;
+        current = Workspace::defaults();
+        current.layout = layout;
+        applyLayout();
+    };
     settingsPanel.onClosed = [this] { grabKeyboardFocus(); };
     settingsPanel.onAudioRoutingChanged = [this] { if (settings != nullptr) saveSettings(); };
     libraryView.onSidebarResized = [this] { if (settings != nullptr) saveSettings(); };
@@ -169,6 +178,13 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
     {
         midi = std::make_unique<MidiEngine> (actions);
         controllerLib = std::make_unique<ControllerLibrary> (*midi);
+        // Controller screens (Denon MCX8000): the screens only take data after a challenge-response
+        // identification that Denon gives to licensed DJ software, so OpenMix does not drive them yet.
+        // ControllerScreens already speaks their data format for when that identification is available.
+        if (juce::SystemStats::getEnvironmentVariable ("OPENMIX_CONTROLLER_SCREENS", {}).isNotEmpty())
+            controllerScreens = std::make_unique<ControllerScreens> (engine, ControllerScreens::Browser {
+                [this]() -> const std::vector<TrackPtr>& { return libraryView.visibleTracks(); },
+                [this] { return libraryView.selectedIndex(); } });
         keyboard.load (om::Library::dataFolder().getChildFile ("keyboard.json"));
         settingsPanel.setControllers (midi.get(), &actions, &keyboard);
         settingsPanel.setControllerLibrary (controllerLib.get());
@@ -193,6 +209,7 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
 
         auto audioState = settings->getXmlValue ("audioDevice");
         engine.initialiseDevice (audioState.get());
+        startTimerHz (60);
 
         resized();
     }
@@ -206,6 +223,7 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
 
 MainComponent::~MainComponent()
 {
+    stopTimer();
     vblank = nullptr;
     if (! snapshotMode)
         saveSettings();
@@ -220,6 +238,32 @@ MainComponent::~MainComponent()
 }
 
 //==============================================================================
+void MainComponent::cleanDriveCache (bool all)
+{
+    // A Drive song's copy lives while a deck has it loaded (or it is still arriving); then it goes.
+    for (const auto& e : juce::RangedDirectoryIterator (om::GoogleDrive::cacheFolder(), false, "*", juce::File::findFiles))
+    {
+        const auto f = e.getFile();
+        if (f.getFileName().endsWith (".part")) { if (all) f.deleteFile(); continue; }
+        bool inUse = drive.isDownloading (f);
+        for (int d = 0; d < AudioEngine::numDecks && ! inUse && ! all; ++d)
+            if (auto lt = engine.deck (d).getTrack()) inUse = lt->file == f;
+        if (! inUse) f.deleteFile();
+    }
+}
+
+void MainComponent::timerCallback()
+{
+    {
+        static juce::uint32 lastClean = 0;                    // Drive copies no deck uses any more
+        const auto now = juce::Time::getMillisecondCounter();
+        if (now - lastClean > 5000) { lastClean = now; cleanDriveCache (false); }
+    }
+    if (controllerLib != nullptr) controllerLib->tick();
+    if (midi != nullptr) midi->tick();
+    if (controllerScreens != nullptr) controllerScreens->tick();
+}
+
 void MainComponent::frame()
 {
     // Development aid: with "devcapture" in the data folder, a "capture.request" file makes OpenMix
@@ -249,8 +293,6 @@ void MainComponent::frame()
 
     actions.tick();
     keyboard.tick();
-    if (midi != nullptr) midi->tick();
-    if (controllerLib != nullptr) controllerLib->tick();
     automix.tick();
     topBar.setAutoMixState (automixOpen, automix.isRunning());
     if (automixPanel.isVisible()) automixPanel.refresh();
@@ -258,7 +300,7 @@ void MainComponent::frame()
     // A side switched to deck 3 / 4 (button, controller or script): lay out the decks on screen.
     if (shownDecks != std::pair { engine.visibleDeck (0), engine.visibleDeck (1) })
         resized();
-    waveforms.refresh();
+    if (waveforms.isVisible()) waveforms.refresh();
     sideView (0).refresh();
     sideView (1).refresh();
     mixer.refresh();
@@ -409,11 +451,57 @@ void MainComponent::controllersChanged()
 
 /** Effects workspace: BEAT FX (club mixer: one effect section at the mixer's side) or 3 FX per deck
     (a row of three effects above each deck). Controllers keep their own way either way. */
+void MainComponent::showViewMenu (juce::Component& button)
+{
+    juce::PopupMenu menu;
+    auto add = [this, &menu] (const juce::String& label, bool MainComponent::*visible, bool enabled = true)
+    {
+        menu.addItem (label, enabled, this->*visible,
+            [safe = juce::Component::SafePointer<MainComponent> (this), visible]
+            {
+                if (auto* self = safe.getComponent())
+                {
+                    self->*visible = ! (self->*visible);
+                    self->resized();
+                    self->saveSettings();
+                }
+            });
+    };
+    menu.addSectionHeader ("Disposición"_u);
+    for (size_t i = 0; i < viewLayoutNames.size(); ++i)
+    {
+        const auto layout = (ViewLayout) i;
+        menu.addItem (viewLayoutNames[i], true, current.layout == layout,
+            [safe = juce::Component::SafePointer<MainComponent> (this), layout]
+            {
+                if (auto* self = safe.getComponent())
+                {
+                    self->current.layout = layout;
+                    self->resized();
+                    self->saveSettings();
+                }
+            });
+    }
+    menu.addSeparator();
+    add ("Ondas", &MainComponent::showWaveforms);
+    add ("Mixer", &MainComponent::showMixer);
+    add ("Biblioteca", &MainComponent::showLibrary);
+    add ("Efectos por deck", &MainComponent::showDeckFx, current.layout != ViewLayout::openMix || fxMode == 1);
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&button));
+}
+
+void MainComponent::zoomWaveforms (double factor)
+{
+    if (current.layout == ViewLayout::traktor)
+        for (int d = 0; d < AudioEngine::numDecks; ++d) viewFor (d).zoomLocalWaveform (factor);
+    else
+        waveforms.zoomBy (factor);
+}
+
 void MainComponent::setFxMode (int m)
 {
     fxMode = juce::jlimit (0, 1, m);
     topBar.setFxMode (fxMode);
-    mixer.setShowBeatFx (fxMode == 0);
     resized();
 }
 
@@ -423,6 +511,28 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
     if (t == nullptr)
         return;
 
+    // A song in Google Drive: fetched to a temporary copy first, then loaded like any file.
+    if (t->isDrive() && ! t->file.existsAsFile())
+    {
+        auto& view = viewFor (deck < 0 ? engine.visibleDeck (0) : deck);
+        view.showMessage (juce::String::fromUTF8 ("Bajando de Google Drive…"), false);
+        juce::Component::SafePointer<MainComponent> self (this);
+        drive.download (t->driveId, t->file,
+                        [self, deck] (float p)
+                        {
+                            if (self != nullptr)
+                                self->viewFor (deck < 0 ? self->engine.visibleDeck (0) : deck)
+                                    .showMessage (juce::String::fromUTF8 ("Bajando de Google Drive… ") + juce::String (juce::roundToInt (p * 100.0f)) + "%", false);
+                        },
+                        [self, t, deck] (bool ok, juce::String err)
+                        {
+                            if (self == nullptr) return;
+                            if (ok) self->loadToDeck (t, deck);
+                            else self->viewFor (deck < 0 ? self->engine.visibleDeck (0) : deck).showMessage (err, true);
+                        });
+        return;
+    }
+
     if (! t->file.existsAsFile())
     {
         viewFor (deck).showMessage ("Archivo no encontrado", true);
@@ -431,7 +541,7 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
 
     // From the EXPLORADOR (a file of this computer not yet in the collection): add it, so its
     // analysis, cues and history are kept like any other track.
-    if (! t->isExternal() && library.find (t->path()) == nullptr)
+    if (! t->isExternal() && ! t->isDrive() && library.find (t->path()) == nullptr)
     {
         if (auto added = library.addTrack (t))           // keeps an analysis already done in the EXPLORADOR
         {
@@ -639,6 +749,10 @@ void MainComponent::applyLayout()
 //==============================================================================
 void MainComponent::loadSettings()
 {
+    for (int i = 0; i < Sampler::numSlots; ++i)
+        if (const auto path = settings->getValue ("sample" + juce::String (i)); path.isNotEmpty())
+            engine.sampler().load (i, juce::File (path), engine.getFormatManager());
+
     if (controllerLib != nullptr)
         controllerLib->setOnlineLookup (settings->getBoolValue ("controllerOnlineLookup", true));
 
@@ -650,14 +764,19 @@ void MainComponent::loadSettings()
     if (! saved.isObject())
         saved = juce::JSON::parse (settings->getValue ("currentWorkspace"));
     current = saved.isObject() ? Workspace::fromVar (saved) : Workspace::defaults();
+    showWaveforms = settings->getBoolValue ("showWaveforms", true);
+    showMixer = settings->getBoolValue ("showMixer", true);
+    showLibrary = settings->getBoolValue ("showLibrary", true);
+    showDeckFx = settings->getBoolValue ("showDeckFx", true);
     applyLayout();
 
     libraryView.setColumnState (settings->getValue ("columns"));
     libraryView.setSidebarWidth (settings->getIntValue ("librarySidebar", om::Size::sidebarWidth));
+    libraryView.setTextSize (settings->getIntValue ("libraryText", 0));
     engine.crossfaderCurve = settings->getIntValue ("xfCurve", 0);
     for (int d = 0; d < AudioEngine::numDecks; ++d)
     {
-        engine.deck (d).setVinylMode (settings->getBoolValue ("vinylMode" + juce::String (d + 1), settings->getBoolValue ("vinylMode", true)));
+        engine.deck (d).setVinylMode (settings->getBoolValue ("vinylMode", true));   // every deck starts as Settings says (on), like Serato
         engine.deck (d).setQuantize (settings->getBoolValue ("quantize" + juce::String (d + 1), true));
         engine.deck (d).setKeyLock (settings->getBoolValue ("keyLock" + juce::String (d + 1), true));
         engine.deck (d).setQuantizeBeats (settings->getDoubleValue ("quantizeBeats" + juce::String (d + 1), 1.0));
@@ -673,8 +792,10 @@ void MainComponent::loadSettings()
             engine.channel (d).colorParam = (float) settings->getDoubleValue ("colorFxParam", 0.5);
         }
         auto& bx = engine.beatFx();
-        bx.select ((BeatFx::Type) juce::jlimit (0, (int) BeatFx::Type::numTypes - 1, settings->getIntValue ("beatFxType", (int) BeatFx::Type::echo)));
-        bx.param = (float) settings->getDoubleValue ("beatFxBeat", bx.param.load());
+        const auto savedType = (BeatFx::Type) juce::jlimit (0, (int) BeatFx::Type::numTypes - 1, settings->getIntValue ("beatFxType", (int) BeatFx::Type::echo));
+        bx.select (BeatFx::offered (savedType) ? savedType : BeatFx::Type::echo);
+        if (bx.type.load() != (int) BeatFx::Type::reverb)                 // REVERB always starts at its 90 %
+            bx.param = (float) settings->getDoubleValue ("beatFxBeat", bx.param.load());
         bx.level = (float) settings->getDoubleValue ("beatFxLevel", bx.level.load());
         bx.target = juce::jlimit (0, (int) AudioEngine::BeatFxSection::numTargets - 1, settings->getIntValue ("beatFxChannel", AudioEngine::BeatFxSection::master));
         for (int k = 0; k < 3; ++k) bx.bands[(size_t) k] = settings->getBoolValue ("beatFxBand" + juce::String (k), true);
@@ -699,6 +820,13 @@ void MainComponent::saveSettings()
     if (settings == nullptr)
         return;
 
+    for (int i = 0; i < Sampler::numSlots; ++i)
+        settings->setValue ("sample" + juce::String (i), engine.sampler().file (i).getFullPathName());
+
+    settings->setValue ("showWaveforms", showWaveforms);
+    settings->setValue ("showMixer", showMixer);
+    settings->setValue ("showLibrary", showLibrary);
+    settings->setValue ("showDeckFx", showDeckFx);
     settings->setValue ("accent", accent().toString());
     if (controllerLib != nullptr)
         settings->setValue ("controllerOnlineLookup", controllerLib->onlineLookup());
@@ -708,10 +836,10 @@ void MainComponent::saveSettings()
         settings->removeValue (oldKey);
     settings->setValue ("columns", libraryView.getColumnState());
     settings->setValue ("librarySidebar", libraryView.getSidebarWidth());
+    settings->setValue ("libraryText", libraryView.getTextSize());
     settings->setValue ("xfCurve", engine.crossfaderCurve.load());
     for (int d = 0; d < AudioEngine::numDecks; ++d)
     {
-        settings->setValue ("vinylMode" + juce::String (d + 1), engine.deck (d).isVinylMode());
         settings->setValue ("quantize" + juce::String (d + 1), engine.deck (d).isQuantizeOn());
         settings->setValue ("keyLock" + juce::String (d + 1), engine.deck (d).isKeyLock());
         settings->setValue ("quantizeBeats" + juce::String (d + 1), engine.deck (d).getQuantizeBeats());
@@ -780,35 +908,61 @@ void MainComponent::resized()
     topBar.setBounds (r.removeFromTop (Size::topBar));
 
     // Waveforms are the visual protagonists, but shrink before decks become unusable.
-    const bool deckFxRow = fxMode == 1;
+    const auto view = current.layout;
+    const bool nativeView = view == ViewLayout::openMix;
+    const bool clubEffects = nativeView && fxMode == 0;
+    const bool deckFxRow = showDeckFx && (! nativeView || fxMode == 1);
+    const bool fxBelowDeck = view == ViewLayout::virtualDj;
+    topBar.setFxModeVisible (nativeView);
+    mixer.setShowBeatFx (clubEffects);
     fxPanel.setVisible (deckFxRow);
-    const int fxH = deckFxRow ? (compact ? 60 : 70) : 0;
-    const int minLibH = compact ? 110 : 150;
-    const int mixerW = deckFxRow ? juce::jlimit (268, 340, juce::roundToInt ((float) r.getWidth() * 0.22f))
+    const int fxH = deckFxRow ? (nativeView ? (compact ? 60 : 70) : 62) : 0;
+    const bool libraryRow = showLibrary || automixOpen;
+    const int minLibH = libraryRow ? (compact ? 110 : 150) : 0;
+    const int mixerW = ! showMixer ? 0 : ! clubEffects ? juce::jlimit (268, 340, juce::roundToInt ((float) r.getWidth() * 0.22f))
                                  : juce::jlimit (330, 420, juce::roundToInt ((float) r.getWidth() * 0.27f));   // club mixer: BEAT FX at its side
     const int deckW = (r.getWidth() - mixerW) / 2;
-    const bool wantsJog = deckW >= 440;      // small screens: compact decks, waveforms keep priority
-    const int minDeckH = wantsJog ? 400 : 330;    // with jogs: decks keep room for the platter before the library grows
+    const bool deckWaves = view == ViewLayout::traktor;
+    const bool centreWaves = view == ViewLayout::serato && showMixer;
+    const bool wideWaves = showWaveforms && ! deckWaves && ! centreWaves;
+    const bool wantsJog = ((view == ViewLayout::openMix || view == ViewLayout::serato) && deckW >= 440)
+                       || ((view == ViewLayout::virtualDj || view == ViewLayout::rekordbox) && deckW >= 370);
+    const int minDeckH = centreWaves && showWaveforms ? 460 : wantsJog ? 400 : 330;    // with jogs: decks keep room for the platter before the library grows
     const int spare = r.getHeight() - minDeckH - minLibH - fxH - 7;
     const int lane = juce::jlimit (34, juce::jmax (34, current.laneHeight), (spare - 1) / 2);
-    waveforms.setLaneHeight (lane);
-    waveforms.setBounds (r.removeFromTop (waveforms.preferredHeight()));
-    waveSplitter->setBounds (r.removeFromTop (5));
-    if (deckFxRow)
-        fxPanel.setBounds (r.removeFromTop (fxH));
-
+    waveforms.setVisible (wideWaves || (showWaveforms && centreWaves));
+    waveSplitter->setVisible (wideWaves || (showWaveforms && centreWaves));
+    if (wideWaves)
     {
-        int libH = juce::jlimit (minLibH, juce::jmax (minLibH, r.getHeight() - minDeckH),
+        waveforms.setLaneHeight (lane);
+        waveforms.setBounds (r.removeFromTop (waveforms.preferredHeight()));
+        waveSplitter->setBounds (r.removeFromTop (5));
+    }
+    if (deckFxRow)
+    {
+        fxPanel.setPresentation (view, mixerW);
+        if (! fxBelowDeck)
+            fxPanel.setBounds (r.removeFromTop (fxH));
+    }
+
+    libraryView.setVisible (showLibrary);
+    automixPanel.setVisible (automixOpen);
+    splitter->setVisible (libraryRow);
+    if (libraryRow)
+    {
+        int libH = juce::jlimit (minLibH, juce::jmax (minLibH, r.getHeight() - minDeckH - (fxBelowDeck ? fxH : 0)),
                                  juce::roundToInt ((float) r.getHeight() * current.libraryRatio));
         if (! wantsJog)
-            libH = juce::jmax (libH, r.getHeight() - 7 - minDeckH - 40);
+            libH = juce::jmax (libH, r.getHeight() - 7 - minDeckH - 40 - (fxBelowDeck ? fxH : 0));
         auto libArea = r.removeFromBottom (libH);
-        automixPanel.setVisible (automixOpen);
         if (automixOpen)
-            automixPanel.setBounds (libArea.removeFromRight (juce::jlimit (300, 400, libArea.getWidth() / 4)));
+            automixPanel.setBounds (showLibrary ? libArea.removeFromRight (juce::jlimit (300, 400, libArea.getWidth() / 4))
+                                               : libArea);
         libraryView.setBounds (libArea);
         splitter->setBounds (r.removeFromBottom (7));
     }
+
+    if (deckFxRow && fxBelowDeck) fxPanel.setBounds (r.removeFromBottom (fxH));
 
     // Decks + mixer: each side shows one of its two decks (1 or 3, 2 or 4).
     shownDecks = { engine.visibleDeck (0), engine.visibleDeck (1) };
@@ -818,13 +972,23 @@ void MainComponent::resized()
         viewFor (d).setBounds (d % 2 == 0 ? leftArea : rightArea);
         viewFor (d).setVisible (engine.isVisible (d));
     }
+    mixer.setVisible (showMixer);
     mixer.setBounds (r);
 
     // Jogs only when the deck can host one without crushing pads and info.
-    const bool jogFits = wantsJog && leftArea.getHeight() >= 330;
+    if (centreWaves && showWaveforms)
+    {
+        const int centreLane = juce::jlimit (24, juce::jmax (24, (r.getHeight() - 390) / 2), current.laneHeight);
+        waveforms.setLaneHeight (centreLane);
+        waveforms.setBounds (r.removeFromTop (waveforms.preferredHeight()));
+        waveSplitter->setBounds (r.removeFromTop (5));
+        mixer.setBounds (r);
+    }
+    const bool jogFits = wantsJog && leftArea.getHeight() >= 355;
     for (auto* d : { &deckA, &deckB, &deckC, &deckD })
     {
         d->setDense (d->getHeight() < 360);
+        d->setViewLayout (view, deckWaves && showWaveforms);
         d->setShowJog (jogFits);
     }
 }

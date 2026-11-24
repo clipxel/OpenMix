@@ -50,6 +50,7 @@ struct MidiBinding
     enum class Rgb
     {
         none,
+        denonMcx,      // 1 + 0bRRGGBB (MCX8000 RGB pad palette)
         hercules,      // 7-bit 0bRRGGGBB (Hercules DJControl Inpulse, …)
     };
     Rgb rgb = Rgb::none;
@@ -114,6 +115,9 @@ public:
     juce::String lastMessageText() const { return lastText; }
     juce::uint32 lastMessageTime() const { return lastTime; }
 
+    /** Messages that make a controller report where its faders and knobs are (sent when it connects). */
+    std::function<std::vector<juce::MidiMessage> (const juce::String& device)> stateRequest;
+
     /** Tests and the controller simulator: called with every action a message triggers. */
     std::function<void (const MidiBinding&, int deck, float value)> onDispatch;
 
@@ -148,9 +152,12 @@ private:
     std::map<juce::String, bool> shiftHeld;               // per device
     std::map<size_t, int> msbValues;                       // 14-bit: binding index → MSB
     struct Takeover { bool caught = false; float lastSent = -1.0f; };
+    std::map<juce::String, double> syncUntil;              // device → end of the "read the controller" window (ms)
+    void controllerConnected (const juce::String& device);
     std::map<size_t, Takeover> takeover;
-    struct Light { juce::String device; int channel; MidiBinding::Kind kind; int number; int value; int off; };
+    struct Light { juce::String device; int channel; MidiBinding::Kind kind; int number; int value; int off; int priority = 0; };
     std::map<juce::String, Light> ledSent;                 // device|ch|kind|num → last value sent
+    std::atomic<bool> resendLights { false };              // SHIFT changed: send every light again
 
     std::function<void (const juce::String&, const juce::MidiMessage&)> capture;
     struct Learn

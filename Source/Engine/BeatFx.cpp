@@ -22,12 +22,12 @@ namespace
         using T = BeatFx::Type;
         switch (t)
         {
-            case T::delay: case T::echo: case T::pingPong: case T::spiral: return list (bDelay, 7);          // 1
+            case T::delay: case T::echo: case T::lowCutEcho: case T::pingPong: case T::spiral: return list (bDelay, 7);          // 1
             case T::flanger: case T::phaser: case T::filter:              return list (bCycle, 6);          // 4
             case T::tripletFilter:                                         return list (bTriplet, 4);        // 4/3
             case T::tripletRoll:                                           return list (bTriplet, 2);        // 1/3
             case T::mobius:                                                return list (bMobius, 6);         // 4
-            case T::reverb:                                                return list (bReverb, 5);         // 50 %
+            case T::reverb:                                                return list (bReverb, 9);         // 90 %
             default:                                                       return list (bRoll, 4);           // 1
         }
     }
@@ -62,6 +62,7 @@ juce::String BeatFx::typeName (Type t)
     {
         case Type::delay:      return "DELAY";
         case Type::echo:       return "ECHO";
+        case Type::lowCutEcho: return "LOW CUT ECHO";
         case Type::pingPong:   return "PING PONG";
         case Type::spiral:     return "SPIRAL";
         case Type::reverb:     return "REVERB";
@@ -185,6 +186,7 @@ void BeatFx::resetState()
     for (auto& d : diffuser) std::fill (d.begin(), d.end(), 0.0f);
     diffPos.fill (0);
     dw = 0;
+    echoLowL = echoLowR = 0.0f;
     curDelay = prevDelay = 0.0;
     xfLeft = 0;
     glideDelay = -1.0;
@@ -285,17 +287,26 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
         case Type::delay:
         case Type::echo:
         case Type::pingPong:
+        case Type::lowCutEcho:
         {
             // DELAY: one repeat. ECHO: repeats fading out. PING PONG: repeats alternating L / R.
             // LEVEL/DEPTH = how loud the repeats are; the original stays untouched.
             const double D = juce::jlimit (16.0, (double) dl.size() - 8.0, beats * samplesPerBeat);
             if (curDelay <= 0.0) curDelay = prevDelay = D;
             else if (std::abs (D - curDelay) > 0.5) { prevDelay = curDelay; curDelay = D; xfLeft = xfLen; }
-            const float fb = t == Type::delay ? 0.0f : t == Type::echo ? 0.55f : 0.6f;
+            const float fb = t == Type::delay ? 0.0f : t == Type::pingPong ? 0.6f : 0.55f;
+            const auto lowCutCoefficient = (float) (1.0 - std::exp (-juce::MathConstants<double>::twoPi * 300.0 / sr));
             const int len = (int) dl.size();
             for (int i = 0; i < n; ++i)
             {
                 const float g = inSm.getNextValue(), lv = levelSm.getNextValue();
+                // ECHO / PING PONG with the knob near the top: the repeats hardly fade (almost endless).
+                float fbNow = fb;
+                if (t != Type::delay && lv > 0.8f)
+                {
+                    const float k = juce::jmin (1.0f, (lv - 0.8f) / 0.2f);
+                    fbNow = fb + (0.985f - fb) * k * k * (3.0f - 2.0f * k);
+                }
                 float rl = delayRead (dl, curDelay), rr = delayRead (dr, curDelay);
                 if (xfLeft > 0)
                 {
@@ -305,16 +316,23 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
                     rr = rr * a + delayRead (dr, prevDelay) * (1.0f - a);
                     --xfLeft;
                 }
-                const float inL = l[i] * g, inR = r[i] * g;
+                float inL = l[i] * g, inR = r[i] * g;
+                if (t == Type::lowCutEcho)
+                {
+                    echoLowL += lowCutCoefficient * (inL - echoLowL);
+                    echoLowR += lowCutCoefficient * (inR - echoLowR);
+                    inL -= echoLowL;
+                    inR -= echoLowR;
+                }
                 if (t == Type::pingPong)
                 {
-                    dl[(size_t) dw] = soft (0.5f * (inL + inR) + fb * rr);
-                    dr[(size_t) dw] = soft (fb * rl);
+                    dl[(size_t) dw] = soft (0.5f * (inL + inR) + fbNow * rr);
+                    dr[(size_t) dw] = soft (fbNow * rl);
                 }
                 else
                 {
-                    dl[(size_t) dw] = soft (inL + fb * rl);
-                    dr[(size_t) dw] = soft (inR + fb * rr);
+                    dl[(size_t) dw] = soft (inL + fbNow * rl);
+                    dr[(size_t) dw] = soft (inR + fbNow * rr);
                 }
                 dw = (dw + 1) % len;
                 l[i] += rl * lv;
@@ -373,6 +391,8 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
             rp.dryLevel = 0.0f;
             rp.width = 1.0f;
             reverb.setParameters (rp);
+            // A bigger room rings longer and builds up: past 50 % its tail is turned down to keep the same loudness.
+            const float roomGain = 1.4f * (amt <= 0.5f ? 1.0f : 1.0f - 0.9f * (amt - 0.5f));
             const float hp = (float) std::exp (-juce::MathConstants<double>::twoPi * 150.0 / sr);   // keep the low end out
             for (int off = 0; off < n; off += (int) tmpL.size())
             {
@@ -390,8 +410,8 @@ void BeatFx::process (float* l, float* r, int n, double bpm, double beat, double
                 for (int i = 0; i < m; ++i)
                 {
                     const float lv = levelSm.getNextValue();
-                    l[off + i] += tmpL[(size_t) i] * lv * 1.4f;
-                    r[off + i] += tmpR[(size_t) i] * lv * 1.4f;
+                    l[off + i] += tmpL[(size_t) i] * lv * roomGain;
+                    r[off + i] += tmpR[(size_t) i] * lv * roomGain;
                     peak = juce::jmax (peak, std::abs (tmpL[(size_t) i]), std::abs (tmpR[(size_t) i]));
                 }
             }

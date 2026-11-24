@@ -106,19 +106,33 @@ void Button::paintButton (juce::Graphics& g, bool over, bool down)
         content = colour (Col::textDisabled);
     }
 
+    const auto text = getButtonText();
+    const auto f = font (textType, textWeight);
+    const bool hasCaption = captionBesideIcon && icon != Icon::none && text.isNotEmpty();
+    const auto textWidth = hasCaption ? juce::GlyphArrangement::getStringWidth (f, text) : 0.0f;
+    const float iconFace = juce::jmin (r.getHeight(), 24.0f);
+    const bool placeBeside = hasCaption && r.getWidth() >= iconFace + 5.0f + textWidth + 2.0f;
+    auto faceBounds = r;
+    if (placeBeside)
+    {
+        auto row = r.withSizeKeepingCentre (iconFace + 5.0f + textWidth + 2.0f, r.getHeight());
+        faceBounds = row.removeFromLeft (iconFace);
+        row.removeFromLeft (5.0f);
+        Text::draw (g, text, row, f, colour (! enabled ? Col::textDisabled : on ? Col::textPrimary : Col::textSecondary),
+                    juce::Justification::centredLeft);
+    }
+
     g.setColour (face);
-    g.fillRoundedRectangle (r, radius);
+    g.fillRoundedRectangle (faceBounds, radius);
 
     if (! outline.isTransparent())
     {
         g.setColour (outline);
-        g.drawRoundedRectangle (r.reduced (0.5f), radius, Stroke::control);
+        g.drawRoundedRectangle (faceBounds.reduced (0.5f), radius, Stroke::control);
     }
 
-    // Content: icon and/or text, centred. Optional sub-text under the main text.
-    auto content_r = r.reduced (4.0f, 2.0f);
-    const auto text = getButtonText();
-    const auto f = font (textType, textWeight);
+    // Keep a readable icon when the caption will not fit next to it.
+    auto content_r = faceBounds.reduced (4.0f, 2.0f);
 
     if (subText.isNotEmpty())
     {
@@ -126,7 +140,7 @@ void Button::paintButton (juce::Graphics& g, bool over, bool down)
         Text::draw (g, subText, sub, font (Type::micro), content.withMultipliedAlpha (0.75f), juce::Justification::centredTop);
     }
 
-    if (icon != Icon::none && text.isEmpty())
+    if (icon != Icon::none && (text.isEmpty() || hasCaption))
     {
         const float s = juce::jmin (content_r.getHeight(), style == Style::transport ? 18.0f : 14.0f);
         Icons::draw (g, icon, content_r.withSizeKeepingCentre (s, s), content);
@@ -140,6 +154,12 @@ void Button::paintButton (juce::Graphics& g, bool over, bool down)
         Icons::draw (g, icon, row.removeFromLeft (s), content);
         row.removeFromLeft (5.0f);
         Text::draw (g, text, row, f, content, juce::Justification::centredLeft);
+    }
+    else if (fitCaption)
+    {
+        g.setColour (content);
+        g.setFont (f);
+        g.drawFittedText (text, content_r.getSmallestIntegerContainer(), juce::Justification::centred, 1, 0.8f);
     }
     else
     {
@@ -204,10 +224,23 @@ void Knob::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat();
     const bool hasLabel = label.isNotEmpty();
-    auto labelArea = ! hasLabel ? juce::Rectangle<float>()
-                   : labelOnSide ? r.removeFromLeft (juce::jmax (30.0f, r.getWidth() - r.getHeight()))
-                                 : r.removeFromBottom (13.0f);
+    juce::Rectangle<float> labelArea;
+    if (hasLabel)
+    {
+        if (labelPosition != LabelPosition::below)
+        {
+            const float labelWidth = juce::jmin (juce::jmax (0.0f, r.getWidth() - 20.0f),
+                                                juce::jmax (30.0f, r.getWidth() - r.getHeight()));
+            labelArea = labelPosition == LabelPosition::left ? r.removeFromLeft (labelWidth)
+                                                             : r.removeFromRight (labelWidth);
+        }
+        else
+        {
+            labelArea = r.removeFromBottom (13.0f);
+        }
+    }
     const float d = juce::jmin (r.getWidth(), r.getHeight()) - 2.0f;
+    if (d <= 0.0f) return;
     auto dial = juce::Rectangle<float> (d, d).withCentre (r.getCentre());
 
     const auto& rp = getRotaryParameters();
@@ -258,9 +291,14 @@ void Knob::paint (juce::Graphics& g)
 
     if (hasLabel)
     {
-        const auto just = labelOnSide ? juce::Justification::centredLeft : juce::Justification::centred;
+        const auto just = labelPosition == LabelPosition::left ? juce::Justification::centredLeft
+                        : labelPosition == LabelPosition::right ? juce::Justification::centredRight
+                                                              : juce::Justification::centred;
         if (showValue() && formatter)
             Text::drawTabular (g, formatted(), labelArea, font (Type::micro, Weight::medium), colour (Col::textPrimary), just);
+        else if (alwaysValue && formatter)
+            Text::drawTabular (g, label + " " + formatted(), labelArea, font (Type::micro, Weight::semibold),
+                               colour (enabled ? Col::textSecondary : Col::textDisabled), just);
         else if (killed)
             Text::caption (g, "KILL", labelArea, colour (Col::error), just);
         else

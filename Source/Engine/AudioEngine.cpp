@@ -1,5 +1,6 @@
 #include "AudioEngine.h"
 #include "../Common/Strings.h"
+#include "../Library/Volumes.h"
 #include "SincResampler.h"
 
 namespace om
@@ -90,7 +91,21 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
 
         std::unique_ptr<juce::AudioFormatReader> reader (formatManager.createReaderFor (file));
         if (reader == nullptr)
-            error = "Formato no soportado o archivo ilegible";
+        {
+            const auto volume = Volumes::rootOf (file);
+            if (volume != juce::File() && Volumes::accessDenied (volume))
+            {
+               #if JUCE_MAC
+                error = "Sin acceso al USB. Permití volúmenes extraíbles para OpenMix en Ajustes del Sistema."_u;
+               #else
+                error = "Sin permiso para leer la unidad."_u;
+               #endif
+            }
+            else if (! file.existsAsFile())
+                error = "El archivo no está disponible. Revisá su ubicación o reconectá la unidad."_u;
+            else
+                error = "Formato no soportado o archivo ilegible";
+        }
         else if (reader->lengthInSamples <= 0 || reader->sampleRate <= 0)
             error = "El archivo no contiene audio";
         else if (reader->lengthInSamples >= std::numeric_limits<int>::max() - (int) reader->sampleRate)
@@ -133,8 +148,9 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
             else if (error.isEmpty())
             {
                 deck (deckIndex).setTrack (result);
-                if (autoGain.load())
-                    channel (deckIndex).trimDb = autoGainTrimFor (*result);   // the GAIN knob follows
+                // Auto-gain sits under the GAIN knob: the knob keeps its place (a controller's centred knob
+                // and the screen agree) and its 0 is the level auto-gain chose; turning it adds or takes away.
+                channel (deckIndex).autoTrimDb = autoGain.load() ? autoGainTrimFor (*result) : 0.0f;
                 if (onTrackLoaded) onTrackLoaded (deckIndex, result->file);
                 if (cb) cb (true, {});
             }
@@ -146,6 +162,16 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
             sendChangeMessage();
         });
     });
+}
+
+void AudioEngine::setAutoGain (bool on)
+{
+    autoGain = on;
+    for (int d = 0; d < numDecks; ++d)
+    {
+        const auto t = deck (d).getTrack();
+        channel (d).autoTrimDb = on && t != nullptr ? autoGainTrimFor (*t) : 0.0f;
+    }
 }
 
 float AudioEngine::autoGainTrimFor (const LoadedTrack& t) const
@@ -514,6 +540,7 @@ void AudioEngine::audioDeviceIOCallbackWithContext (const float* const*, int, fl
         float* r = deckBuf.getWritePointer (1);
 
         decks[(size_t) i]->render (l, r, numSamples);
+        sampleBank.mix (i, l, r, numSamples, currentRate.load());
         auto& ch = channels[(size_t) i];
         ch.processPreFader (l, r, numSamples, decks[(size_t) i]->getRenderedBpm());
 

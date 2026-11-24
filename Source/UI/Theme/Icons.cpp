@@ -6,7 +6,7 @@ namespace om::Icons
 bool isFilled (Icon i)
 {
     return i == Icon::play || i == Icon::pause || i == Icon::stop || i == Icon::record
-        || i == Icon::dot  || i == Icon::eject;
+        || i == Icon::dot  || i == Icon::eject || i == Icon::reverse || i == Icon::censor;
 }
 
 juce::Path path (Icon i)
@@ -30,6 +30,15 @@ juce::Path path (Icon i)
             p.addTriangle (2.0f, 3.5f, 2.0f, 12.5f, 8.5f, 8.0f);
             p.startNewSubPath (11.0f, 4.0f); p.lineTo (11.0f, 12.0f);
             p.startNewSubPath (14.0f, 4.0f); p.lineTo (14.0f, 12.0f);
+            break;
+
+        case Icon::reverse:
+            p.addTriangle (12.0f, 2.5f, 12.0f, 13.5f, 3.0f, 8.0f);
+            break;
+
+        case Icon::censor:
+            p.addTriangle (10.0f, 3.5f, 10.0f, 12.5f, 2.0f, 8.0f);
+            p.addRoundedRectangle (12.0f, 3.5f, 2.0f, 9.0f, 0.5f);
             break;
 
         case Icon::stop:

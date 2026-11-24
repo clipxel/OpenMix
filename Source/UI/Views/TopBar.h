@@ -20,9 +20,11 @@ public:
     std::function<void()> onToggleRecord;
     std::function<void()> onToggleAutoMix;
     std::function<void()> onOpenFeedback;
+    std::function<void(juce::Component&)> onOpenView;
     void setAutoMixState (bool panelOpen, bool running);
     /** Effects workspace: 0 = BEAT FX (club mixer, one effect section), 1 = 3 FX per deck. */
     std::function<void (int)> onFxModeChange;
+    void setFxModeVisible (bool visible)           { if (fxMode.isVisible() != visible) { fxMode.setVisible (visible); resized(); } }
     void setFxMode (int m)                         { fxMode.setSelected (m); }
 
     void paint (juce::Graphics&) override;
@@ -33,6 +35,7 @@ private:
     StatusPill audio, controllers, cpu;
     Button rec { "REC", Icon::record, Button::Style::standard };
     Button settings { {}, Icon::settings, Button::Style::ghost };
+    Button viewBtn { "VISTA" };
     Button automixBtn { "AUTOMIX" };
     Segmented fxMode { { "BEAT FX", "3 FX" } };
     Button helpBtn { {}, Icon::support, Button::Style::ghost };

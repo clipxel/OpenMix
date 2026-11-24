@@ -147,6 +147,14 @@ float Actions::currentValue (const juce::String& id, int deck) const
     return it->second.value (deck);
 }
 
+float Actions::platterTurn (int deck) const
+{
+    const auto& k = engine.deck (deck);
+    if (! k.hasTrack()) return 0.0f;
+    const double turns = k.getPosition() / 1.8;           // 33⅓ rpm: one turn every 1.8 s of the record
+    return (float) (turns - std::floor (turns));
+}
+
 void Actions::tick()
 {
     const auto now = juce::Time::getMillisecondCounterHiRes();
@@ -185,8 +193,15 @@ void Actions::build()
          [=] (int d, float v) { if (pressed (v)) { deck (d).setPlaying (false); deck (d).seek (deck (d).getCuePoint()); } });
 
     add ({ "sync", "Sync", "Transporte", T::button },
-         [=] (int d, float v) { if (pressed (v)) deck (d).setSync (! deck (d).isSyncOn()); },
+         [=] (int d, float v) { if (v > 0.5f) deck (d).syncPress(); else deck (d).syncRelease(); },
          [=] (int d) { return deck (d).isSyncOn(); });
+
+    add ({ "tap_tempo", "TAP: un toque acomoda la grilla ahí; 4 o más fijan el BPM", "Transporte", T::button },
+         [=] (int d, float v) { if (pressed (v)) deck (d).tapTempo(); });
+    // The same on the deck shown on that side (decks 1 / 3 on the left, 2 / 4 on the right): the FX TAP of
+    // 4-deck controllers, whose deck field names the side.
+    add ({ "tap_tempo_side", "TAP del lado (deck a la vista): grilla y BPM", "Transporte", T::button },
+         [=] (int d, float v) { if (pressed (v)) engine.deck (engine.visibleDeck (juce::jlimit (0, 1, d % 2))).tapTempo(); });
 
     add ({ "reverse", "Reverse", "Transporte", T::button },
          [=] (int d, float v) { if (pressed (v)) deck (d).setReverse (! deck (d).isReverse()); },
@@ -248,7 +263,19 @@ void Actions::build()
                  lastTurnMs[(size_t) d] = now;
                  k.scratchMove (seconds);
              }
-             else if (k.isPlaying())  { k.jogBend (juce::jlimit (-1.0, 1.0, (double) revs * 25.0)); lastJogMs[(size_t) d] = juce::Time::getMillisecondCounterHiRes(); }
+             else if (k.isPlaying())
+             {
+                 // Nudge by how fast the platter turns, not by the size of each message: controllers that send
+                 // many small messages (Denon: 894 per turn) and few big ones bend the same.
+                 const auto i = (size_t) d;
+                 const double now = juce::Time::getMillisecondCounterHiRes();
+                 const double gap = now - lastBendMs[i];
+                 const double rps = (double) revs / (juce::jlimit (2.0, 60.0, gap) / 1000.0);
+                 bendSpeed[i] = gap > 60.0 ? rps : bendSpeed[i] * 0.6 + rps * 0.4;
+                 lastBendMs[i] = now;
+                 k.jogBend (juce::jlimit (-1.0, 1.0, bendSpeed[i] * 0.35));   // one turn a second ≈ 35 % faster
+                 lastJogMs[i] = now;
+             }
              else                     k.jogScrub (seconds);
          });
 
@@ -273,7 +300,7 @@ void Actions::build()
     add ({ "pitch", "Pitch fader", "Jog y pitch", T::absolute },
          // Club player convention, same as the on-screen fader: up = slower (−), down = faster (+). Controllers send
          // their lowest value at the top of the fader (the − end) and the highest at the bottom (the + end).
-         [=] (int d, float v) { auto& k = deck (d); if (! k.isSyncOn()) k.setPitch ((v * 2.0 - 1.0) * k.getPitchRange()); },
+         [=] (int d, float v) { auto& k = deck (d); k.pitchFader ((v * 2.0 - 1.0) * k.getPitchRange()); },
          {},
          [=] (int d) { auto& k = deck (d); return (float) juce::jlimit (0.0, 1.0, (1.0 + k.getPitch() / k.getPitchRange()) * 0.5); });
 
@@ -375,20 +402,38 @@ void Actions::build()
 
     // Pads in the deck's current page (PAD 1–8 / PAD PAGE)
     for (int i = 0; i < 8; ++i)
+    {
         add ({ "pad_" + juce::String (i + 1), "Pad " + juce::String (i + 1) + " (página actual)"_u, "Pads", T::button },
-             [this, i] (int d, float v) { if (hooks.padPress) hooks.padPress (d, i, v > 0.5f); },
+             [this, i] (int d, float v) { if (hooks.padPress) hooks.padPress (d, i, v, false); },
              [this, i] (int d) { return hooks.padLed && hooks.padLed (d, i) >= (int) Led::on; });
+        add ({ "pad_shift_" + juce::String (i + 1), "SHIFT + Pad " + juce::String (i + 1), "Pads", T::button },
+             [this, i] (int d, float v) { if (hooks.padPress) hooks.padPress (d, i, v, true); });
+    }
+    for (int i = 0; i < Sampler::numSlots; ++i)
+    {
+        const auto number = juce::String (i + 1);
+        add ({ "sample_play_" + number, "Disparar sample " + number, "Pads", T::button },
+             [this, i] (int d, float v) { if (v > 0.0f) engine.sampler().trigger (i, d, 1.0f); },
+             [this, i] (int) { return engine.sampler().playing (i); });
+        add ({ "sample_stop_" + number, "Detener sample " + number, "Pads", T::button },
+             [this, i] (int, float v) { if (v > 0.0f) engine.sampler().stop (i); });
+    }
     // Pad-mode buttons of controllers (HOT CUE, LOOP, ROLL…): the screen shows the same page.
     for (auto [id, label, page, note] : { std::tuple { "pad_mode_hot_cue", "Modo de pads: HOT CUE", 0, "" },
                                           std::tuple { "pad_mode_roll", "Modo de pads: ROLL", 1, "" },
                                           std::tuple { "pad_mode_loop", "Modo de pads: LOOP", 2, "" },
                                           std::tuple { "pad_mode_saved_loop", "Modo de pads: LOOPS GUARDADOS (SLICER)", 3, "SLICER: los pads disparan los loops guardados" },
                                           std::tuple { "pad_mode_jump", "Modo de pads: BEAT JUMP", 4, "" },
+                                          std::tuple { "pad_mode_cue_loop", "Modo de pads: CUE LOOP", 5, "" },
+                                          std::tuple { "pad_mode_slicer", "Modo de pads: SLICER", 6, "" },
+                                          std::tuple { "pad_mode_slicer_loop", "Modo de pads: SLICER LOOP", 7, "" },
                                           std::tuple { "pad_mode_key", "Modo de pads: TONO (TONE PLAY)", -1, "TONO: los pads suben y bajan la tonalidad" },
                                           std::tuple { "pad_mode_fx", "Modo de pads: FX", -1, "FX: pads 1-3 = efectos del deck · 4 reverse · 5 censor · 6 brake · 7 backspin" },
-                                          std::tuple { "pad_mode_sampler", "Modo de pads: SAMPLER", -1, "SAMPLER: OpenMix todavía no tiene sampler" } })
+                                          std::tuple { "pad_mode_sampler", "Modo de pads: SAMPLER", 8, "" },
+                                          std::tuple { "pad_mode_velocity_sampler", "Modo de pads: VELOCITY SAMPLER", 9, "" } })
         add ({ id, juce::String::fromUTF8 (label), "Pads", T::button },
-             [this, page, note = juce::String::fromUTF8 (note)] (int d, float v) { if (v > 0.5f && hooks.padMode) hooks.padMode (d, page, note); });
+             [this, page, note = juce::String::fromUTF8 (note)] (int d, float v) { if (v > 0.5f && hooks.padMode) hooks.padMode (d, page, note); },
+             [this, page] (int d) { return page >= 0 && hooks.isPadPage && hooks.isPadPage (d, page); });
 
     add ({ "pad_page", "Página de pads siguiente"_u, "Pads", T::button },
          [this] (int d, float v) { if (v > 0.5f && hooks.padPage) hooks.padPage (d); });
@@ -602,6 +647,24 @@ void Actions::build()
 
     add ({ "browser_focus", "Biblioteca: pasar de los temas a las playlists (y volver)", "Biblioteca", T::button, false },
          [this] (int, float v) { if (v > 0.5f && hooks.browseFocus) hooks.browseFocus(); });
+    // The browse knob pushed, as in VirtualDJ: on the folders it goes in (a folder opens / closes, a playlist
+    // shows its songs); on the songs it loads the selected one on this deck.
+    add ({ "load_or_enter", "Perilla del buscador apretada: entrar a la carpeta / playlist, o cargar el tema", "Biblioteca", T::button },
+         [this] (int d, float v)
+         {
+             if (v < 0.5f) return;
+             if (hooks.browsingFolders && hooks.browsingFolders()) { if (hooks.browseFocus) hooks.browseFocus(); }
+             else if (hooks.loadSelected) hooks.loadSelected (d);
+         });
+    // BACK: from the songs to the folders; on the folders it opens / closes the folder it stands on.
+    add ({ "browser_back", "BACK: volver a las carpetas / abrir o cerrar la carpeta", "Biblioteca", T::button, false },
+         [this] (int, float v)
+         {
+             if (v < 0.5f) return;
+             if (hooks.browsingFolders && hooks.browsingFolders()) { if (hooks.toggleFolder) hooks.toggleFolder(); }
+             else if (hooks.browseFolders) hooks.browseFolders (true);
+         },
+         [this] (int) { return hooks.browsingFolders && hooks.browsingFolders(); });
 
     add ({ "record", "Grabar", "Global", T::button, false },
          [this] (int, float v) { if (v > 0.5f && hooks.toggleRecord) hooks.toggleRecord(); },
@@ -712,7 +775,20 @@ void Actions::build()
     add ({ "crossfader_curve", "Curva del crossfader (perilla)", "Mixer", T::absolute, false },
          [=] (int, float v) { engine.crossfaderCurve = v < 0.33f ? 0 : v < 0.66f ? 2 : 1; });
     add ({ "effect_beats", "FX del deck: perilla BEATS (girar)", "Efectos", T::relative },
-         [=] (int d, float v) { if (v != 0.0f) trigger (v > 0.0f ? "effect_beat_up" : "effect_beat_down", d, 1.0f); });
+         [=] (int d, float v)
+         {
+             if (v == 0.0f) return;
+             // The effects that are on; with none on, the ones timed in beats (REVERB's amount and PITCH stay put).
+             bool anyOn = false;
+             for (int u = 0; u < AudioEngine::numDeckFx; ++u) anyOn = anyOn || engine.deckFx (d, u).enabled.load();
+             for (int u = 0; u < AudioEngine::numDeckFx; ++u)
+             {
+                 auto& f = engine.deckFx (d, u);
+                 const auto t = (BeatFx::Type) f.type.load();
+                 if (anyOn ? ! f.enabled.load() : (t == BeatFx::Type::reverb || t == BeatFx::Type::pitch)) continue;
+                 f.param = BeatFx::stepBeat (t, f.param.load(), v > 0.0f ? 1 : -1);
+             }
+         });
     for (auto [id, label, dir] : { std::tuple { "waveform_zoom_in", "Zoom de la onda +", +1 }, std::tuple { "waveform_zoom_out", "Zoom de la onda −", -1 } })
         add ({ id, juce::String::fromUTF8 (label), "Biblioteca", T::button, false },
              [=] (int, float v) { if (pressed (v) && hooks.waveformZoom) hooks.waveformZoom (dir); });
@@ -750,6 +826,7 @@ void Actions::build()
     guideLight ("guide_phase_ok",     "Guía de fase: en fase (luz)"_u, true, Guide::ok);
 
     add ({ "vu_meter", "Medidor del canal (luces)", "Luces", T::absolute }, [] (int, float) {});
+    add ({ "platter_ring", "Aro de luz del plato (gira como un vinilo)", "Luces", T::absolute }, [] (int, float) {});
     add ({ "vu_master", "Medidor master (luces)", "Luces", T::absolute, false }, [] (int, float) {});
     add ({ "end_warning", "Aviso de fin de tema (luz)", "Luces", T::button }, [] (int, float) {});
     setLevel ("end_warning", [=] (int d)
@@ -787,6 +864,7 @@ void Actions::build()
     for (int i = 0; i < 8; ++i)
     {
         const auto n = juce::String (i + 1);
+        setColour ("pad_" + n, [this, i] (int d) { return hooks.padColour ? hooks.padColour (d, i) : Theme::hotCueColour (i); });
         for (auto* id : { "hot_cue_", "delete_hot_cue_" })
             setColour (id + n, [i] (int) { return Theme::hotCueColour (i); });
         // With SHIFT held, pads that send their own message still show which cues there are to delete.

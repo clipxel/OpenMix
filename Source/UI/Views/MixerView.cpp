@@ -287,6 +287,11 @@ void MixerView::bindStrip (Strip& s)
     eq (s.hi, ch.eqHigh);
     eq (s.mid, ch.eqMid);
     eq (s.low, ch.eqLow);
+    s.trim.setArcColour (colour (Col::cue));                  // gain: smaller and in its own colour, apart from the EQ
+    s.trim.setTooltip ("Ganancia de canal (Gain)");
+    s.hi.setTooltip ("EQ de agudos (High)");
+    s.mid.setTooltip ("EQ de medios (Mid)");
+    s.low.setTooltip ("EQ de graves (Low)");
 
     s.color.setRange (-1.0, 1.0);
     s.color.setDefault (0.0);
@@ -309,6 +314,7 @@ void MixerView::bindStrip (Strip& s)
     s.fader.bind ({ [&ch] { return (double) ch.fader.load(); }, [&ch] (double v) { ch.fader = (float) v; } });
     s.meter.setSource (&ch.meter);
 
+    s.cue.setCaptionBesideIcon (true);
     s.cue.setTextType (Type::micro, Weight::bold);
     s.cue.setLitColour (colour (Col::cue));
     s.cue.onClick = [&ch] { ch.pfl = ! ch.pfl.load(); };
@@ -456,8 +462,10 @@ void MixerView::resized()
         const int kh = juce::jlimit (24, 64, col.getHeight() / knobCount);
         for (auto* k : { &s.trim, &s.hi, &s.mid, &s.low, &s.color })
         {
-            k->setLabelOnSide (false);
-            k->setBounds (col.removeFromTop (kh).withSizeKeepingCentre (col.getWidth(), kh));
+            // EQ centred and full size; GAIN and COLOR a little smaller, so the three bands stand out.
+            k->setLabelPosition (Knob::LabelPosition::below);
+            const int h = k == &s.trim ? kh * 4 / 5 : k == &s.color ? kh + 6 : kh;   // COLOR keeps room for its caption
+            k->setBounds (col.removeFromTop (kh).withSizeKeepingCentre (col.getWidth(), h));
         }
     }
 

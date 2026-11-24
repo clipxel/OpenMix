@@ -45,7 +45,7 @@ public:
         bpmField.onReturnKey = [this] { applyTyped(); };
         addAndMakeVisible (bpmField);
         applyBtn = add ("APLICAR", "Usar el BPM escrito", [this] { applyTyped(); });
-        add ("TAP", "Tocá al ritmo (4 o más toques) para fijar el BPM"_u, [this] { deck.tapTempo(); });
+        add ("TAP", "Un toque: la grilla se acomoda ahí (empieza un compás). 4 o más toques al ritmo: fija el BPM"_u, [this] { deck.tapTempo(); });
 
         // The usual analysis mistakes, with the result shown on the button.
         for (auto [f, label] : { std::pair<double, const char*> { 0.5, "÷2" }, { 2.0, "×2" }, { 1.5, "×1,5" }, { 2.0 / 3.0, "×⅔" } })
@@ -304,7 +304,7 @@ void JogWheel::mouseUp (const juce::MouseEvent&)
 
 //==============================================================================
 DeckView::DeckView (AudioEngine& e, int i)
-    : engine (e), deck (e.deck (i)), index (i), overview (deck), jog (deck)
+    : engine (e), deck (e.deck (i)), index (i), overview (deck), localWaveform (deck), jog (deck)
 {
     const auto deckCol = Theme::get().deckColour (i);
 
@@ -312,6 +312,9 @@ DeckView::DeckView (AudioEngine& e, int i)
                                                              &pitch, &pitchRange, &pitchZero, &bendDown, &bendUp, &loopHalf, &loopDouble,
                                                              &loopToggle, &loopIn, &loopOut, &jumpBack, &jumpFwd })
         addAndMakeVisible (c);
+
+    addChildComponent (localWaveform);
+    localWaveform.onZoom = [this] (double factor) { zoomLocalWaveform (factor); };
 
     // Transport ------------------------------------------------------------
     play.setLitColour (colour (Col::play));
@@ -326,8 +329,9 @@ DeckView::DeckView (AudioEngine& e, int i)
 
     sync.setLitColour (colour (Col::sync));
     sync.setTextType (Type::label, Weight::bold);
-    sync.setTooltip ("Sincroniza tempo y fase con el otro deck");
-    sync.onClick = [this] { deck.setSync (! deck.isSyncOn()); };
+    sync.setTooltip (juce::String::fromUTF8 ("Sincroniza tempo y fase con el otro deck. Activado: otro toque lo alinea al instante; mantenelo apretado para apagarlo"));
+    sync.onPress = [this] { deck.syncPress(); };
+    sync.onRelease = [this] { deck.syncRelease(); };
     sync.onRightClick = [this] (const juce::MouseEvent&)
     {
         juce::PopupMenu m;
@@ -367,6 +371,16 @@ DeckView::DeckView (AudioEngine& e, int i)
     gridBtn.onClick = [this] { openGridEditor(); };
     addAndMakeVisible (gridBtn);
 
+    reverseBtn.setIcon (Icon::reverse);
+    brakeBtn.setIcon (Icon::stop);
+    censorBtn.setIcon (Icon::censor);
+    vinylBtn.setIcon (Icon::jog);
+    gridBtn.setIcon (Icon::waveform);
+    for (auto* button : { &reverseBtn, &brakeBtn, &censorBtn, &vinylBtn, &gridBtn, &loopToggle })
+        button->setCaptionBesideIcon (true);
+    for (auto* button : { &loopToggle, &loopHalf, &loopDouble, &loopIn, &loopOut })
+        button->setFitCaption (true);
+    slip.setFitCaption (true);
     vinylBtn.setTextType (Type::micro, Weight::bold);
     vinylBtn.setTooltip ("VINYL encendido: tocar el jog hace scratch. Apagado (modo CD): el jog solo empuja o busca");
     vinylBtn.onClick = [this] { deck.setVinylMode (! deck.isVinylMode()); };
@@ -386,7 +400,7 @@ DeckView::DeckView (AudioEngine& e, int i)
     pitch.setCapColour (deckCol);
     // Club player convention: fader up = slower (−), down = faster (+).
     pitch.bind ({ [this] { return -deck.getPitch() / deck.getPitchRange(); },
-                  [this] (double v) { if (! deck.isSyncOn()) deck.setPitch (-v * deck.getPitchRange()); } });
+                  [this] (double v) { deck.pitchFader (-v * deck.getPitchRange()); } });
     pitch.setTooltip ("Pitch: hacia abajo más rápido, hacia arriba más lento (doble clic: 0 %)");
 
     pitchRange.setTextType (Type::caption, Weight::semibold);
@@ -448,15 +462,38 @@ DeckView::DeckView (AudioEngine& e, int i)
     jumpFwd.setTooltip ("Beat jump adelante (tamaño del loop)"_u);
 
     // Pads -------------------------------------------------------------------
-    const char* tabNames[] = { "HOT CUE", "ROLL", "LOOP", "S.LOOP", "JUMP" };
-    for (int t = 0; t < numPadModes; ++t)
+    const char* tabNames[] = { "HOT CUE", "ROLL", "LOOP", "SAVED LOOP", "BEAT JUMP", "CUE LOOP",
+                               "SLICER", "SLICER LOOP", "SAMPLER", "VEL. SAMPLER" };
+    for (size_t i = 0; i < padPageOrder.size(); ++i)
     {
-        auto b = std::make_unique<Button> (tabNames[t]);
+        const auto mode = padPageOrder[i];
+        const auto slot = (size_t) mode;
+        auto b = std::make_unique<Button> (tabNames[slot]);
         b->setTextType (Type::micro, Weight::bold);
-        b->onClick = [this, t] { setPadMode ((PadMode) t); };
+        b->setFitCaption (true);
+        const auto alternate = padPageOrder[i < 4 ? i + 4 : i];
+        b->onClick = [this, mode, alternate]
+        {
+            setPadMode (juce::ModifierKeys::currentModifiers.isShiftDown() ? alternate : mode);
+        };
+        b->setTooltip (i < 4 ? juce::String (tabNames[slot]) + " · Shift: "_u + tabNames[(size_t) alternate]
+                             : juce::String ("SHIFT · "_u) + tabNames[slot]);
+        b->setToggleState (mode == padMode, juce::dontSendNotification);
         addAndMakeVisible (*b);
-        padTabs[(size_t) t] = std::move (b);
+        padTabs[slot] = std::move (b);
     }
+    morePadPages.setTooltip ("Más páginas de pads"_u);
+    morePadPages.onClick = [this]
+    {
+        juce::PopupMenu menu;
+        const auto safe = juce::Component::SafePointer<DeckView> (this);
+        menu.addItem ("Loop", true, padMode == PadMode::loop,
+                      [safe] { if (safe != nullptr) safe->setPadMode (PadMode::loop); });
+        menu.addItem ("Beat Jump", true, padMode == PadMode::jump,
+                      [safe] { if (safe != nullptr) safe->setPadMode (PadMode::jump); });
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&morePadPages));
+    };
+    addAndMakeVisible (morePadPages);
 
     for (int p = 0; p < 8; ++p)
     {
@@ -481,11 +518,22 @@ void DeckView::setShowJog (bool s)
     repaint();
 }
 
+void DeckView::nextPadPage()
+{
+    const auto current = std::find (padPageOrder.begin(), padPageOrder.end(), padMode);
+    setPadMode (current == padPageOrder.end() || std::next (current) == padPageOrder.end()
+                    ? padPageOrder.front() : *std::next (current));
+}
+
 void DeckView::setPadMode (PadMode m)
 {
+    // SLICER LOOP keeps the 8-beat phrase looping while its page is on.
+    if (padMode == PadMode::slicerLoop && m != PadMode::slicerLoop) deck.setPhraseLoop (false);
+    if (m == PadMode::slicerLoop && padMode != PadMode::slicerLoop) deck.setPhraseLoop (true);
     padMode = m;
     for (int t = 0; t < numPadModes; ++t)
-        padTabs[(size_t) t]->setToggleState (t == (int) m, juce::dontSendNotification);
+        if (auto& tab = padTabs[(size_t) t]) tab->setToggleState (t == (int) m, juce::dontSendNotification);
+    morePadPages.setToggleState (m == PadMode::loop || m == PadMode::jump, juce::dontSendNotification);
     updatePads();
     resized();
 }
@@ -493,8 +541,11 @@ void DeckView::setPadMode (PadMode m)
 static constexpr double padRollSizes[8] = { 1.0 / 32, 1.0 / 16, 0.125, 0.25, 0.5, 1, 2, 4 };
 static constexpr double padJumpSizes[4] = { 1, 4, 8, 16 };
 
-void DeckView::padDown (int p, bool shift)
+void DeckView::padDown (int p, bool shift, float velocity)
 {
+    if (shift && (padMode == PadMode::roll || padMode == PadMode::loop || padMode == PadMode::jump
+                  || padMode == PadMode::slicer || padMode == PadMode::slicerLoop))
+        return;
     switch (padMode)
     {
         case PadMode::hotCue:
@@ -516,6 +567,18 @@ void DeckView::padDown (int p, bool shift)
         case PadMode::jump:
             deck.beatJump ((p < 4 ? -1.0 : 1.0) * padJumpSizes[p % 4]);
             break;
+        case PadMode::cueLoop:
+            if (shift) deck.clearHotCue (p); else deck.cueLoop (p);
+            break;
+        case PadMode::slicer:
+        case PadMode::slicerLoop:
+            deck.slice (p, true);
+            break;
+        case PadMode::sampler:
+        case PadMode::velocitySampler:
+            if (shift) engine.sampler().stop (p);
+            else engine.sampler().trigger (p, index, padMode == PadMode::velocitySampler ? velocity : 1.0f);
+            break;
     }
 }
 
@@ -523,8 +586,24 @@ void DeckView::padUp (int p)
 {
     if (padMode == PadMode::roll)
         deck.loopRoll (padRollSizes[p], false);
+    else if (padMode == PadMode::slicer || padMode == PadMode::slicerLoop)
+        deck.slice (p, false);
     else if (padMode == PadMode::hotCue)
         deck.hotCueRelease (p);                 // gate cue: release returns to the cue
+}
+
+void DeckView::chooseSample (int slot)
+{
+    sampleChooser = std::make_unique<juce::FileChooser> ("Cargar sample", engine.sampler().file (slot),
+        engine.getFormatManager().getWildcardForAllFormats());
+    sampleChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [safe = juce::Component::SafePointer<DeckView> (this), slot] (const juce::FileChooser& chooser)
+        {
+            if (safe == nullptr || chooser.getResult() == juce::File()) return;
+            if (! safe->engine.sampler().load (slot, chooser.getResult(), safe->engine.getFormatManager()))
+                safe->showMessage ("No se pudo abrir el sample. Usá un archivo de audio de hasta 60 segundos."_u, true);
+            safe->updatePads();
+        });
 }
 
 void DeckView::padRightClick (int p)
@@ -542,6 +621,15 @@ void DeckView::padRightClick (int p)
         m.addItem ("Reemplazar con el loop actual", [this, p] { deck.saveLoop (p); });
         m.addItem ("Borrar", [this, p] { deck.clearSavedLoop (p); });
     }
+    else if (padMode == PadMode::sampler || padMode == PadMode::velocitySampler)
+    {
+        auto safe = juce::Component::SafePointer<DeckView> (this);
+        m.addItem ("Cargar sample", [safe, p] { if (safe != nullptr) safe->chooseSample (p); });
+        m.addItem ("Detener sample", engine.sampler().playing (p), false,
+                   [safe, p] { if (safe != nullptr) safe->engine.sampler().stop (p); });
+        m.addItem ("Quitar sample", engine.sampler().file (p) != juce::File(), false,
+                   [safe, p] { if (safe != nullptr) { safe->engine.sampler().clear (p); safe->updatePads(); } });
+    }
     else return;
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (pads[(size_t) p].get()));
 }
@@ -552,24 +640,97 @@ static juce::String beatsLabel (double beats)
     return juce::String ((int) std::round (beats));
 }
 
+int DeckView::padLed (int pad) const
+{
+    if (! juce::isPositiveAndBelow (pad, 8)) return 0;
+    if (padMode == PadMode::sampler || padMode == PadMode::velocitySampler)
+        return engine.sampler().playing (pad) ? 3 : engine.sampler().hasSample (pad) ? 2 : 0;
+
+    const auto track = deck.getTrack();
+    if (track == nullptr) return 0;
+    if (padMode == PadMode::hotCue) return deck.getHotCue (pad) >= 0.0 ? 2 : 0;
+    if (padMode == PadMode::savedLoop)
+    {
+        const auto [start, end] = deck.getSavedLoop (pad);
+        if (end <= start) return 0;
+        const bool active = deck.isLoopActive() && std::abs (deck.getLoopStart() - start) < 1e-6
+                             && std::abs (deck.getLoopEnd() - end) < 1e-6;
+        return active ? 3 : 2;
+    }
+    if (! track->grid().isValid()) return 0;
+    switch (padMode)
+    {
+        case PadMode::cueLoop:
+        {
+            const auto cue = deck.getHotCue (pad);
+            if (cue < 0.0) return 0;
+            return deck.isLoopActive() && std::abs (deck.getLoopStart() - cue) < 0.01 ? 3 : 2;
+        }
+        case PadMode::roll:
+            return deck.isRolling() && std::abs (deck.getRollBeats() - padRollSizes[pad]) < 1e-9 ? 2 : 1;
+        case PadMode::loop:
+            return deck.isLoopActive() && ! deck.isRolling()
+                   && std::abs (deck.getLoopBeats() - padLoopSizes[pad]) < 0.01 ? 3 : 1;
+        case PadMode::slicer:
+        case PadMode::slicerLoop:
+            if (deck.isRolling() && std::abs (deck.getRollBeats() - (-1.0 - pad)) < 1e-9) return 3;
+            return deck.slicePlaying() == pad ? 2 : 1;
+        case PadMode::jump:
+            return 2;
+        default:
+            return 0;
+    }
+}
+
+juce::Colour DeckView::padColour (int pad, int level) const
+{
+    if (level == 0) return juce::Colours::transparentBlack;
+    if (level == 3 || (padMode == PadMode::roll && level == 2)) return accent();
+    switch (padMode)
+    {
+        case PadMode::hotCue:
+        case PadMode::cueLoop:
+        case PadMode::sampler:
+        case PadMode::velocitySampler:
+            return Theme::hotCueColour (pad);
+        case PadMode::savedLoop:
+            return Theme::hotCueColour (pad).withMultipliedSaturation (0.6f);
+        default:
+            return Theme::get().deckColour (index);
+    }
+}
+
 void DeckView::updatePads()
 {
     const bool hasTrack = deck.hasTrack();
     const bool hasGrid = hasTrack && deck.getTrack()->grid().isValid();
-    using C = std::optional<juce::Colour>;
 
     for (int p = 0; p < 8; ++p)
     {
         auto& b = *pads[(size_t) p];
+        const int level = padLed (p);
+        const auto colour = padColour (p, level);
+        b.setPadColour (level == 0 ? std::nullopt
+                                  : std::optional { level == 1 ? colour.withAlpha (0.4f) : colour });
         switch (padMode)
         {
+            case PadMode::sampler:
+            case PadMode::velocitySampler:
+            {
+                const auto file = engine.sampler().file (p);
+                const bool loaded = file != juce::File();
+                b.setButtonText (juce::String (p + 1));
+                b.setSubText (loaded ? file.getFileNameWithoutExtension() : juce::String());
+                b.setEnabled (true);
+                b.setTooltip (loaded ? file.getFileName() + " · Shift: detener · clic derecho: opciones"_u
+                                     : "Clic derecho para cargar un sample");
+                break;
+            }
             case PadMode::hotCue:
             {
                 const auto t = deck.getHotCue (p);
                 const auto n = juce::String (p + 1);
                 b.setButtonText (n);
-                b.setPadColour (t >= 0.0 ? C (Theme::hotCueColour (p)) : std::nullopt);
-                padLeds[(size_t) p] = ! hasTrack ? 0 : t >= 0.0 ? 2 : 0;
                 b.setSubText (t >= 0.0 ? formatTime (t) : juce::String());
                 b.setEnabled (hasTrack);
                 b.setTooltip (t >= 0.0 ? "Saltar al hot cue " + n + juce::String::fromUTF8 (" (⇧-clic o clic derecho: borrar)")
@@ -579,11 +740,8 @@ void DeckView::updatePads()
             case PadMode::roll:
             {
                 const double size = padRollSizes[p];
-                const bool active = deck.isRolling() && std::abs (deck.getRollBeats() - size) < 1e-9;
                 b.setButtonText (beatsLabel (size));
                 b.setSubText ("ROLL");
-                b.setPadColour (active ? C (accent()) : std::nullopt);
-                padLeds[(size_t) p] = ! hasGrid ? 0 : active ? 2 : 1;
                 b.setEnabled (hasGrid);
                 b.setTooltip (hasGrid ? "Loop roll de " + beatsLabel (size) + juce::String::fromUTF8 (" beat mientras se mantiene; al soltar sigue como si nada")
                                       : "Requiere BPM analizado");
@@ -592,11 +750,8 @@ void DeckView::updatePads()
             case PadMode::loop:
             {
                 const double size = padLoopSizes[p];
-                const bool active = deck.isLoopActive() && ! deck.isRolling() && std::abs (deck.getLoopBeats() - size) < 0.01;
                 b.setButtonText (beatsLabel (size));
                 b.setSubText ("BEATS");
-                b.setPadColour (active ? C (accent()) : std::nullopt);
-                padLeds[(size_t) p] = ! hasGrid ? 0 : active ? 3 : 1;
                 b.setEnabled (hasGrid);
                 b.setTooltip (hasGrid ? "Auto loop de " + beatsLabel (size) + " beats" : "Requiere BPM analizado");
                 break;
@@ -605,14 +760,33 @@ void DeckView::updatePads()
             {
                 const auto [ls, le] = deck.getSavedLoop (p);
                 const bool set = le > ls;
-                const bool active = set && deck.isLoopActive() && std::abs (deck.getLoopStart() - ls) < 1e-6 && std::abs (deck.getLoopEnd() - le) < 1e-6;
                 b.setButtonText ("L" + juce::String (p + 1));
                 b.setSubText (set ? formatTime (ls) : juce::String());
-                b.setPadColour (set ? C (active ? accent() : Theme::hotCueColour (p).withMultipliedSaturation (0.6f)) : std::nullopt);
-                padLeds[(size_t) p] = ! hasTrack || ! set ? 0 : active ? 3 : 2;
                 b.setEnabled (hasTrack);
                 b.setTooltip (set ? juce::String::fromUTF8 ("Activar / salir del loop guardado (⇧-clic: borrar)")
                                   : juce::String ("Guardar el loop actual en este pad"));
+                break;
+            }
+            case PadMode::cueLoop:
+            {
+                const auto t = deck.getHotCue (p);
+                b.setButtonText (juce::String (p + 1));
+                b.setSubText (t >= 0.0 ? beatsLabel (deck.getAutoLoopSize()) + " BEATS" : juce::String());
+                b.setEnabled (hasGrid);
+                b.setTooltip (hasGrid ? (t >= 0.0 ? "Ir al hot cue " + juce::String (p + 1) + " y hacer loop desde ahí (otra vez: salir)"
+                                                  : "Fijar el hot cue " + juce::String (p + 1) + juce::String::fromUTF8 (" y hacer loop desde ahí"))
+                                      : "Requiere BPM analizado");
+                break;
+            }
+            case PadMode::slicer:
+            case PadMode::slicerLoop:
+            {
+                b.setButtonText (juce::String (p + 1));
+                b.setSubText (padMode == PadMode::slicerLoop ? "SL.LOOP" : "SLICE");
+                b.setEnabled (hasGrid);
+                b.setTooltip (hasGrid ? juce::String::fromUTF8 ("Mantener: repetir el beat ") + juce::String (p + 1)
+                                            + juce::String::fromUTF8 (" de la frase de 8; al soltar sigue donde iba")
+                                      : "Requiere BPM analizado");
                 break;
             }
             case PadMode::jump:
@@ -620,8 +794,6 @@ void DeckView::updatePads()
                 const double size = padJumpSizes[p % 4];
                 b.setButtonText ((p < 4 ? juce::String::fromUTF8 ("−") : juce::String ("+")) + beatsLabel (size));
                 b.setSubText ("BEATS");
-                b.setPadColour (std::nullopt);
-                padLeds[(size_t) p] = hasGrid ? 2 : 0;
                 b.setEnabled (hasGrid);
                 b.setTooltip (hasGrid ? juce::String::fromUTF8 ("Saltar ") + beatsLabel (size) + (p < 4 ? juce::String::fromUTF8 (" beats atrás") : juce::String (" beats adelante"))
                                       : "Requiere BPM analizado");
@@ -682,6 +854,7 @@ void DeckView::showMessage (const juce::String& text, bool isError)
 void DeckView::refresh()
 {
     overview.refresh();
+    if (localWaveform.isVisible()) localWaveform.refresh();
     if (showJog) jog.refresh();
     pitch.syncFromEngine();
 
@@ -737,6 +910,20 @@ void DeckView::refresh()
 }
 
 //==============================================================================
+void DeckView::setViewLayout (ViewLayout layout, bool showWave)
+{
+    if (viewLayout == layout && localWaveform.isVisible() == showWave) return;
+    viewLayout = layout;
+    localWaveform.setVisible (showWave);
+    resized();
+}
+
+void DeckView::zoomLocalWaveform (double factor)
+{
+    localWaveSeconds = juce::jlimit (2.0, 32.0, localWaveSeconds * factor);
+    localWaveform.setSecondsVisible (localWaveSeconds);
+}
+
 void DeckView::resized()
 {
     auto r = getLocalBounds().reduced (Space::md, Space::sm);
@@ -747,19 +934,39 @@ void DeckView::resized()
     for (int k = 0; k < 2; ++k)
         deckPick[(size_t) k].setBounds (headerArea.getX() + 48 + k * 24, headerArea.getY() - 1, 24, 16);
     r.removeFromTop (Space::xs);
+    if (localWaveform.isVisible())
+        localWaveform.setBounds (r.removeFromTop (juce::jlimit (40, 84, r.getHeight() / 5)));
     overview.setBounds (r.removeFromTop (dense ? 22 : 28));
     r.removeFromTop (gap);
 
-    // Pads block at the bottom: tabs + 2 rows
+    const bool serato = viewLayout == ViewLayout::serato;
+    const bool sidePads = viewLayout == ViewLayout::virtualDj && r.getWidth() >= 400 && r.getHeight() >= 205;
+    const int padRows = serato ? 1 : 2;
     const int padRowH = juce::jlimit (26, 40, (r.getHeight() - 150) / 3);
-    padArea = r.removeFromBottom (16 + 4 + padRowH * 2 + 4);
-    r.removeFromBottom (gap);
-    auto loopRow = r.removeFromBottom (Size::controlMd);
-    r.removeFromBottom (gap);
+    const int padHeight = padPageRowsHeight + 4 + padRowH * padRows + 4;
+    juce::Rectangle<int> loopRow;
+    if (sidePads || viewLayout == ViewLayout::rekordbox)
+    {
+        loopRow = r.removeFromBottom (Size::controlMd);
+        r.removeFromBottom (gap);
+    }
+    if (! sidePads)
+    {
+        padArea = r.removeFromBottom (padHeight);
+        r.removeFromBottom (gap);
+    }
+    if (loopRow.isEmpty())
+    {
+        loopRow = r.removeFromBottom (Size::controlMd);
+        r.removeFromBottom (gap);
+    }
     bodyArea = r;
+    slip.setButtonText (sidePads ? "SLP" : "SLIP");
 
     // Pitch column (right)
-    auto pitchCol = r.removeFromRight (48);
+    const bool pitchOnLeft = (viewLayout == ViewLayout::rekordbox && index % 2 != 0)
+                          || (viewLayout == ViewLayout::traktor && index % 2 == 0);
+    auto pitchCol = pitchOnLeft ? r.removeFromLeft (48) : r.removeFromRight (48);
     pitchRange.setBounds (pitchCol.removeFromTop (18));
     auto bendRow = pitchCol.removeFromBottom (20);
     bendDown.setBounds (bendRow.removeFromLeft (19));
@@ -768,9 +975,31 @@ void DeckView::resized()
     pitch.setBounds (pitchCol.withTrimmedLeft (12).reduced (3, 2));
     // The 0 % dot: left of the fader, at its centre (the 0 % position).
     pitchZero.setBounds (juce::Rectangle<int> (14, 14).withCentre ({ pitchCol.getX() + 7, pitch.getBounds().getCentreY() }));
-    r.removeFromRight (gap);
+    if (pitchOnLeft) r.removeFromLeft (gap); else r.removeFromRight (gap);
 
-    if (showJog)
+    if (sidePads)
+    {
+        auto performance = r.removeFromRight (juce::jlimit (200, 280, r.getWidth() / 2));
+        padArea = performance.withSizeKeepingCentre (performance.getWidth(), padHeight);
+        r.removeFromRight (gap);
+    }
+
+    if (serato && showJog)
+    {
+        const int diameter = juce::jlimit (0, 152, juce::jmin (r.getHeight(), r.getWidth() / 3));
+        auto disc = index % 2 == 0 ? r.removeFromLeft (diameter + gap) : r.removeFromRight (diameter + gap);
+        jog.setBounds (disc.withSizeKeepingCentre (diameter, diameter));
+    }
+
+    if (sidePads && showJog)
+    {
+        const int diameter = juce::jmin (r.getWidth(), juce::jmax (0, r.getHeight() - 68));
+        auto disc = r.removeFromTop (diameter);
+        jog.setBounds (disc.withSizeKeepingCentre (diameter, diameter));
+        r.removeFromTop (Space::xs);
+    }
+
+    if (showJog && ! serato && ! sidePads)
     {
         // Transport column (left), jog in the middle
         auto col = r.removeFromLeft (juce::jlimit (72, 96, r.getWidth() / 5));
@@ -814,7 +1043,9 @@ void DeckView::resized()
     else
     {
         // Compact: transport as a row, maximum room elsewhere for waveforms.
-        auto row = r.removeFromBottom (juce::jmin (Size::transport, r.getHeight()));
+        const int transportHeight = juce::jmin (Size::transport, r.getHeight());
+        const bool transportFirst = serato || viewLayout == ViewLayout::traktor || viewLayout == ViewLayout::virtualDj;
+        auto row = transportFirst ? r.removeFromTop (transportHeight) : r.removeFromBottom (transportHeight);
         r.removeFromBottom (Space::xs);
         const int w = (row.getWidth() - gap * 2) / 3;
         cue.setBounds (row.removeFromLeft (w));
@@ -854,45 +1085,65 @@ void DeckView::layoutLoopAndPads (juce::Rectangle<int> loopRow, int padRowH)
 {
     const int gap = Space::sm;
 
-    // Loop row
+    // Keep the loop controls together and reserve space for beat jump and grid at every width.
     {
         auto lr = loopRow;
-        loopToggle.setBounds (lr.removeFromLeft (juce::jmin (84, lr.getWidth() / 4)));
-        lr.removeFromLeft (Space::xs);
-        loopHalf.setBounds (lr.removeFromLeft (30));
-        lr.removeFromLeft (Space::xs);
-        loopDouble.setBounds (lr.removeFromLeft (30));
-        lr.removeFromLeft (gap);
-        loopIn.setBounds (lr.removeFromLeft (38));
-        lr.removeFromLeft (Space::xs);
-        loopOut.setBounds (lr.removeFromLeft (38));
-        jumpFwd.setBounds (lr.removeFromRight (30));
-        lr.removeFromRight (Space::xs);
-        jumpBack.setBounds (lr.removeFromRight (30));
-        lr.removeFromRight (Space::sm);
-        gridBtn.setBounds (lr.removeFromRight (juce::jmin (52, lr.getWidth())));
+        const bool compact = lr.getWidth() < 360;
+        const int spacing = compact ? 2 : Space::xs;
+        const int small = compact ? juce::jlimit (17, 25, (lr.getWidth() - 64) / 7) : 30;
+        auto take = [&lr, spacing] (int width)
+        {
+            auto bounds = lr.removeFromLeft (width);
+            lr.removeFromLeft (spacing);
+            return bounds;
+        };
+        loopToggle.setIcon (compact ? Icon::none : Icon::loop);
+        loopToggle.setBounds (take (compact ? 54 : 88));
+        loopHalf.setBounds (take (small));
+        loopDouble.setBounds (take (small));
+        loopIn.setBounds (take (small));
+        loopOut.setBounds (take (small));
+        lr.removeFromLeft (compact ? 0 : gap);
+        jumpBack.setBounds (take (small));
+        jumpFwd.setBounds (take (small));
+        gridBtn.setBounds (lr.removeFromLeft (juce::jmin (52, lr.getWidth())));
         loopLabelArea = {};
     }
 
     // Pads
     {
         auto pa = padArea;
-        auto tabs = pa.removeFromTop (16);
-        const int tw = (tabs.getWidth() - (numPadModes - 1) * Space::xs) / numPadModes;
-        for (int t = 0; t < numPadModes; ++t)
-        {
-            padTabs[(size_t) t]->setBounds (tabs.removeFromLeft (tw));
-            tabs.removeFromLeft (Space::xs);
-        }
-        pa.removeFromTop (4);
-        const int pw = (pa.getWidth() - 3 * Space::sm) / 4;
+        auto tabs = pa.removeFromTop (padPageRowsHeight);
+        const bool narrowPages = tabs.getWidth() < 280;
+        padTabs[(size_t) PadMode::cueLoop]->setButtonText (narrowPages ? "C.LOOP" : "CUE LOOP");
+        padTabs[(size_t) PadMode::savedLoop]->setButtonText (narrowPages ? "S.LOOP" : "SAVED LOOP");
+        padTabs[(size_t) PadMode::slicerLoop]->setButtonText (narrowPages ? "SL.LOOP" : "SLICER LOOP");
+        padTabs[(size_t) PadMode::velocitySampler]->setButtonText (narrowPages ? "VEL.SMP" : "VEL. SAMPLER");
+        morePadPages.setBounds (tabs.removeFromRight (22));
+        tabs.removeFromRight (Space::xs);
         for (int row = 0; row < 2; ++row)
         {
-            auto line = pa.removeFromTop (padRowH);
-            for (int c = 0; c < 4; ++c)
+            auto line = tabs.removeFromTop (padPageRowHeight);
+            const int width = (line.getWidth() - 3 * Space::xs) / 4;
+            for (int col = 0; col < 4; ++col)
             {
-                pads[(size_t) (row * 4 + c)]->setBounds (line.removeFromLeft (pw));
-                line.removeFromLeft (Space::sm);
+                const auto mode = padPageOrder[(size_t) (row * 4 + col)];
+                padTabs[(size_t) mode]->setBounds (col == 3 ? line : line.removeFromLeft (width));
+                line.removeFromLeft (Space::xs);
+            }
+            tabs.removeFromTop (2);
+        }
+        pa.removeFromTop (4);
+        const int columns = viewLayout == ViewLayout::serato ? 8 : 4;
+        const int padGap = columns == 8 ? Space::xs : Space::sm;
+        const int pw = (pa.getWidth() - (columns - 1) * padGap) / columns;
+        for (int row = 0; row < 8 / columns; ++row)
+        {
+            auto line = pa.removeFromTop (padRowH);
+            for (int c = 0; c < columns; ++c)
+            {
+                pads[(size_t) (row * columns + c)]->setBounds (c == columns - 1 ? line : line.removeFromLeft (pw));
+                line.removeFromLeft (padGap);
             }
             pa.removeFromTop (4);
         }
@@ -908,14 +1159,16 @@ void DeckView::paint (juce::Graphics& g)
     auto h = headerArea.toFloat();
 
     // Right block: BPM (largest number on the deck), then time, then key.
-    auto bpmBlock = h.removeFromRight (92.0f);
+    const bool compactHeader = h.getWidth() < 415.0f;
+    const float infoGap = compactHeader ? 5.0f : 16.0f;
+    auto bpmBlock = h.removeFromRight (compactHeader ? 65.0f : 92.0f);
     const auto bpm = deck.getEffectiveBpm();
     const bool hasBpm = bpm > 0.0;
     const bool isMaster = engine.masterDeck.load() == index;
     Text::caption (g, isMaster ? "BPM · MASTER"_u : deck.isSyncOn() ? "BPM · SYNC"_u : juce::String ("BPM"), bpmBlock.removeFromTop (12.0f),
                    isMaster || deck.isSyncOn() ? colour (Col::sync) : colour (Col::textTertiary), juce::Justification::centredRight);
     Text::drawTabular (g, hasBpm ? juce::String (bpm, 2) : "--.--", bpmBlock.removeFromTop (26.0f),
-                       font (Type::display, Weight::semibold), hasBpm ? colour (Col::textPrimary) : colour (Col::textDisabled),
+                       font (compactHeader ? Type::title : Type::display, Weight::semibold), hasBpm ? colour (Col::textPrimary) : colour (Col::textDisabled),
                        juce::Justification::centredRight);
     if (track != nullptr)
     {
@@ -924,19 +1177,19 @@ void DeckView::paint (juce::Graphics& g)
                            std::abs (pct) > 0.005 ? deckCol : colour (Col::textTertiary), juce::Justification::centredRight);
     }
 
-    h.removeFromRight (16.0f);
-    auto timeBlock = h.removeFromRight (78.0f);
+    h.removeFromRight (infoGap);
+    auto timeBlock = h.removeFromRight (compactHeader ? 58.0f : 78.0f);
     if (track != nullptr)
     {
         const auto pos = deck.getPosition();
         Text::caption (g, "RESTANTE", timeBlock.removeFromTop (12.0f), colour (Col::textTertiary), juce::Justification::centredRight);
         Text::drawTabular (g, "-" + formatTime (deck.getLength() - pos), timeBlock.removeFromTop (20.0f),
-                           font (Type::timer, Weight::medium), colour (Col::textPrimary), juce::Justification::centredRight);
+                           font (compactHeader ? Type::body : Type::timer, Weight::medium), colour (Col::textPrimary), juce::Justification::centredRight);
         Text::drawTabular (g, formatTime (pos), timeBlock, font (Type::label), colour (Col::textSecondary), juce::Justification::centredRight);
     }
 
-    h.removeFromRight (16.0f);
-    auto keyBlock = h.removeFromRight (56.0f);
+    h.removeFromRight (infoGap);
+    auto keyBlock = h.removeFromRight (compactHeader ? 38.0f : 56.0f);
     keyArea = keyBlock.toNearestInt();
     const auto shift = deck.getKeyShift();
     Text::caption (g, shift != 0 ? "KEY " + juce::String (shift > 0 ? "+" : "") + juce::String (shift) : juce::String ("KEY"),
@@ -949,7 +1202,7 @@ void DeckView::paint (juce::Graphics& g)
                     juce::Justification::centredRight);
 
     // Left block: deck label, title, artist
-    h.removeFromRight (12.0f);
+    h.removeFromRight (compactHeader ? 4.0f : 12.0f);
     auto label = h.removeFromTop (14.0f);
     Text::draw (g, juce::String ("DECK ") + juce::String (index + 1), label, font (Type::caption, Weight::bold), deckCol);
 

@@ -20,19 +20,53 @@
     return;
   }
 
-  // macOS: instalar desde la Terminal (sin el aviso de "no se pudo verificar" de la primera apertura).
+  // macOS: no se ofrece el .dmg. El botón copia el comando de la Terminal y abre un tutorial.
   const INSTALL_CMD = "curl -fsSL https://openmix.pages.dev/install.sh | sh";
-  function terminalInstall() {
-    const code = el("code", { text: INSTALL_CMD });
+  async function copyCmd() {
+    try { await navigator.clipboard.writeText(INSTALL_CMD); return true; }
+    catch {
+      const t = el("textarea", { readonly: "" }); t.value = INSTALL_CMD;
+      t.style.cssText = "position:fixed;opacity:0"; document.body.append(t); t.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch {} t.remove(); return ok;
+    }
+  }
+  let dialog;
+  function macDialog() {
+    if (dialog) return dialog;
     const copy = el("button", { class: "copy", type: "button" }, "Copiar");
+    const status = el("p", { class: "mi-status" });
     copy.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(INSTALL_CMD); copy.textContent = "Copiado"; }
-      catch { const r = document.createRange(); r.selectNodeContents(code); getSelection().removeAllRanges(); getSelection().addRange(r); }
-      setTimeout(() => (copy.textContent = "Copiar"), 1800);
+      const ok = await copyCmd();
+      copy.textContent = ok ? "Copiado" : "Copiar";
+      status.textContent = ok ? "Código copiado. Ahora pegalo en la Terminal." : "Seleccioná el código y copialo con ⌘C.";
     });
-    return el("div", { class: "terminal-install" },
-      el("p", { class: "label", text: "O instalalo desde la Terminal, sin avisos de seguridad:" }),
-      el("div", { class: "cmd" }, code, copy));
+    const step = (n, title, body) => el("li", {}, el("span", { class: "mi-n", text: n }), el("div", {}, el("b", { text: title }), body));
+    dialog = el("dialog", { class: "mac-install", "aria-labelledby": "mi-title" },
+      el("button", { class: "mi-close", type: "button", "aria-label": "Cerrar" }, "×"),
+      el("span", { class: "kicker", text: "Instalar en macOS" }),
+      el("h2", { id: "mi-title", text: "Tres pasos y listo" }),
+      el("p", { class: "mi-lead", text: "En Mac, OpenMix se instala pegando un código en la Terminal. Es más rápido y sin avisos de seguridad." }),
+      el("ol", { class: "mi-steps" },
+        step("1", "Abrí la Terminal", el("p", {}, "Apretá ", el("kbd", { text: "⌘" }), " ", el("kbd", { text: "Espacio" }), ", escribí ", el("i", { text: "Terminal" }), " y apretá ", el("kbd", { text: "Enter" }), ".")),
+        step("2", "Pegá el código", el("div", {},
+          el("p", {}, "Ya lo copiamos por vos. Pegalo con ", el("kbd", { text: "⌘" }), " ", el("kbd", { text: "V" }), "."),
+          el("div", { class: "terminal-install" }, el("div", { class: "cmd" }, el("code", { text: INSTALL_CMD }), copy)),
+          status)),
+        step("3", "Apretá Enter", el("p", { text: "OpenMix se descarga, se instala en Aplicaciones y se abre solo. Para actualizarlo más adelante, repetí los mismos pasos." }))),
+      el("button", { class: "btn primary mi-done", type: "button" }, "Entendido"));
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog || e.target.closest(".mi-close, .mi-done")) dialog.close();
+    });
+    document.body.append(dialog);
+    return dialog;
+  }
+  async function openMacInstall(e) {
+    if (e) e.preventDefault();
+    const d = macDialog();
+    const ok = await copyCmd();
+    d.querySelector(".copy").textContent = ok ? "Copiado" : "Copiar";
+    d.querySelector(".mi-status").textContent = ok ? "Código copiado. Ahora pegalo en la Terminal." : "Tocá Copiar, o seleccioná el código y copialo con ⌘C.";
+    if (!d.open) d.showModal();
   }
 
   const p = config.platforms;
@@ -47,6 +81,16 @@
     const meta = btn.parentElement.querySelector("[data-download-meta]");
     const notice = btn.parentElement.querySelector("[data-download-notice]");
 
+    if (os === "mac" && available("mac")) {
+      btn.href = "#descarga";
+      btn.removeAttribute("download");
+      btn.innerHTML = `${ARROW}<span>Descargar para macOS</span>`;
+      btn.addEventListener("click", openMacInstall);
+      if (meta) meta.textContent = [`v${config.version}`, p.mac.requirements].filter(Boolean).join(" · ");
+      if (notice) notice.textContent = "Se instala pegando un código en la Terminal: al tocar Descargar te lo copiamos y te mostramos cómo.";
+      return;
+    }
+
     if (available(os)) {
       btn.href = p[os].url;
       btn.setAttribute("download", p[os].file);
@@ -54,12 +98,10 @@
       btn.querySelector("span").textContent = `Descargar para ${OS_NAMES[os]}`;
       if (meta) meta.textContent = [`v${config.version}`, p[os].size, p[os].requirements].filter(Boolean).join(" · ");
       const firstRun = {
-        mac: "Primera vez: si macOS avisa que no puede verificar OpenMix, andá a Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente.",
         windows: "Abrí el instalador y seguí los pasos (no pide permisos de administrador). Si Windows muestra “Windows protegió su PC”, hacé clic en Más información › Ejecutar de todas formas.",
         linux: "Descomprimí el archivo y ejecutá ./instalar.sh: OpenMix aparece en tus aplicaciones.",
       };
       if (notice) notice.textContent = firstRun[os] || "";
-      if (os === "mac") btn.parentElement.insertBefore(terminalInstall(), notice ? notice.nextSibling : null);
       return;
     }
 
@@ -83,7 +125,9 @@
   for (const key of ["mac", "windows", "linux"]) {
     const info = p[key];
     const ready = available(key);
-    const action = ready
+    const action = ready && key === "mac"
+      ? el("a", { class: key === os ? "btn primary" : "btn", href: "#descarga", onclick: openMacInstall }, "Instalar con la Terminal")
+      : ready
       ? el("a", { class: key === os ? "btn primary" : "btn", href: info.url, download: info.file }, `Descargar${info.size ? " · " + info.size : ""}`)
       : el("span", { class: "btn", "aria-disabled": "true" }, "Próximamente");
 
@@ -95,11 +139,13 @@
         key === os ? el("span", { class: "pill" }, el("span", { class: "dot" }), "Tu sistema") : null,
         action,
         el("p", { class: "req", text: info.requirements }),
-        el("p", { class: "file", text: ready ? info.file : "Sin compilación publicada" })));
+        el("p", { class: "file", text: !ready ? "Sin compilación publicada" : key === "mac" ? "Con un código en la Terminal" : info.file })));
   }
 
   // ?descargar en la URL inicia la descarga directamente (para enlaces cortos).
-  if (new URLSearchParams(location.search).has("descargar") && available(os)) {
+  if (new URLSearchParams(location.search).has("descargar") && os === "mac" && available("mac")) {
+    openMacInstall();
+  } else if (new URLSearchParams(location.search).has("descargar") && available(os)) {
     const a = el("a", { href: p[os].url, download: p[os].file });
     document.body.append(a);
     a.click();

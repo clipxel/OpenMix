@@ -1,4 +1,5 @@
 #pragma once
+#include "../Workspace.h"
 
 #include "WaveformViews.h"
 #include "../../Engine/AudioEngine.h"
@@ -72,12 +73,16 @@ public:
     std::function<void (const juce::File&)> onLoadRequest;
 
     /** Keyboard / MIDI: PAD 1–8 of the current pad page, and the next page. */
-    void externalPad (int pad, bool down)          { if (down) padDown (pad, false); else padUp (pad); }
+    void externalPad (int pad, float velocity, bool shifted) { if (velocity > 0.0f) padDown (pad, shifted, velocity); else if (! shifted) padUp (pad); }
     std::unique_ptr<juce::Component> makeGridEditor();   // the GRID callout's content (also for snapshots)
-    void nextPadPage()                             { setPadMode ((PadMode) (((int) padMode + 1) % numPadModes)); }
+    void nextPadPage();
+    void setViewLayout (ViewLayout, bool showWave);
+    void zoomLocalWaveform (double factor);
     void showPadPage (int page)                    { if (juce::isPositiveAndBelow (page, numPadModes)) setPadMode ((PadMode) page); }
     /** Controller light of PAD 1–8 in the current page (Actions::Led: 0 off, 1 dim, 2 on, 3 blink). */
-    int padLed (int pad) const                     { return juce::isPositiveAndBelow (pad, 8) ? padLeds[(size_t) pad] : 0; }
+    int padLed (int pad) const;
+    juce::Colour padColour (int pad, int level) const;
+    bool isPadPage (int page) const { return (int) padMode == page; }
 
     void paint (juce::Graphics&) override;
     void paintOverChildren (juce::Graphics&) override;
@@ -94,12 +99,18 @@ public:
     void itemDragExit (const SourceDetails&) override                  { dragOver = false; repaint(); }
 
 private:
-    enum class PadMode { hotCue = 0, roll, loop, savedLoop, jump };
-    static constexpr int numPadModes = 5;
+    enum class PadMode { hotCue = 0, roll, loop, savedLoop, jump, cueLoop, slicer, slicerLoop, sampler, velocitySampler };
+    static constexpr int numPadModes = 10;
+    static constexpr std::array padPageOrder { PadMode::hotCue, PadMode::roll, PadMode::slicer, PadMode::sampler,
+                                               PadMode::cueLoop, PadMode::savedLoop, PadMode::slicerLoop, PadMode::velocitySampler };
+    static constexpr int padPageRowHeight = 18;
+    static constexpr int padPageRowsHeight = 2 * padPageRowHeight + 2;
 
     void setPadMode (PadMode);
     void layoutLoopAndPads (juce::Rectangle<int> loopRow, int padRowH);
-    void padDown (int index, bool shift);
+    void padDown (int index, bool shift, float velocity = 1.0f);
+    void chooseSample (int slot);
+    std::unique_ptr<juce::FileChooser> sampleChooser;
     void padUp (int index);
     void padRightClick (int index);
     void updatePads();
@@ -110,6 +121,9 @@ private:
     const int index;
 
     OverviewWaveform overview;
+    ScrollingWaveform localWaveform;
+    ViewLayout viewLayout = ViewLayout::openMix;
+    double localWaveSeconds = 8.0;
     JogWheel jog;
 
     Button sync { "SYNC", Icon::none, Button::Style::standard };
@@ -135,9 +149,9 @@ private:
 
     // Pads
     std::array<std::unique_ptr<Button>, numPadModes> padTabs;
+    Button morePadPages { "…"_u };
     std::array<std::unique_ptr<Button>, 8> pads;
     PadMode padMode = PadMode::hotCue;
-    std::array<int, 8> padLeds {};
 
     bool showJog = true, dense = false, dragOver = false;
     juce::String message;

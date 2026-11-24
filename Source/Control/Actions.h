@@ -33,7 +33,7 @@ public:
         std::function<void (int deck)> loadSelected;
         std::function<void (int delta)> browse;
         std::function<void()> toggleRecord;
-        std::function<void (int deck, int pad, bool down)> padPress;   // PAD 1–8 in the deck's current pad page
+        std::function<void (int deck, int pad, float velocity, bool shifted)> padPress;   // PAD 1–8 in the deck's current pad page
         std::function<void (int deck)> padPage;                        // next pad page (HOT CUE, ROLL, …)
         std::function<int (int deck, int pad)> padLed;                 // Led of PAD 1–8 in the current page
         std::function<void()> toggleAutoMix;
@@ -45,6 +45,9 @@ public:
         std::function<void (bool folders)> browseFolders;              // put it on the sidebar / on the tracks
         std::function<void (int direction)> waveformZoom;              // +1 zoom in, −1 zoom out
         std::function<void()> queueSelected;                           // LOAD PREP: the selected track to the AUTOMIX list
+        std::function<bool (int deck, int page)> isPadPage;
+        std::function<juce::Colour (int deck, int pad)> padColour;
+        std::function<void()> toggleFolder;                            // the folder the browse knob stands on: open ⇄ close
     };
 
     Actions (AudioEngine&, Hooks);
@@ -69,7 +72,9 @@ public:
 
     /** Controller VU meters: 0…1 with peak hold and fall-off. deck −1 = master. Message thread. */
     float meterLevel (int deck);
-    static bool isMeter (const juce::String& id)      { return id == "vu_meter" || id == "vu_master"; }
+    static bool isMeter (const juce::String& id)      { return id == "vu_meter" || id == "vu_master" || id == "platter_ring"; }
+    /** Platter ring light: where a 33⅓ rpm record playing this deck would be in its turn (0…1). */
+    float platterTurn (int deck) const;
     /** Current engine value for absolute actions (0…1), or −1 if not applicable. */
     float currentValue (const juce::String& id, int deck) const;
 
@@ -112,6 +117,7 @@ private:
     // Backspins: the jog let go while it still spins keeps scratching until the platter stops.
     std::array<bool, AudioEngine::numDecks> spinOut {};
     std::array<double, AudioEngine::numDecks> lastTurnMs {}, turnSpeed {};   // track seconds per second, smoothed
+    std::array<double, AudioEngine::numDecks> lastBendMs {}, bendSpeed {};   // jog nudge: platter turns per second, smoothed
     std::array<float, AudioEngine::numDecks + 1> vu {};       // decks, then master
 };
 

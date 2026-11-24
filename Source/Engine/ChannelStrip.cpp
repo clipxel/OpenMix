@@ -64,7 +64,7 @@ juce::String ChannelStrip::colorName (Color c)
 
 void ChannelStrip::processPreFader (float* l, float* r, int n, double deckBpm)
 {
-    gTrim.setTargetValue (juce::Decibels::decibelsToGain (trimDb.load()));
+    gTrim.setTargetValue (juce::Decibels::decibelsToGain (trimDb.load() + autoTrimDb.load()));
     gLow.setTargetValue  (eqKnobToGain (eqLow.load()));
     gMid.setTargetValue  (eqKnobToGain (eqMid.load()));
     gHigh.setTargetValue (eqKnobToGain (eqHigh.load()));

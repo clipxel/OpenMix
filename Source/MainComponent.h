@@ -13,6 +13,7 @@
 #include "Control/Actions.h"
 #include "Control/MidiEngine.h"
 #include "Control/ControllerLibrary.h"
+#include "Control/ControllerScreens.h"
 #include "Common/Updater.h"
 #include "Control/KeyboardControl.h"
 #include "Control/AutoMix.h"
@@ -24,7 +25,8 @@
     One fixed arrangement; only its sizes are adjustable (and persisted). Adapts to the window size. */
 class MainComponent : public juce::Component,
                       public juce::DragAndDropContainer,
-                      private juce::ChangeListener
+                      private juce::ChangeListener,
+                      private juce::Timer
 {
 public:
     explicit MainComponent (bool snapshotMode = false);
@@ -43,6 +45,7 @@ public:
     void showFeedbackForSnapshot (bool goodbye)    { showFeedback (goodbye ? om::FeedbackCard::Kind::goodbye : om::FeedbackCard::Kind::report); }
     std::unique_ptr<juce::Component> gridEditorForSnapshot() { return deckA.makeGridEditor(); }
     void showAutoMixForSnapshot()                 { automixOpen = true; automix.add (libraryView.visibleTracks()); resized(); frame(); }
+    void setViewForSnapshot (int value)           { current.layout = (om::ViewLayout) juce::jlimit (0, (int) om::viewLayoutNames.size() - 1, value); resized(); }
     void setFxModeForSnapshot (int m)             { setFxMode (m); }
     void showPadPageForSnapshot (int pages)       { for (int i = 0; i < pages; ++i) { deckA.nextPadPage(); deckB.nextPadPage(); } }
     /** Snapshot mode: open a settings section (and controllers tab) for the picture. */
@@ -64,6 +67,7 @@ private:
     class Splitter;
 
     void frame();
+    void timerCallback() override;
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
     void controllersChanged();
 
@@ -96,12 +100,17 @@ private:
     om::FxPanel fxPanel { engine };          // 3 FX workspace: three effects per deck above the decks
     int fxMode = 0;                          // 0 BEAT FX · 1 3 FX
     void setFxMode (int);
+    void showViewMenu (juce::Component&);
+    void zoomWaveforms (double factor);
+    bool showWaveforms = true, showMixer = true, showLibrary = true, showDeckFx = true;
+    om::GoogleDrive drive;                   // Google Drive folders as a music source (songs played from temporary copies)
     om::LibraryView libraryView { library, engine, devices };
+    void cleanDriveCache (bool all);         // temporary copies of Drive songs no deck has loaded
     std::unique_ptr<Splitter> splitter, waveSplitter;
     om::Actions actions { engine, { [this] (int d) { loadToDeck (libraryView.selectedTrack(), d); },
                                     [this] (int delta) { libraryView.moveSelection (delta); },
                                     [this] { toggleRecord(); },
-                                    [this] (int d, int pad, bool down) { viewFor (d).externalPad (pad, down); },
+                                    [this] (int d, int pad, float velocity, bool shifted) { viewFor (d).externalPad (pad, velocity, shifted); },
                                     [this] (int d) { viewFor (d).nextPadPage(); },
                                     [this] (int d, int pad) { return viewFor (d).padLed (pad); },
                                     [this] { automix.setRunning (! automix.isRunning()); },
@@ -113,8 +122,15 @@ private:
                                     },
                                     [this] { return libraryView.isBrowsingSidebar(); },
                                     [this] (bool folders) { libraryView.setBrowsingSidebar (folders); },
-                                    [this] (int dir) { waveforms.zoomBy (dir > 0 ? 0.5 : 2.0); },
-                                    [this] { if (auto t = libraryView.selectedTrack()) automix.add ({ t }); } } };
+                                    [this] (int dir) { zoomWaveforms (dir > 0 ? 0.5 : 2.0); },
+                                    [this] { if (auto t = libraryView.selectedTrack()) automix.add ({ t }); },
+                                    [this] (int d, int page) { return viewFor (d).isPadPage (page); },
+                                    [this] (int d, int pad)
+                                    {
+                                        const auto& view = viewFor (d);
+                                        return view.padColour (pad, view.padLed (pad));
+                                    },
+                                    [this] { libraryView.toggleFolder(); } } };
     om::KeyboardControl keyboard { actions };
     om::AutoMix automix { engine, { [this] (const om::TrackPtr& t, int d) { loadToDeck (t, d); } } };
     om::AutoMixPanel automixPanel { automix, engine,
@@ -126,6 +142,7 @@ private:
     std::unique_ptr<om::FeedbackCard> feedback;
     std::unique_ptr<om::MidiEngine> midi;     // not created in snapshot mode (no device access)
     std::unique_ptr<om::ControllerLibrary> controllerLib;   // plug and play: finds and installs mappings
+    std::unique_ptr<om::ControllerScreens> controllerScreens;  // screens on the controller (Denon MCX8000)
     om::Updater updater;
     void updaterChanged();
     std::unique_ptr<juce::AlertWindow> updateProgress;

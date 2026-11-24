@@ -11,7 +11,10 @@ namespace om
 static constexpr const char* defaultIndex = "https://clipxel.github.io/OpenMix/official/index.json";
 static constexpr int refreshHours = 12;          // re-download the index at most this often
 
-ControllerLibrary::ControllerLibrary (MidiEngine& m) : midi (m) {}
+ControllerLibrary::ControllerLibrary (MidiEngine& m) : midi (m)
+{
+    midi.stateRequest = [] (const juce::String& device) { return stateRequestFor (device); };
+}
 
 ControllerLibrary::~ControllerLibrary()
 {
@@ -179,27 +182,52 @@ bool ControllerLibrary::hasOwnSoundcard (const juce::String& profileName)
     return false;
 }
 
-std::optional<std::pair<juce::String, std::vector<MidiBinding>>> ControllerLibrary::findBundled (const juce::String& deviceName)
+/** The library entry for a controller name: the most specific name wins ("Mixtrack Pro 3" before "Mixtrack 3"). */
+static const juce::var* bundledEntryFor (const juce::String& deviceName)
 {
+    const juce::var* best = nullptr;
     if (auto* arr = bundledLibrary()["mappings"].getArray())
     {
-        // The most specific name wins ("Mixtrack Pro 3" before "Mixtrack 3").
-        const juce::var* best = nullptr;
         int bestLen = 0;
         for (auto& m : *arr)
             if (auto* names = m["match"]["midi"].getArray())
                 for (auto& n : *names)
                 {
                     // Exact, or the device adds a brand in front ("BRAND MODEL-X" for "MODEL-X").
-                    const auto pat = normalise (n.toString());
-                    const bool ok = nameMatches (deviceName, n.toString())
-                                 || (pat.length() >= 5 && normalise (deviceName).endsWith (pat));
+                    const auto pat = ControllerLibrary::normalise (n.toString());
+                    const bool ok = ControllerLibrary::nameMatches (deviceName, n.toString())
+                                 || (pat.length() >= 5 && ControllerLibrary::normalise (deviceName).endsWith (pat));
                     if (ok && pat.length() > bestLen)
                     {
                         best = &m;
                         bestLen = pat.length();
                     }
                 }
+    }
+    return best;
+}
+
+std::vector<juce::MidiMessage> ControllerLibrary::stateRequestFor (const juce::String& deviceName)
+{
+    std::vector<juce::MidiMessage> out;
+    if (const auto* e = bundledEntryFor (deviceName))
+        if (auto* reqs = (*e)["state_request"].getArray())
+            for (auto& r : *reqs)
+            {
+                juce::MemoryBlock bytes;
+                bytes.loadFromHexString (r.toString());
+                if (bytes.getSize() == 0) continue;
+                auto* p = static_cast<const juce::uint8*> (bytes.getData());
+                if (p[0] == 0xF0) out.push_back (juce::MidiMessage::createSysExMessage (p + 1, (int) bytes.getSize() - 2));
+                else if (bytes.getSize() >= 3) out.push_back (juce::MidiMessage (p[0], p[1], p[2]));
+            }
+    return out;
+}
+
+std::optional<std::pair<juce::String, std::vector<MidiBinding>>> ControllerLibrary::findBundled (const juce::String& deviceName)
+{
+    {
+        const juce::var* best = bundledEntryFor (deviceName);
         if (best != nullptr)
         {
             std::vector<MidiBinding> bindings;

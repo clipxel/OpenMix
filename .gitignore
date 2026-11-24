@@ -5,3 +5,4 @@
 /external/signalsmith-linear/
 .DS_Store
 /dist/
+/google-oauth.local

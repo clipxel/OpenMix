@@ -976,6 +976,7 @@ juce::String VdjScript::padAction (int deck, int pad, bool shifted) const
         case 1:  return (shifted ? "delete_hot_cue_" : "hot_cue_") + n;
         case 2:  return shifted ? "saved_loop_" + n : "pad_loop_" + n;
         case 3:  return "saved_loop_" + n;
+        case 4:  return (shifted ? "sample_stop_" : "sample_play_") + n;
         case 5:
         {
             static const char* keys[] = { "key_tone_down", "key_down", "key_up", "key_tone_up", "key_reset", "pitch_range", "pitch_range", "key_match" };
@@ -989,7 +990,7 @@ juce::String VdjScript::padAction (int deck, int pad, bool shifted) const
             return (shifted ? fxShift : fx)[pad & 7];
         }
         case 8:  return (shifted ? "pad_jump_long_" : "pad_jump_") + n;
-        default: return {};                                              // sampler, or a page OpenMix does not have
+        default: return {};
     }
 }
 

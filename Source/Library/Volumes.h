@@ -15,4 +15,7 @@ juce::Array<juce::File> mounted();
     Works from the path alone, without touching the disk. */
 juce::File rootOf (const juce::File& f);
 
+/** Checks the OS error from opening a directory for reading. Run off the message thread. */
+bool accessDenied (const juce::File& directory);
+
 } // namespace om::Volumes

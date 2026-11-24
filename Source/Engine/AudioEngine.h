@@ -5,6 +5,7 @@
 #include "FxUnit.h"
 #include "BeatFx.h"
 #include "Recorder.h"
+#include "Sampler.h"
 #include "MasterLimiter.h"
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -70,6 +71,7 @@ public:
     void initialiseDevice (const juce::XmlElement* savedState);
 
     juce::AudioDeviceManager& getDeviceManager() noexcept    { return deviceManager; }
+    Sampler& sampler() noexcept { return sampleBank; }
     juce::AudioFormatManager& getFormatManager() noexcept    { return formatManager; }
 
     Deck&         deck (int i)       { return *decks[(size_t) i]; }
@@ -103,6 +105,8 @@ public:
     MasterLimiter& limiter() noexcept { return masterLimiter; }
     /** Trim (dB) auto-gain would apply to a track, or 0 when loudness is unknown. */
     float autoGainTrimFor (const LoadedTrack&) const;
+    /** Auto-gain switched on or off: the loaded tracks take (or drop) their auto level now. */
+    void setAutoGain (bool on);
 
     static float masterDbToGain (float db) noexcept { return db <= -39.9f ? 0.0f : juce::Decibels::decibelsToGain (db); }
 
@@ -165,6 +169,7 @@ private:
 
     juce::AudioDeviceManager deviceManager;
     juce::AudioFormatManager formatManager;
+    Sampler sampleBank;
 
     std::array<std::atomic<int>, 2> visible { 0, 1 };
     std::array<std::unique_ptr<Deck>, numDecks> decks;

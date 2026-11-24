@@ -686,3 +686,32 @@ kbd { border-radius: 6px; }
 .faq-sec .ctrl-list-title { margin: 56px 0 16px; font-size: 18px; }
 .faq-sec .ctrl-list { list-style: none; padding: 0; display: grid; gap: 10px; columns: auto; font-size: 14px; line-height: 1.6; color: rgba(255,255,255,0.6); }
 .faq-sec .ctrl-list b { color: #fff; margin-right: 4px; }
+
+/* macOS: tutorial de instalación por Terminal */
+dialog.mac-install {
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
+  padding: 40px 36px 32px; border: 1px solid var(--line); border-radius: var(--r-card);
+  background: #0d0e10; color: #fff; box-shadow: 0 40px 120px rgba(0,0,0,0.6);
+}
+dialog.mac-install::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); }
+dialog.mac-install[open] { animation: mi-in 0.45s cubic-bezier(0.22,0.75,0.2,1); }
+@keyframes mi-in { from { opacity: 0; transform: translateY(16px) scale(0.98); } }
+.mac-install .mi-close { position: absolute; top: 14px; right: 16px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(255,255,255,0.06); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+.mac-install .mi-close:hover { background: rgba(255,255,255,0.12); }
+.mac-install h2 { margin: 10px 0 12px; font-size: clamp(22px, 5vw, 30px); font-weight: 800; font-stretch: 125%; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.1; }
+.mac-install .mi-lead { color: var(--text-2); margin-bottom: 28px; }
+.mac-install .mi-steps { list-style: none; padding: 0; display: grid; gap: 22px; margin-bottom: 30px; }
+.mac-install .mi-steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; align-items: start; }
+.mac-install .mi-n { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 800; }
+.mac-install .mi-steps b { display: block; margin: 5px 0 6px; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; }
+.mac-install .mi-steps p { color: var(--text-2); }
+.mac-install kbd { display: inline-block; min-width: 22px; padding: 1px 7px; border: 1px solid rgba(255,255,255,0.22); border-bottom-width: 2px; border-radius: 6px; font: 600 12px var(--font); color: #fff; text-align: center; }
+.mac-install .terminal-install { margin-top: 12px; max-width: none; }
+.mac-install .copy { background: var(--accent); color: var(--on-accent); }
+.mac-install .mi-status { margin-top: 8px; font-size: 13px; color: var(--accent); }
+.mac-install .mi-status:empty { display: none; }
+.mac-install .mi-done { width: 100%; justify-content: center; }
+@media (max-width: 480px) { dialog.mac-install { padding: 36px 20px 24px; } }
+@media (prefers-reduced-motion: reduce) { dialog.mac-install[open] { animation: none; } }
+.mac-install .terminal-install .cmd { height: auto; min-height: 42px; padding: 8px 6px 8px 14px; }
+.mac-install .terminal-install code { white-space: normal; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; color: #fff; }

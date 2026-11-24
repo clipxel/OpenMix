@@ -1,4 +1,5 @@
 #include "LibraryView.h"
+#include <set>
 #include "../../Engine/AudioEngine.h"
 #include "../../Library/MetadataReader.h"
 
@@ -49,13 +50,32 @@ public:
         Item (LibraryView& v, juce::String t, Icon i, std::optional<Source> s, int c = -1)
             : view (v), text (std::move (t)), icon (i), source (std::move (s)), count (c) {}
 
-        bool mightContainSubItems() override          { return dir.isNotEmpty() ? (! listed || getNumSubItems() > 0) : getNumSubItems() > 0; }
+        bool mightContainSubItems() override
+        {
+            if (driveFolder.isNotEmpty()) return ! view.driveListing.count (driveFolder) || getNumSubItems() > 0;
+            return dir.isNotEmpty() ? (! listed || getNumSubItems() > 0) : getNumSubItems() > 0;
+        }
 
         // EXPLORADOR folders list their sub-folders when first opened.
         juce::String dir;
         bool listed = false;
+        // Google Drive: a folder whose sub-folders are asked for when it opens; or an action ("Conectar…").
+        juce::String driveFolder;
+        std::function<void()> action;
+
+        // A device's playlist folder (rekordbox USB): starts closed, a click opens / closes it, and it stays
+        // as the user left it when the list is rebuilt.
+        juce::String folderKey;
+        std::set<juce::String>* openFolders = nullptr;
         void itemOpennessChanged (bool isNowOpen) override
         {
+            if (isNowOpen && driveFolder.isNotEmpty() && ! view.driveListing.count (driveFolder))
+                view.driveRequest (driveFolder);
+            if (folderKey.isNotEmpty() && openFolders != nullptr)
+            {
+                if (isNowOpen) openFolders->insert (folderKey); else openFolders->erase (folderKey);
+                return;
+            }
             if (! isNowOpen || dir.isEmpty() || listed) return;
             listed = true;
             juce::Array<juce::File> subs;
@@ -84,19 +104,31 @@ public:
         int  getItemHeight() const override           { return source.has_value() || folderStyle ? 24 : 26; }
         bool canBeSelected() const override           { return source.has_value(); }
         bool folderStyle = false;   // device folder: looks like an entry, holds playlists
+        bool section = false;       // EXPLORADOR, DISPOSITIVOS, HISTORIAL…: a click (or the browse knob) folds it
         juce::String getUniqueName() const override   { return text; }
         juce::String getTooltip() override             { return dir.isNotEmpty() ? dir : text; }
 
         void paintItem (juce::Graphics& g, int w, int h) override
         {
             auto r = juce::Rectangle<float> (0, 0, (float) w, (float) h);
+            const bool knob = view.tree != nullptr && view.tree->focused == this && view.isBrowsingSidebar();   // where the browse knob stands
             if (! source.has_value() && ! folderStyle)
             {
-                Text::caption (g, text, r.withTrimmedLeft (2.0f), colour (Col::textTertiary), juce::Justification::centredLeft);
+                if (knob)
+                {
+                    g.setColour (accent().withAlpha (0.18f));
+                    g.fillRoundedRectangle (r.reduced (0, 1), Radius::sm);
+                }
+                Text::caption (g, text, r.withTrimmedLeft (2.0f), knob ? accent() : colour (Col::textTertiary), juce::Justification::centredLeft);
                 return;
             }
 
             const bool sel = source.has_value() && view.source == *source;
+            if (knob && ! sel)
+            {
+                g.setColour (accent().withAlpha (0.18f));
+                g.fillRoundedRectangle (r.reduced (0, 1), Radius::sm);
+            }
             if (sel)
             {
                 g.setColour (colour (Col::bgControl));
@@ -123,7 +155,8 @@ public:
 
         void itemClicked (const juce::MouseEvent& e) override
         {
-            if (folderStyle) { setOpen (! isOpen()); return; }
+            if (action) { action(); return; }
+            if (folderStyle || section) { setOpen (! isOpen()); return; }
             if (! source.has_value()) return;
             if (e.mods.isPopupMenu()) { showMenu(); return; }
             view.selectSource (*source);
@@ -133,6 +166,24 @@ public:
         {
             juce::PopupMenu m;
             auto& lib = view.library;
+            if (source->kind == Source::Kind::drive && view.drive != nullptr)
+            {
+                const auto id = source->path;
+                const bool linkedTop = std::any_of (view.drive->folders().begin(), view.drive->folders().end(),
+                                                    [&] (const GoogleDrive::Folder& f) { return f.id == id; });
+                m.addItem ("Actualizar", [this, id]
+                {
+                    view.driveListing.erase (id);
+                    view.driveRequest (id);
+                    if (const auto root = view.driveRootFor (id); root.isNotEmpty()) view.driveEnsureIndex (root, true);
+                });
+                m.addItem (juce::String::fromUTF8 ("Agregar a la colección (descargar la carpeta)"), [this, id] { view.driveSaveFolder (id); });
+                m.addSeparator();
+                if (linkedTop)
+                    m.addItem ("Quitar esta carpeta de OpenMix", [this, id] { view.drive->unlinkFolder (id); view.tree->rebuild(); });
+                m.showMenuAsync ({});
+                return;
+            }
             if (source->kind == Source::Kind::playlist)
             {
                 const int idx = source->index;
@@ -158,6 +209,21 @@ public:
                 m.addItem ("Mostrar en Finder", [folder] { folder.revealToUser(); });
                 m.addSeparator();
                 m.addItem ("Quitar carpeta de la biblioteca", [&lib, folder] { lib.removeFolder (folder); });
+            }
+            else if (source->kind == Source::Kind::explorer)
+            {
+                const juce::File folder (source->path);
+                const bool inside = std::any_of (lib.folders().begin(), lib.folders().end(),
+                                                 [&] (const juce::File& f) { return folder == f || folder.isAChildOf (f); });
+                m.addItem (inside ? juce::String::fromUTF8 ("Ya está en la colección") : juce::String::fromUTF8 ("Agregar a la colección"), ! inside, false,
+                           [this, &lib, folder]
+                           {
+                               lib.addFolder (folder);
+                               view.driveStatus = juce::String::fromUTF8 ("Carpeta agregada a la colección: ") + folder.getFileName();
+                               view.tree->rebuild();
+                               view.repaint();
+                           });
+                m.addItem ("Mostrar en Finder", [folder] { folder.revealToUser(); });
             }
             else if (source->kind == Source::Kind::history)
             {
@@ -198,6 +264,12 @@ public:
         for (auto& p : lib.playlists()) sig << p.name << ":" << p.paths.size() << ",";
         for (auto& d : view.devices.devices()) sig << "|" << d->ex->volumeName << ":" << (int) d->tracks.size();
         for (auto& v : view.devices.volumes()) sig << "|" << v.getFullPathName();
+        if (view.drive != nullptr)
+        {
+            sig << "|drive:" << (view.drive->isSignedIn() ? 1 : 0);
+            for (auto& f : view.drive->folders()) sig << "," << f.id;
+            sig << "|" << (int) view.driveListing.size();
+        }
         return sig;
     }
 
@@ -216,6 +288,15 @@ public:
 
         root->addSubItem (new Item (view, "Colección"_u, Icon::collection, Source { Source::Kind::collection, 0, {} }, (int) lib.tracks().size()));
 
+        // Sections, devices and folders start folded; a click or the browse knob unfolds them, and they stay
+        // as the user left them when the list is rebuilt.
+        auto foldable = [this] (Item* it, const juce::String& key)
+        {
+            it->folderKey = key;
+            it->section = ! it->source.has_value() && ! it->folderStyle;
+            it->setOpenness (openFolders.count (key) ? juce::TreeViewItem::Openness::opennessOpen : juce::TreeViewItem::Openness::opennessClosed);
+            it->openFolders = &openFolders;
+        };
         auto* explorer = new Item (view, "Explorador", Icon::none, std::nullopt);
         {
             Source all; all.kind = Source::Kind::computer;
@@ -234,20 +315,20 @@ public:
             for (auto& v : view.devices.volumes())
                 explorer->addSubItem (Item::makeDir (view, v.getFileName(), v, Icon::eject));
         }
-        explorer->setOpenness (juce::TreeViewItem::Openness::opennessOpen);
+        foldable (explorer, "section|Explorador");
         root->addSubItem (explorer);
 
         auto* folders = new Item (view, "Carpetas", Icon::none, std::nullopt);
         for (int i = 0; i < lib.folders().size(); ++i)
             folders->addSubItem (new Item (view, lib.folders()[i].getFileName(), Icon::folder, Source { Source::Kind::folder, i, {} }));
-        folders->setOpenness (juce::TreeViewItem::Openness::opennessOpen);
+        foldable (folders, "section|Carpetas");
         root->addSubItem (folders);
 
         auto* lists = new Item (view, "Playlists", Icon::none, std::nullopt);
         for (int i = 0; i < (int) lib.playlists().size(); ++i)
             lists->addSubItem (new Item (view, lib.playlists()[(size_t) i].name, Icon::playlist, Source { Source::Kind::playlist, i, {} },
                                          lib.playlists()[(size_t) i].paths.size()));
-        lists->setOpenness (juce::TreeViewItem::Openness::opennessOpen);
+        foldable (lists, "section|Playlists");
         root->addSubItem (lists);
 
         auto* hist = new Item (view, "Historial", Icon::none, std::nullopt);
@@ -257,8 +338,44 @@ public:
             days.addIfNotAlreadyThere (it->time.formatted ("%Y-%m-%d"));
         for (int i = 0; i < juce::jmin (10, days.size()); ++i)
             hist->addSubItem (new Item (view, days[i], Icon::history, Source { Source::Kind::historyDay, 0, days[i] }));
-        hist->setOpenness (juce::TreeViewItem::Openness::opennessOpen);
+        foldable (hist, "section|Historial");
         root->addSubItem (hist);
+
+        // GOOGLE DRIVE: sign in, then folders linked by their address (own or shared), opened on demand.
+        if (view.drive != nullptr)
+        {
+            auto* gd = new Item (view, "Google Drive", Icon::none, std::nullopt);
+            auto actionItem = [this] (const juce::String& text, std::function<void()> fn)
+            {
+                auto* a = new Item (view, text, Icon::plus, std::nullopt);
+                a->folderStyle = true;
+                a->action = std::move (fn);
+                return a;
+            };
+            std::function<Item* (const juce::String&, const juce::String&, int)> driveFolderItem = [&] (const juce::String& id, const juce::String& name, int depth)
+            {
+                Source s; s.kind = Source::Kind::drive; s.path = id;
+                auto* it = new Item (view, name, Icon::folder, s);
+                it->driveFolder = id;
+                view.driveNames[id] = name;
+                if (auto found = view.driveListing.find (id); found != view.driveListing.end() && depth < 12)
+                    for (auto& e : found->second)
+                        if (e.folder) it->addSubItem (driveFolderItem (e.id, e.name, depth + 1));
+                it->folderKey = "drive|" + id;
+                it->setOpenness (openFolders.count (it->folderKey) ? juce::TreeViewItem::Openness::opennessOpen : juce::TreeViewItem::Openness::opennessClosed);
+                it->openFolders = &openFolders;
+                return it;
+            };
+            if (! view.drive->isSignedIn())
+                gd->addSubItem (actionItem (juce::String::fromUTF8 ("Iniciar sesión con Google…"), [v = &view] { v->driveConnect(); }));
+            else
+            {
+                for (auto& f : view.drive->folders()) gd->addSubItem (driveFolderItem (f.id, f.name, 0));
+                gd->addSubItem (actionItem (juce::String::fromUTF8 ("Agregar carpeta (enlace)…"), [v = &view] { v->driveAddFolder(); }));
+            }
+            foldable (gd, "section|Google Drive");
+            root->addSubItem (gd);
+        }
 
         if (! view.devices.devices().empty())
         {
@@ -278,8 +395,11 @@ public:
                         {
                             auto* f = new Item (view, p.name, Icon::folder, std::nullopt);
                             f->folderStyle = true;
-                            f->setOpenness (juce::TreeViewItem::Openness::opennessOpen);
                             addChildren (f, p.id);
+                            f->folderKey = dev.ex->volumeName + "|" + juce::String (p.id);
+                            f->setOpenness (openFolders.count (f->folderKey) ? juce::TreeViewItem::Openness::opennessOpen
+                                                                             : juce::TreeViewItem::Openness::opennessClosed);
+                            f->openFolders = &openFolders;
                             parent->addSubItem (f);
                         }
                         else
@@ -290,10 +410,10 @@ public:
                     }
                 };
                 addChildren (d, 0);
-                d->setOpenness (juce::TreeViewItem::Openness::opennessOpen);
+                foldable (d, "device|" + dev.ex->volumeName);
                 devs->addSubItem (d);
             }
-            devs->setOpenness (juce::TreeViewItem::Openness::opennessOpen);
+            foldable (devs, "section|Dispositivos");
         root->addSubItem (devs);
         }
 
@@ -309,6 +429,12 @@ public:
                 }
         };
         collect (rootItem.get());
+
+        // The item the browse knob stands on: found again in the rebuilt tree (the old one is deleted).
+        juce::String focusedFolder;
+        std::optional<Source> focusedSource;
+        if (focused != nullptr) { focusedFolder = focused->folderKey; focusedSource = focused->source; }
+        focused = nullptr;
 
         // Keep the scroll position: rebuilding must not jump the list back to the top.
         const auto scroll = tree.getViewport() != nullptr ? tree.getViewport()->getViewPosition() : juce::Point<int>();
@@ -327,6 +453,12 @@ public:
                 }
         };
         reopen (rootItem.get());
+        if (focusedFolder.isNotEmpty() || focusedSource.has_value())
+            for (int i = 0; i < tree.getNumRowsInTree() && focused == nullptr; ++i)
+                if (auto* it = dynamic_cast<Item*> (tree.getItemOnRow (i)))
+                    if ((focusedFolder.isNotEmpty() && it->folderKey == focusedFolder)
+                        || (focusedFolder.isEmpty() && focusedSource.has_value() && it->source.has_value() && *it->source == *focusedSource))
+                        focused = it;
         if (auto* vp = tree.getViewport())
         {
             const auto pos = restoreScroll;
@@ -344,9 +476,10 @@ public:
         std::vector<Item*> items;
         int cur = -1;
         for (int i = 0; i < tree.getNumRowsInTree(); ++i)
-            if (auto* it = dynamic_cast<Item*> (tree.getItemOnRow (i)); it != nullptr && (it->source.has_value() || it->folderStyle))
+            if (auto* it = dynamic_cast<Item*> (tree.getItemOnRow (i)); it != nullptr && (it->source.has_value() || it->folderStyle || it->section))
             {
-                if (it->source.has_value() && *it->source == view.source) cur = (int) items.size();
+                // Where the knob is: the folder or list it last stopped on, else the list being shown.
+                if (focused != nullptr ? it == focused : (it->source.has_value() && *it->source == view.source)) cur = (int) items.size();
                 items.push_back (it);
             }
         if (items.empty()) return;
@@ -357,17 +490,35 @@ public:
         repaintAll();
     }
 
-    /** Knob pushed on the sidebar: opens a closed list holder (device, folder); true if it did. */
+    /** Knob pushed on the sidebar: a folder opens or closes (to go into it, or past it); a closed device
+        opens. True if it did (otherwise the push goes on to the track list). */
     bool openFocused()
     {
         Item* it = focused;
         if (it == nullptr)
             for (int i = 0; i < tree.getNumRowsInTree(); ++i)
                 if (auto* x = dynamic_cast<Item*> (tree.getItemOnRow (i)); x != nullptr && x->source.has_value() && *x->source == view.source) it = x;
-        if (it == nullptr || it->isOpen() || ! it->mightContainSubItems()) return false;
+        if (it != nullptr && it->action) { it->action(); return true; }
+        if (it == nullptr || ! it->mightContainSubItems()) return false;
+        if (it->folderStyle || it->section) { it->setOpen (! it->isOpen()); repaintAll(); return true; }
+        if (it->isOpen()) return false;
         it->setOpen (true);
         return true;
     }
+
+    /** BACK: the folder / device under the knob opens or closes. */
+    void toggleFocused()
+    {
+        Item* it = focused;
+        if (it == nullptr)
+            for (int i = 0; i < tree.getNumRowsInTree(); ++i)
+                if (auto* x = dynamic_cast<Item*> (tree.getItemOnRow (i)); x != nullptr && x->source.has_value() && *x->source == view.source) it = x;
+        if (it == nullptr || ! it->mightContainSubItems()) return;
+        it->setOpen (! it->isOpen());
+        repaintAll();
+    }
+
+    std::set<juce::String> openFolders;        // device playlist folders the user opened
 
     Item* focused = nullptr;
     LibraryView& view;
@@ -425,6 +576,16 @@ LibraryView::LibraryView (Library& l, AudioEngine& e, DeviceMonitor& d) : librar
     h.setColumnVisible (colPlays, false);
 
     table.setRowHeight (Size::tableRow);
+    addAndMakeVisible (textSizeBtn);
+    textSizeBtn.setTooltip (juce::String::fromUTF8 ("Tamaño del texto de la lista (para verla de lejos)"));
+    textSizeBtn.onClick = [this]
+    {
+        juce::PopupMenu m;
+        m.addItem ("Texto normal", true, textSize == 0, [this] { setTextSize (0); });
+        m.addItem ("Texto grande", true, textSize == 1, [this] { setTextSize (1); });
+        m.addItem ("Texto muy grande", true, textSize == 2, [this] { setTextSize (2); });
+        m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&textSizeBtn));
+    };
     table.setHeaderHeight (Size::panelHeader);
     table.setMultipleSelectionEnabled (true);
     table.setColour (juce::ListBox::backgroundColourId, colour (Col::bgPanel));
@@ -663,6 +824,7 @@ juce::String LibraryView::sourceTitle() const
         case Source::Kind::historyDay: return "Historial · "_u + source.day;
         case Source::Kind::explorer:   return juce::File (source.path).getFileName().isNotEmpty() ? juce::File (source.path).getFileName() : source.path;
         case Source::Kind::computer:   return "Buscar en el equipo";
+        case Source::Kind::drive:      { const auto n = driveNames.find (source.path); return "Google Drive · " + (n != driveNames.end() ? n->second : juce::String()); }
         case Source::Kind::device:
         {
             if (! juce::isPositiveAndBelow (source.index, (int) devices.devices().size())) return "Dispositivo";
@@ -709,6 +871,54 @@ void LibraryView::rebuildRows()
         case Source::Kind::computer:
             out = explorerTracks;
             break;
+        case Source::Kind::drive:
+        {
+            const auto root = driveRootFor (source.path);
+            if (root.isNotEmpty()) driveEnsureIndex (root);
+            const auto idx = drive != nullptr && root.isNotEmpty() ? drive->index (root) : nullptr;
+            if (search.getText().trim().isNotEmpty() && idx != nullptr)
+            {
+                // Searching: every song in this folder and all its sub-folders.
+                auto& c = driveSearch;
+                if (c.index != idx.get() || c.under != source.path || c.root != root)
+                {
+                    c = {};
+                    c.index = idx.get(); c.under = source.path; c.root = root;
+                    c.folders.insert (source.path);
+                    for (auto& [id, pn] : idx->folders)
+                        if (idx->contains (id, source.path)) c.folders.insert (id);
+                    for (auto& id : c.folders)
+                    {
+                        c.paths[id] = idx->pathOf (id, root);
+                        c.lowerPaths[id] = c.paths[id].toLowerCase();
+                    }
+                    c.lowerNames.reserve (idx->files.size());
+                    for (auto& f : idx->files) c.lowerNames.push_back (f.first.name.toLowerCase());
+                }
+                const auto words = juce::StringArray::fromTokens (search.getText().toLowerCase(), true);
+                for (size_t i = 0; i < idx->files.size(); ++i)
+                {
+                    const auto& [e, parent] = idx->files[i];
+                    const auto p = c.lowerPaths.find (parent);
+                    if (p == c.lowerPaths.end()) continue;
+                    bool all = true;
+                    for (auto& w : words)
+                        if (! c.lowerNames[i].contains (w) && ! p->second.contains (w)) { all = false; break; }
+                    if (! all) continue;
+                    auto t = driveTrack (e);
+                    t->comment = c.paths[parent];
+                    out.push_back (t);
+                }
+            }
+            else if (auto found = driveListing.find (source.path); found != driveListing.end())
+            {
+                for (auto& e : found->second)
+                    if (! e.folder) out.push_back (driveTrack (e));
+            }
+            else
+                driveRequest (source.path);
+            break;
+        }
         case Source::Kind::device:
             if (juce::isPositiveAndBelow (source.index, (int) devices.devices().size()))
             {
@@ -816,6 +1026,7 @@ void LibraryView::paintRowBackground (juce::Graphics& g, int row, int w, int h, 
 
 void LibraryView::paintCell (juce::Graphics& g, int row, int col, int w, int h, bool selected)
 {
+    auto cellFont = [this] (Type t, Weight wt = Weight::regular) { auto f = font (t, wt); return f.withHeight (f.getHeight() * textScale()); };
     if (! juce::isPositiveAndBelow (row, (int) rows.size()))
         return;
 
@@ -824,7 +1035,7 @@ void LibraryView::paintCell (juce::Graphics& g, int row, int col, int w, int h, 
     const bool missing = ! t->file.existsAsFile();
     const bool played = t->playCount > 0 && source.kind != Source::Kind::history && source.kind != Source::Kind::historyDay;
     const auto primary = missing ? colour (Col::textDisabled) : colour (played && ! selected ? Col::textSecondary : Col::textPrimary);
-    const auto f = font (Type::body);
+    const auto f = cellFont (Type::body);
 
     switch (col)
     {
@@ -837,7 +1048,7 @@ void LibraryView::paintCell (juce::Graphics& g, int row, int col, int w, int h, 
                     auto b = juce::Rectangle<float> (14.0f, 14.0f).withCentre ({ (float) w * 0.5f, (float) h * 0.5f });
                     g.setColour (Theme::get().deckColour (d));
                     g.fillRoundedRectangle (b, 2.0f);
-                    Text::draw (g, juce::String (d + 1), b, font (Type::micro, Weight::bold), colour (Col::textOnAccent),
+                    Text::draw (g, juce::String (d + 1), b, cellFont (Type::micro, Weight::bold), colour (Col::textOnAccent),
                                 juce::Justification::centred, false);
                     return;
                 }
@@ -848,7 +1059,7 @@ void LibraryView::paintCell (juce::Graphics& g, int row, int col, int w, int h, 
             else if (played)                                   Icons::draw (g, Icon::check, ic, colour (Col::textTertiary));
             return;
         }
-        case colTitle:   Text::draw (g, t->displayTitle(), r, font (Type::body, Weight::medium), primary); return;
+        case colTitle:   Text::draw (g, t->displayTitle(), r, cellFont (Type::body, Weight::medium), primary); return;
         case colArtist:  Text::draw (g, t->artist, r, f, primary); return;
         case colBpm:
             Text::drawTabular (g, t->bpm > 0 ? juce::String (t->bpm, 2) : juce::String ("—"_u), r, f,
@@ -864,7 +1075,7 @@ void LibraryView::paintCell (juce::Graphics& g, int row, int col, int w, int h, 
                 if (auto dt = engine.deck (d).getTrack(); dt != nullptr && engine.deck (d).isPlaying()
                         && dt->file.getFullPathName() != t->path())
                     compatible = compatible || Analysis::camelotCompatible (dt->meta.key, k);
-            Text::draw (g, k, r, font (Type::body, compatible ? Weight::semibold : Weight::regular),
+            Text::draw (g, k, r, cellFont (Type::body, compatible ? Weight::semibold : Weight::regular),
                         compatible ? colour (Col::play) : primary);
             return;
         }
@@ -875,10 +1086,10 @@ void LibraryView::paintCell (juce::Graphics& g, int row, int col, int w, int h, 
         {
             const auto c = t->analysis == Track::Analysis::done ? colour (Col::textTertiary)
                          : t->analysis == Track::Analysis::failed ? colour (Col::error) : colour (Col::warning);
-            Text::draw (g, analysisText (t->analysis), r, font (Type::label), c);
+            Text::draw (g, analysisText (t->analysis), r, cellFont (Type::label), c);
             return;
         }
-        case colAdded:   Text::drawTabular (g, t->added.toMilliseconds() > 0 ? t->added.formatted ("%Y-%m-%d") : "—"_u, r, font (Type::label), colour (Col::textTertiary)); return;
+        case colAdded:   Text::drawTabular (g, t->added.toMilliseconds() > 0 ? t->added.formatted ("%Y-%m-%d") : "—"_u, r, cellFont (Type::label), colour (Col::textTertiary)); return;
         case colPlays:   Text::drawTabular (g, juce::String (t->playCount), r, f, colour (Col::textSecondary), juce::Justification::centredRight); return;
         default: return;
     }
@@ -919,6 +1130,12 @@ void LibraryView::browseFocusToggle()
     repaint();
 }
 
+void LibraryView::toggleFolder()
+{
+    if (! browseSidebar) return;
+    tree->toggleFocused();
+}
+
 void LibraryView::moveSelection (int delta)
 {
     if (browseSidebar && showSidebar) { tree->step (delta); return; }
@@ -941,8 +1158,18 @@ void LibraryView::returnKeyPressed (int row)
         onLoadToDeck (rows[(size_t) row], -1);
 }
 
+void LibraryView::browseTracks()
+{
+    if (! browseSidebar) return;
+    browseSidebar = false;
+    tree->focused = nullptr;
+    tree->repaintAll();
+    repaint();
+}
+
 void LibraryView::cellClicked (int row, int, const juce::MouseEvent& e)
 {
+    browseTracks();                                     // a song was touched: the knob moves through the songs
     if (e.mods.isPopupMenu())
         showRowMenu (row);
 }
@@ -981,6 +1208,16 @@ void LibraryView::showRowMenu (int row)
     juce::PopupMenu m;
     m.addItem ("Cargar en Deck 1", [this, t] { if (onLoadToDeck) onLoadToDeck (t, 0); });
     m.addItem ("Cargar en Deck 2", [this, t] { if (onLoadToDeck) onLoadToDeck (t, 1); });
+    if (t->isDrive())
+    {
+        // A song in Google Drive: played from a temporary copy; kept only when added to the collection.
+        std::vector<TrackPtr> fromDrive;
+        for (auto& x : sel) if (x->isDrive()) fromDrive.push_back (x);
+        m.addSeparator();
+        m.addItem (juce::String::fromUTF8 ("Agregar a la colección (descargar)"), [this, fromDrive] { driveSaveToCollection (fromDrive); });
+        m.showMenuAsync ({});
+        return;
+    }
     if (onAddToAutoMix)
         m.addItem ("Agregar a AUTOMIX", [this, sel] { onAddToAutoMix (sel); });
     m.addSeparator();
@@ -1027,8 +1264,18 @@ void LibraryView::resized()
     toolbarArea = r.removeFromTop (34);
     statusArea = r.removeFromBottom (20);
     auto tb = toolbarArea.reduced (Space::md, 5);
+    textSizeBtn.setBounds (tb.removeFromRight (40));
+    tb.removeFromRight (Space::xs);
     search.setBounds (tb.removeFromRight (juce::jlimit (200, 420, tb.getWidth() / 2)));
     table.setBounds (r);
+}
+
+void LibraryView::setTextSize (int s)
+{
+    textSize = juce::jlimit (0, 2, s);
+    table.setRowHeight (juce::roundToInt ((float) Size::tableRow * textScale()));
+    table.repaint();
+    if (onSidebarResized) onSidebarResized();          // saved with the other library settings
 }
 
 void LibraryView::paint (juce::Graphics& g)
@@ -1053,9 +1300,12 @@ void LibraryView::paint (juce::Graphics& g)
         left << "  ·  filtro: \""_u << search.getText() << "\"";
     Text::draw (g, left, st, font (Type::label), colour (Col::textTertiary));
 
-    juce::String right;
-    if (library.isScanning()) right << juce::String::fromUTF8 ("Escaneando carpetas…   ");
-    if (library.pendingAnalysisCount() > 0) right << "Analizando BPM: " << library.pendingAnalysisCount() << " en cola";
+    juce::String right = driveStatus.isNotEmpty() ? driveStatus : devices.lastError();
+    if (right.isEmpty())
+    {
+        if (library.isScanning()) right << juce::String::fromUTF8 ("Escaneando carpetas…   ");
+        if (library.pendingAnalysisCount() > 0) right << "Analizando BPM: " << library.pendingAnalysisCount() << " en cola";
+    }
     if (right.isNotEmpty())
         Text::draw (g, right, st, font (Type::label, Weight::medium), colour (Col::warning), juce::Justification::centredRight);
 }
@@ -1070,6 +1320,20 @@ void LibraryView::paintOverChildren (juce::Graphics& g)
     }
 
     auto emptyArea = table.getBounds().toFloat().withTrimmedTop ((float) Size::panelHeader);
+    if (source.kind == Source::Kind::drive)
+    {
+        if (! rows.empty()) return;
+        const auto root = driveRootFor (source.path);
+        const bool searching = search.getText().trim().isNotEmpty();
+        const juce::String msg = searching && drive != nullptr && drive->isIndexing (root)
+                                   ? juce::String::fromUTF8 ("Buscando en todas las subcarpetas… ") + juce::String (driveIndexFound) + juce::String::fromUTF8 (" canciones revisadas")
+                               : searching && driveError.isEmpty() ? juce::String::fromUTF8 ("No se encontró nada en esta carpeta ni en sus subcarpetas")
+                               : driveListing_pending.count (source.path) ? juce::String::fromUTF8 ("Cargando la carpeta de Google Drive…")
+                               : driveError.isNotEmpty() ? driveError
+                               : juce::String::fromUTF8 ("No hay canciones en esta carpeta (abrí las subcarpetas a la izquierda)");
+        Text::draw (g, msg, emptyArea, font (Type::body), colour (Col::textTertiary), juce::Justification::centred);
+        return;
+    }
     if (source.kind == Source::Kind::computer || source.kind == Source::Kind::explorer)
     {
         if (! rows.empty()) return;
@@ -1086,6 +1350,275 @@ void LibraryView::paintOverChildren (juce::Graphics& g)
         Text::draw (g, juce::String::fromUTF8 ("La biblioteca está vacía. Agregá una carpeta de música con «+ Carpeta» o arrastrá archivos a un deck."),
                     empty, font (Type::body), colour (Col::textTertiary), juce::Justification::centred);
     }
+}
+
+//==============================================================================
+void LibraryView::setDrive (GoogleDrive* d)
+{
+    drive = d;
+    tree->rebuild();
+}
+
+void LibraryView::driveRequest (const juce::String& folderId)
+{
+    if (drive == nullptr || folderId.isEmpty() || ! driveListing_pending.insert (folderId).second) return;
+    repaint();
+    drive->list (folderId, [this, folderId, alive = std::weak_ptr<bool> (alive)] (std::vector<GoogleDrive::Entry> entries, juce::String err)
+    {
+        if (alive.expired()) return;
+        driveListing_pending.erase (folderId);
+        driveError = err;
+        if (err.isEmpty()) driveListing[folderId] = std::move (entries);
+        tree->rebuildIfChanged();
+        if (source.kind == Source::Kind::drive && source.path == folderId) rebuildRows();
+        repaint();
+    });
+}
+
+juce::String LibraryView::driveRootFor (const juce::String& folderId)
+{
+    if (drive == nullptr || folderId.isEmpty()) return {};
+    for (auto& f : drive->folders())
+        if (f.id == folderId) return f.id;
+    for (auto& f : drive->folders())
+        if (const auto idx = drive->index (f.id); idx != nullptr && idx->folders.count (folderId)) return f.id;
+    // A sub-folder opened before its index exists: walk up the listings already loaded.
+    for (auto& f : drive->folders())
+    {
+        std::vector<juce::String> stack { f.id };
+        std::set<juce::String> seen;
+        while (! stack.empty())
+        {
+            const auto id = stack.back(); stack.pop_back();
+            if (! seen.insert (id).second) continue;
+            if (auto it = driveListing.find (id); it != driveListing.end())
+                for (auto& e : it->second)
+                    if (e.folder) { if (e.id == folderId) return f.id; stack.push_back (e.id); }
+        }
+    }
+    return {};
+}
+
+void LibraryView::driveEnsureIndex (const juce::String& rootId, bool force)
+{
+    if (drive == nullptr || ! drive->isSignedIn() || drive->isIndexing (rootId)) return;
+    const auto idx = drive->index (rootId);
+    constexpr juce::int64 hours = 6;
+    const auto now = juce::Time::currentTimeMillis();
+    if (! force && idx != nullptr && now - idx->builtAt < hours * 3600 * 1000) return;
+    if (! force)
+        if (auto f = driveIndexFailed.find (rootId); f != driveIndexFailed.end() && now - f->second < 60 * 1000) return;
+    driveIndexFound = 0;
+    drive->buildIndex (rootId,
+        [this, alive = std::weak_ptr<bool> (alive)] (int found)
+        {
+            if (alive.expired()) return;
+            driveIndexFound = found;
+            if (source.kind == Source::Kind::drive)
+            {
+                if (search.getText().trim().isNotEmpty()) rebuildRows();     // results so far
+                repaint();
+            }
+        },
+        [this, rootId, alive = std::weak_ptr<bool> (alive)] (juce::String err)
+        {
+            if (alive.expired()) return;
+            if (err.isNotEmpty()) { driveStatus = "Google Drive: " + err; driveIndexFailed[rootId] = juce::Time::currentTimeMillis(); }
+            else driveIndexFailed.erase (rootId);
+            if (driveFolderToSave.isNotEmpty() && driveRootFor (driveFolderToSave) == rootId)
+            {
+                const auto id = std::exchange (driveFolderToSave, {});
+                if (err.isEmpty()) driveSaveFolder (id);
+            }
+            if (source.kind == Source::Kind::drive) rebuildRows();
+            repaint();
+        });
+}
+
+TrackPtr LibraryView::driveTrack (const GoogleDrive::Entry& e)
+{
+    auto& slot = driveTracks[e.id];
+    if (slot == nullptr)
+    {
+        slot = std::make_shared<Track>();
+        slot->driveId = e.id;
+        slot->driveSize = e.size;
+        slot->file = GoogleDrive::cacheFolder().getChildFile (e.id + "_" + juce::File::createLegalFileName (e.name));
+        const auto name = e.name.upToLastOccurrenceOf (".", false, false);
+        if (name.contains (" - "))
+        {
+            slot->artist = name.upToFirstOccurrenceOf (" - ", false, false).trim();
+            slot->title = name.fromFirstOccurrenceOf (" - ", false, false).trim();
+        }
+        else
+            slot->title = name;
+    }
+    return slot;
+}
+
+void LibraryView::driveConnect()
+{
+    if (drive == nullptr) return;
+    auto start = [this]
+    {
+        driveStatus = juce::String::fromUTF8 ("Google Drive: iniciá sesión en el navegador…");
+        repaint (statusArea);
+        drive->signIn ([this, alive = std::weak_ptr<bool> (alive)] (juce::String err)
+        {
+            if (alive.expired()) return;
+            driveStatus = err.isEmpty() ? juce::String::fromUTF8 ("Google Drive conectado") + (drive->account().isNotEmpty() ? " (" + drive->account() + ")" : juce::String())
+                                        : "Google Drive: " + err;
+            tree->rebuild();
+            repaint();
+        });
+    };
+    if (drive->hasClient()) { start(); return; }
+
+    // First time: the OAuth client of the Google Cloud project (see the guide in the help).
+    auto* w = new juce::AlertWindow (juce::String::fromUTF8 ("Conectar Google Drive"),
+                                     juce::String::fromUTF8 ("Pegá el ID de cliente y el secreto de cliente de OAuth (aplicación de escritorio) de tu proyecto de Google Cloud. Se piden una sola vez."),
+                                     juce::MessageBoxIconType::NoIcon);
+    w->addTextEditor ("id", {}, juce::String::fromUTF8 ("ID de cliente"));
+    w->addTextEditor ("secret", {}, juce::String::fromUTF8 ("Secreto de cliente"));
+    w->addButton ("Conectar", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    w->addButton ("Cancelar", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    w->enterModalState (true, juce::ModalCallbackFunction::create ([this, w, start] (int r)
+    {
+        if (r == 1 && w->getTextEditorContents ("id").trim().isNotEmpty())
+        {
+            drive->setClient (w->getTextEditorContents ("id"), w->getTextEditorContents ("secret"));
+            start();
+        }
+    }), true);
+}
+
+void LibraryView::driveAddFolder()
+{
+    if (drive == nullptr) return;
+    auto* w = new juce::AlertWindow (juce::String::fromUTF8 ("Agregar carpeta de Google Drive"),
+                                     juce::String::fromUTF8 ("Pegá el enlace de la carpeta (tuya o compartida con vos). En Drive: clic derecho en la carpeta › Compartir › Copiar vínculo."),
+                                     juce::MessageBoxIconType::NoIcon);
+    w->addTextEditor ("link", {}, "Enlace");
+    w->addButton ("Agregar", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    w->addButton ("Cancelar", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    w->enterModalState (true, juce::ModalCallbackFunction::create ([this, w] (int r)
+    {
+        if (r != 1) return;
+        driveStatus = juce::String::fromUTF8 ("Google Drive: buscando la carpeta…");
+        repaint (statusArea);
+        drive->linkFolder (w->getTextEditorContents ("link"), [this, alive = std::weak_ptr<bool> (alive)] (juce::String err)
+        {
+            if (alive.expired()) return;
+            driveStatus = err.isEmpty() ? juce::String::fromUTF8 ("Carpeta de Google Drive agregada") : "Google Drive: " + err;
+            tree->rebuild();
+            if (err.isEmpty() && ! drive->folders().empty())
+            {
+                Source s; s.kind = Source::Kind::drive; s.path = drive->folders().back().id;
+                selectSource (s);
+            }
+            repaint();
+        });
+    }), true);
+}
+
+void LibraryView::driveSaveToCollection (const std::vector<TrackPtr>& songs)
+{
+    if (drive == nullptr || songs.empty()) return;
+    const auto folder = juce::File::getSpecialLocation (juce::File::userMusicDirectory).getChildFile ("OpenMix").getChildFile ("Google Drive");
+    folder.createDirectory();
+    if (! library.folders().contains (folder)) library.addFolder (folder);       // the collection watches where they go
+    auto remaining = std::make_shared<int> ((int) songs.size());
+    for (auto& t : songs)
+    {
+        const auto dest = folder.getChildFile (t->file.getFileName().fromFirstOccurrenceOf ("_", false, false));
+        auto finished = [this, dest, remaining, alive = std::weak_ptr<bool> (alive)] (bool ok, juce::String err)
+        {
+            if (alive.expired()) return;
+            if (ok) library.addFile (dest);
+            driveStatus = --(*remaining) > 0 ? juce::String::fromUTF8 ("Google Drive: descargando a la colección… faltan ") + juce::String (*remaining)
+                        : ok ? juce::String::fromUTF8 ("Listo: agregado a la colección (Música › OpenMix › Google Drive)")
+                             : "Google Drive: " + err;
+            repaint (statusArea);
+        };
+        if (dest.existsAsFile()) { finished (true, {}); continue; }
+        if (t->file.existsAsFile() && t->file.copyFileTo (dest)) { finished (true, {}); continue; }   // already played: its copy
+        drive->download (t->driveId, dest, {}, finished);
+    }
+    driveStatus = juce::String::fromUTF8 ("Google Drive: descargando a la colección…");
+    repaint (statusArea);
+}
+
+void LibraryView::driveSaveFolder (const juce::String& folderId)
+{
+    if (drive == nullptr) return;
+    const auto root = driveRootFor (folderId);
+    const auto idx = root.isNotEmpty() ? drive->index (root) : nullptr;
+    if (root.isEmpty() || idx == nullptr || idx->builtAt == 0 || drive->isIndexing (root))
+    {
+        // First the whole tree, so the sub-folders come too.
+        driveFolderToSave = folderId;
+        driveStatus = juce::String::fromUTF8 ("Google Drive: revisando las subcarpetas antes de descargar…");
+        if (root.isNotEmpty() && ! drive->isIndexing (root)) driveEnsureIndex (root, true);
+        repaint();
+        return;
+    }
+
+    struct Item { juce::String id; juce::File dest; };
+    const auto name = [&]
+    {
+        if (auto n = driveNames.find (folderId); n != driveNames.end()) return n->second;
+        if (auto f = idx->folders.find (folderId); f != idx->folders.end()) return f->second.second;
+        return juce::String ("Google Drive");
+    }();
+    const auto base = juce::File::getSpecialLocation (juce::File::userMusicDirectory).getChildFile ("OpenMix").getChildFile ("Google Drive")
+                          .getChildFile (juce::File::createLegalFileName (name));
+    auto items = std::make_shared<std::vector<Item>>();
+    juce::int64 bytes = 0;
+    for (auto& [e, parent] : idx->files)
+        if (parent == folderId || idx->contains (parent, folderId))
+        {
+            auto dir = base;
+            for (auto& part : juce::StringArray::fromTokens (idx->pathOf (parent, folderId), "/", {}))
+                if (part.trim().isNotEmpty()) dir = dir.getChildFile (juce::File::createLegalFileName (part.trim()));
+            items->push_back ({ e.id, dir.getChildFile (juce::File::createLegalFileName (e.name)) });
+            bytes += e.size;
+        }
+    if (items->empty()) { driveStatus = juce::String::fromUTF8 ("Google Drive: no hay canciones en esa carpeta"); repaint(); return; }
+
+    const auto size = bytes > 1024LL * 1024 * 1024 ? juce::String ((double) bytes / (1024.0 * 1024.0 * 1024.0), 1) + " GB"
+                                                   : juce::String ((int) (bytes / (1024 * 1024))) + " MB";
+    const auto text = juce::String::fromUTF8 ("Se van a descargar ") + juce::String ((int) items->size()) + juce::String::fromUTF8 (" canciones (") + size
+                    + juce::String::fromUTF8 (") a Música › OpenMix › Google Drive › ") + name
+                    + juce::String::fromUTF8 (", con sus subcarpetas. Va a quedar en Colección › Carpetas.");
+    juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, juce::String::fromUTF8 ("Agregar a la colección"), text,
+                                        "Descargar", "Cancelar", nullptr,
+        juce::ModalCallbackFunction::create ([this, items, base, alive = std::weak_ptr<bool> (alive)] (int r)
+        {
+            if (r != 1 || alive.expired()) return;
+            base.createDirectory();
+            library.addFolder (base);
+            tree->rebuild();
+            auto remaining = std::make_shared<int> ((int) items->size());
+            auto failed = std::make_shared<int> (0);
+            for (auto& it : *items)
+            {
+                const auto dest = it.dest;
+                auto finished = [this, dest, remaining, failed, base, alive] (bool ok, juce::String)
+                {
+                    if (alive.expired()) return;
+                    if (ok) library.addFile (dest); else ++*failed;
+                    driveStatus = --(*remaining) > 0 ? juce::String::fromUTF8 ("Google Drive: descargando la carpeta… faltan ") + juce::String (*remaining)
+                                : *failed == 0 ? juce::String::fromUTF8 ("Listo: la carpeta está en Colección › Carpetas (") + base.getFileName() + ")"
+                                               : juce::String::fromUTF8 ("Carpeta descargada; ") + juce::String (*failed) + juce::String::fromUTF8 (" canciones no se pudieron bajar");
+                    repaint (statusArea);
+                };
+                if (dest.existsAsFile()) { finished (true, {}); continue; }
+                dest.getParentDirectory().createDirectory();
+                drive->download (it.id, dest, {}, finished, true);
+            }
+            driveStatus = juce::String::fromUTF8 ("Google Drive: descargando la carpeta…");
+            repaint (statusArea);
+        }));
 }
 
 } // namespace om

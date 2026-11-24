@@ -28,6 +28,11 @@ TopBar::TopBar (AudioEngine& e) : engine (e)
     automixBtn.setTooltip ("Mezcla automática: abrir / cerrar el panel"_u);
     automixBtn.onClick = [this] { if (onToggleAutoMix) onToggleAutoMix(); };
     addAndMakeVisible (automixBtn);
+    viewBtn.setIcon (Icon::layout);
+    viewBtn.setCaptionBesideIcon (true);
+    viewBtn.setTooltip ("Mostrar u ocultar secciones de OpenMix");
+    viewBtn.onClick = [this] { if (onOpenView) onOpenView (viewBtn); };
+    addAndMakeVisible (viewBtn);
     fxMode.setCompact (true);
     fxMode.onChange = [this] (int m) { if (onFxModeChange) onFxModeChange (m); };
     addAndMakeVisible (fxMode);
@@ -128,9 +133,14 @@ void TopBar::resized()
     r.removeFromRight (Space::sm);
     automixBtn.setBounds (r.removeFromRight (84));
     r.removeFromRight (Space::sm);
-    fxMode.setBounds (r.removeFromRight (124).withSizeKeepingCentre (124, 22));
-    r.removeFromRight (Space::sm);
+    if (fxMode.isVisible())
+    {
+        fxMode.setBounds (r.removeFromRight (124).withSizeKeepingCentre (124, 22));
+        r.removeFromRight (Space::sm);
+    }
     r.removeFromRight (Space::md - Space::sm);
+    viewBtn.setBounds (r.removeFromRight (64));
+    r.removeFromRight (Space::xs);
     cpu.setBounds (r.removeFromRight (cpu.idealWidth() + 4));
     controllers.setBounds (r.removeFromRight (controllers.idealWidth()));
     r.removeFromRight (Space::xs);

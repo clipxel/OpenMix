@@ -31,7 +31,7 @@ public:
     juce::uint64 revision() const noexcept { return rev; }
     /** Every mounted external volume (for the file explorer), exported or not. */
     const juce::Array<juce::File>& volumes() const noexcept { return allVolumes; }
-    juce::String lastError() const { return error; }
+    juce::String lastError() const;
 
     /** Beat grid + cues for a device track (reads its ANLZ files). */
     static UsbExport::Analysis analysisFor (const Track&);
@@ -55,7 +55,8 @@ private:
     static juce::File& volumesOverride() { static juce::File f; return f; }
     std::shared_ptr<std::atomic<bool>> alive = std::make_shared<std::atomic<bool>> (true);
     juce::uint64 rev = 1;
-    juce::String error;
+    std::map<juce::String, juce::String> errors;
+    juce::String deniedVolumes;
 };
 
 } // namespace om

@@ -3,10 +3,12 @@
 #include "../Control/Actions.h"
 #include "../Control/MidiEngine.h"
 #include "../Control/ControllerLibrary.h"
+#include "../Control/ControllerScreens.h"
 #include "../Control/MappingWizard.h"
 #include "../Control/MappingImport.h"
 #include "../Control/AutoMix.h"
 #include "../Control/MapAssistant.h"
+#include "../Library/GoogleDrive.h"
 #include "../Common/Updater.h"
 #include <juce_cryptography/juce_cryptography.h>
 #include <set>
@@ -19,6 +21,7 @@
 #include "../Engine/BeatFx.h"
 #include "../Engine/ChannelStrip.h"
 #include "../Common/Strings.h"
+#include "../UI/Views/DeckView.h"
 
 namespace om
 {
@@ -1166,7 +1169,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                 for (auto v : res.out) { finite = finite && std::isfinite (v); pk = juce::jmax (pk, std::abs (v)); }
                 if (! finite || pk > 1.6f) unstable << BeatFx::typeName ((BT) t) << " ";
             }
-        rep.check (unstable.isEmpty(), "Los 14 BEAT FX procesan estable (sin NaN ni desbordes)", unstable);
+        rep.check (unstable.isEmpty(), "Los BEAT FX procesan estable (sin NaN ni desbordes)", unstable);
 
         // 2. DELAY / ECHO / PING PONG / SPIRAL / REVERB: the track keeps its level, the effect is
         //    clearly heard, and it keeps ringing after FX is switched off (input silent), then dies out.
@@ -1391,11 +1394,11 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         const bool beats = BeatFx::paramText (BeatFx::Type::echo, BeatFx::defaultParam (BeatFx::Type::echo)) == "1"
                         && BeatFx::paramText (BeatFx::Type::tripletFilter, BeatFx::defaultParam (BeatFx::Type::tripletFilter)) == "4/3"
                         && BeatFx::paramText (BeatFx::Type::tripletRoll, BeatFx::defaultParam (BeatFx::Type::tripletRoll)) == "1/3"
-                        && BeatFx::paramText (BeatFx::Type::reverb, BeatFx::defaultParam (BeatFx::Type::reverb)) == "50%"
+                        && BeatFx::paramText (BeatFx::Type::reverb, BeatFx::defaultParam (BeatFx::Type::reverb)) == "90%"
                         && BeatFx::paramText (BeatFx::Type::mobius, BeatFx::stepBeat (BeatFx::Type::mobius, 1.0f, 0)) == "-1/16"
                         && BeatFx::paramText (BeatFx::Type::delay, BeatFx::stepBeat (BeatFx::Type::delay, 0.0f, 3)) == "1/3";
-        rep.check (bad.isEmpty() && beats && BeatFx::clubOrder().size() == 14,
-                   "Los 14 BEAT FX del mixer de club suenan, son estables y tienen los BEAT del manual"_u,
+        rep.check (bad.isEmpty() && beats && BeatFx::clubOrder().size() == 11,
+                   "Los BEAT FX que ofrece OpenMix suenan, son estables y tienen los BEAT del manual"_u,
                    bad.isEmpty() ? (beats ? juce::String ("ok") : juce::String ("valores de BEAT distintos")) : bad);
     }
 
@@ -2023,6 +2026,115 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                        "sigue " + juce::String (followPitch * 100.0, 2) + " % · solo " + juce::String (ownPitch * 100.0, 2) + " %");
         }
 
+        // Emergency SYNC: with SYNC already on and the track drifted by hand, pressing SYNC lines it up
+        // at once (and keeps SYNC on); holding it ≥ 0.6 s switches it off.
+        {
+            AudioEngine e9;
+            e9.prepareForTest (sr, block);
+            auto& da = e9.deck (0);
+            auto& db = e9.deck (1);
+            std::vector<float> zl (block), zr (block);
+            float* z2[2] = { zl.data(), zr.data() };
+            auto runE = [&] (int k) { for (int j = 0; j < k; ++j) e9.audioDeviceIOCallbackWithContext (nullptr, 0, z2, 2, block, {}); };
+            auto t1 = sineTrack (200.0, 48000.0, 30.0, 0.3f); t1->setGrid ({ 124.0, 0.0 });
+            auto t2 = sineTrack (300.0, 48000.0, 30.0, 0.3f); t2->setGrid ({ 124.0, 0.0 });
+            da.setTrack (t1); db.setTrack (t2);
+            da.setPlaying (true);
+            runE (20);
+            db.setPlaying (true);
+            db.syncPress(); db.syncRelease();
+            runE (20);
+            auto phaseGap = [&]
+            {
+                double d = t1->grid().beatAt (da.getPosition()) - t2->grid().beatAt (db.getPosition());
+                d -= std::round (d);
+                return std::abs (d);
+            };
+            for (int j = 0; j < 60; ++j) { db.jogBend (1.0); runE (1); }   // pushed by hand: out of phase
+            db.jogBend (0.0);                                               // jog let go
+            runE (40);
+            const double drifted = phaseGap();
+            db.syncPress(); db.syncRelease();                               // emergency press
+            runE (2);
+            const double fixed = phaseGap();
+            const bool stillOn = db.isSyncOn();
+            db.syncPress();
+            juce::Thread::sleep (650);
+            db.syncRelease();                                               // held: off
+            rep.check (drifted > 0.02 && fixed < 0.01 && stillOn && ! db.isSyncOn(),
+                       "SYNC de emergencia: ya activado, otro toque alinea al instante; mantenerlo lo apaga"_u,
+                       "corrido " + juce::String (drifted, 3) + " · después " + juce::String (fixed, 3) + " de beat");
+        }
+
+        // Pitch fader with SYNC on (sync has the track at −10 %): the fader elsewhere does nothing; once it
+        // reaches −10 % (slowly, or passing it quickly) and keeps moving, SYNC goes off and the fader rules.
+        {
+            Deck dk (0);
+            dk.prepare (48000.0);
+            auto t = sineTrack (200.0, 48000.0, 10.0, 0.3f); t->setGrid ({ 128.0, 0.0 });
+            dk.setTrack (t);
+            dk.setPitchRange (0.16);
+            dk.audioSetPitch (-0.10);
+            dk.setSync (true);
+            dk.pitchFader (0.04);                       // far away: ignored
+            const bool ignored = dk.isSyncOn() && std::abs (dk.getPitch() + 0.10) < 1.0e-9;
+            dk.pitchFader (-0.02);
+            dk.pitchFader (-0.07);
+            const bool stillFar = dk.isSyncOn();
+            dk.pitchFader (-0.12);                      // went across −10 %: caught
+            const bool caught = ! dk.isSyncOn() && std::abs (dk.getPitch() + 0.12) < 1.0e-9;
+            dk.pitchFader (-0.13);
+            const bool follows = std::abs (dk.getPitch() + 0.13) < 1.0e-9;
+            rep.check (ignored && stillFar && caught && follows,
+                       "Pitch con SYNC: al enganchar el tempo y seguir moviéndolo, sale de SYNC y manda el fader"_u);
+        }
+
+        // A 1/32 beat loop (≈ 15 ms, shorter than the screen's smoothing): the position shown on the
+        // waveform stays inside the loop, also with key lock on (its own delay), every time it is read.
+        {
+            juce::String bad;
+            for (bool keyLock : { false, true })
+            {
+                Deck dk (0);
+                dk.prepare (sr);
+                auto t = sineTrack (200.0, 48000.0, 20.0, 0.3f); t->setGrid ({ 128.0, 0.0 });
+                dk.setTrack (t);
+                dk.setKeyLock (keyLock);
+                dk.setPitch (0.06);
+                dk.seek (4.0);
+                dk.setPlaying (true);
+                run (dk, 0.3);
+                dk.setAutoLoop (1.0);
+                for (int k = 0; k < 5; ++k) { run (dk, 0.1); dk.scaleLoop (0.5); }   // 1 → 1/32
+                run (dk, 0.2);
+                double worst = 0.0;
+                for (int k = 0; k < 40; ++k)
+                {
+                    run (dk, 0.005);
+                    juce::Thread::sleep (3);
+                    const double p = dk.getPosition(), a = dk.getLoopStart(), b = dk.getLoopEnd();
+                    worst = juce::jmax (worst, a - p, p - b);
+                }
+                if (worst > 1.0e-6) bad << (keyLock ? "key lock " : "") << juce::String (worst * 1000.0, 1) << " ms fuera  ";
+            }
+            rep.check (bad.isEmpty(), "Loop de 1/32: la onda queda sobre el loop (no se corre al achicarlo)"_u, bad);
+        }
+
+        // TAP once: a bar of the grid starts where it was pressed (same BPM).
+        {
+            Deck dk (0);
+            dk.prepare (48000.0);
+            auto t = sineTrack (200.0, 48000.0, 30.0, 0.3f); t->setGrid ({ 120.0, 0.1 });
+            dk.setTrack (t);
+            dk.seek (7.3);
+            dk.tapTempo();
+            const auto g = dk.getGrid();
+            const double beat = g.beatAt (7.3);
+            rep.check (std::abs (g.bpm - 120.0) < 1.0e-9 && std::abs (beat - std::round (beat)) < 1.0e-6 && ((int) std::round (beat)) % 4 == 0,
+                       "TAP una vez: la grilla se acomoda donde se apretó (empieza un compás, mismo BPM)"_u,
+                       "beat " + juce::String (beat, 4) + " · " + juce::String (g.bpm, 2) + " BPM");
+        }
+
         // Loops with SYNC (reported: with a ½ or ¼ beat loop, sync kept retiming and the other track
         // was cut). A loop on either deck must never make sync move a playhead that is being heard.
         {
@@ -2150,9 +2262,56 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                    "Tema analizado en el Explorador: al cargarlo no se vuelve a analizar"_u);
     }
 
+    {
+        const auto sampleFile = juce::File::createTempFile (".wav");
+        juce::WavAudioFormat wav;
+        auto options = juce::AudioFormatWriterOptions{}.withSampleRate (22050.0).withNumChannels (1).withBitsPerSample (16);
+        std::unique_ptr<juce::OutputStream> stream = sampleFile.createOutputStream();
+        auto writer = wav.createWriterFor (stream, options);
+        juce::AudioBuffer<float> source (1, 64);
+        for (int i = 0; i < source.getNumSamples(); ++i) source.setSample (0, i, 0.5f);
+        const bool wrote = writer && writer->writeFromAudioSampleBuffer (source, 0, source.getNumSamples());
+        writer.reset();
+        Sampler sampler;
+        const bool loaded = wrote && sampler.load (0, sampleFile, engine.getFormatManager());
+        std::array<float, 128> left {}, right {};
+        sampler.trigger (0, 2, 0.25f);
+        sampler.mix (0, left.data(), right.data(), (int) left.size(), 44100.0);
+        const bool correctDeck = left.front() == 0.0f && sampler.playing (0);
+        sampler.mix (2, left.data(), right.data(), (int) left.size(), 44100.0);
+        rep.check (loaded && correctDeck && ! sampler.playing (0)
+                   && std::abs (left.back() - 0.125f) < 0.001f && left == right,
+                   "Sampler: velocidad, ruteo al deck y conversión de frecuencia"_u);
+        sampleFile.deleteFile();
+    }
+
     std::cout << "== MIDI" << std::endl;
     Actions actions (engine, {});
     MidiEngine midi (actions);
+
+    // Google Drive: every way of copying a folder's address gives its id.
+    {
+        const juce::String id = "1AbC_dEf-123XYZ";
+        const bool ok = GoogleDrive::idFromAddress ("https://drive.google.com/drive/folders/" + id + "?usp=sharing") == id
+                     && GoogleDrive::idFromAddress ("https://drive.google.com/drive/u/0/folders/" + id) == id
+                     && GoogleDrive::idFromAddress ("https://drive.google.com/open?id=" + id + "&authuser=0") == id
+                     && GoogleDrive::idFromAddress ("  " + id + " ") == id
+                     && GoogleDrive::idFromAddress ("https://example.com/no es una carpeta").isEmpty()
+                     && GoogleDrive::isAudioName ("Tema.MP3") && ! GoogleDrive::isAudioName ("foto.jpg");
+        rep.check (ok, "Google Drive: el enlace de una carpeta (cualquier forma de copiarlo) da su id"_u);
+    }
+
+    // Google Drive search: a song deep in the sub-folders belongs to every folder above it, with its path.
+    {
+        GoogleDrive::Index x;
+        x.folders["a"] = { "root", "Cumbia" };
+        x.folders["b"] = { "a", "2024" };
+        x.folders["c"] = { "root", "House" };
+        const bool ok = x.contains ("b", "root") && x.contains ("b", "a") && x.contains ("b", "b")
+                     && ! x.contains ("b", "c") && ! x.contains ("c", "a")
+                     && x.pathOf ("b", "root") == "Cumbia / 2024" && x.pathOf ("root", "root").isEmpty();
+        rep.check (ok, "Google Drive: buscar en una carpeta incluye todas sus subcarpetas, con la ruta de cada tema"_u);
+    }
 
     // Mapping assistant: every phrase of the training and the unseen sets is understood
     // (function, deck and SHIFT layer).
@@ -2193,8 +2352,13 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     midi.inject ("Test", juce::MidiMessage::noteOff (1, 11));
     rep.check (d2.isPlaying(), "Nota → play_pause en deck 2"_u);
 
+    // The first move of a fader takes the controller's position (OpenMix starts where the controller is);
+    // after that, a fader moved on screen is only grabbed back when the controller reaches it.
     engine.channel (1).fader = 1.0f;
     midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 19, 30));
+    rep.check (std::abs (engine.channel (1).fader.load() - 30.0f / 127.0f) < 0.01f, "Primer movimiento: el programa toma la posición del controlador"_u);
+    engine.channel (1).fader = 1.0f;                          // moved on screen
+    midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 19, 34));
     rep.check (std::abs (engine.channel (1).fader.load() - 1.0f) < 1e-6f, "Soft takeover: fader lejos no salta");
     midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 19, 127));
     midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 19, 64));
@@ -2428,7 +2592,78 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         midi.setBindings (b);
     }
 
+    {
+        Workspace workspace;
+        workspace.laneHeight = 92;
+        bool roundTrips = true;
+        for (size_t i = 0; i < viewLayoutNames.size(); ++i)
+        {
+            workspace.layout = (ViewLayout) i;
+            const auto restored = Workspace::fromVar (juce::JSON::parse (juce::JSON::toString (workspace.toVar())));
+            roundTrips &= restored.layout == workspace.layout && restored.laneHeight == 92;
+        }
+        rep.check (roundTrips && Workspace::fromVar (juce::JSON::parse (R"({"lane":70})")).layout == ViewLayout::openMix,
+                   "Vista: las cinco disposiciones se guardan y los ajustes anteriores abren en OpenMix");
+    }
+
+    {
+        using Bytes = std::vector<juce::uint8>;
+        const Bytes raw { 0xFF, 0x00, 0xAB };
+        const Bytes packed { 0x7F, 0x01, 0x2C, 0x05 };
+        const auto message = ControllerScreens::mcxMessage (0x20, 0x25, raw);
+        const Bytes expected { 0xF0, 0x47, 0x20, 0x37, 0x05, 0x25, 0, 6, 0, 4, 0x7F, 0x01, 0x2C, 0x05, 0xF7 };
+        rep.check (ControllerScreens::pack7 (raw) == packed && message.getSize() == expected.size()
+                   && std::memcmp (message.getData(), expected.data(), expected.size()) == 0,
+                   "MCX8000: encabezado, pantalla derecha y empaquetado SysEx");
+    }
+
     std::cout << "== Luces del controlador" << std::endl;
+    {
+        DeckView view (engine, 1);
+        Actions::Hooks hooks;
+        hooks.padLed = [&view] (int, int pad) { return view.padLed (pad); };
+        hooks.padColour = [&view] (int, int pad) { return view.padColour (pad, view.padLed (pad)); };
+        Actions feedback (engine, std::move (hooks));
+        MidiEngine lights (feedback);
+        const auto denon = ControllerLibrary::findBundled ("MCX8000");
+        std::vector<MidiBinding> mapping;
+        if (denon)
+            for (auto binding : denon->second)
+                if (binding.deck == 1 && binding.action == "pad_1")
+                {
+                    binding.device = "Test";
+                    mapping.push_back (binding);
+                }
+        int padValue = -1;
+        lights.onOutput = [&padValue] (const juce::String&, const juce::MidiMessage& message)
+        {
+            if (message.getChannel() == 6 && message.isNoteOn() && message.getNoteNumber() == 20)
+                padValue = message.getVelocity();
+        };
+        const auto rgb = MidiBinding::Rgb::denonMcx;
+        rep.check (MidiBinding::encodeColour (rgb, juce::Colours::red, 1.0f) == 49
+                   && MidiBinding::encodeColour (rgb, juce::Colours::lime, 1.0f) == 13
+                   && MidiBinding::encodeColour (rgb, juce::Colours::blue, 1.0f) == 4,
+                   "Paleta RGB MIDI de Denon: rojo, verde y azul");
+        lights.setBindings (mapping);
+        d2.clearHotCue (0);
+        d2.hotCue (0);
+        d2.hotCueRelease (0);
+        lights.tick();
+        const int colour = MidiBinding::encodeColour (rgb, Theme::hotCueColour (0), 1.0f);
+        const bool followsColour = padValue == colour;
+        view.showPadPage (8);
+        lights.tick();
+        const bool emptySample = padValue == 1;
+        view.showPadPage (0);
+        lights.tick();
+        const bool restored = padValue == colour;
+        d2.clearHotCue (0);    // Delete from OpenMix without repainting the deck first.
+        lights.tick();
+        rep.check (followsColour && emptySample && restored && padValue == 1,
+                   "MCX8000: mismo color que OpenMix y apagado al cambiar de modo o borrar el hot cue"_u);
+    }
+
     {
         struct Sent { int status, number, value; };
         std::vector<Sent> sent;
@@ -2473,6 +2708,27 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         for (int i = 0; i < 4; ++i) midi.tick();
         const auto pad = valuesOf (0x90, 20);
         rep.check (pad.size() <= 1 && ! pad.count (127), "Un pad con dos funciones no titila entre ellas", juce::String ((int) pad.size()) + " valores");
+
+        MidiBinding shiftLed; shiftLed.device = "Test"; shiftLed.channel = 1;
+        shiftLed.kind = MidiBinding::Kind::note; shiftLed.number = 49; shiftLed.action = "shift";
+        auto shifted = hc2; shifted.shift = true; shifted.outNumber = 21;
+        midi.setBindings ({ hc2, shiftLed, shifted });
+        midi.inject ("Test", juce::MidiMessage::noteOn (1, 49, (juce::uint8) 127));
+        sent.clear();
+        midi.tick();
+        const bool bothOn = ! valuesOf (0x90, 20).count (0) && valuesOf (0x90, 21).count (127) == 1;
+        d2.clearHotCue (1);
+        midi.tick();
+        const bool fallbackOff = valuesOf (0x90, 20).count (0) == 1;
+        d2.hotCue (1);
+        d2.hotCueRelease (1);
+        midi.tick();
+        midi.inject ("Test", juce::MidiMessage::noteOff (1, 49));
+        sent.clear();
+        midi.tick();
+        rep.check (bothOn && fallbackOff && valuesOf (0x90, 21) == std::set<int> { 0 },
+                   "SHIFT conserva las luces normales y apaga las exclusivas al soltar"_u);
+        midi.setBindings (b);
 
         std::vector<float> loud (512, 0.9f);
         engine.channel (1).meter.push (loud.data(), loud.data(), 512);
@@ -3263,6 +3519,7 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
         if ((bool) v["hardwareMixer"]) o->setProperty ("hardwareMixer", true);
         if ((bool) v["soundcard"]) o->setProperty ("soundcard", true);
         if (v["vdj"].isObject()) o->setProperty ("vdj", v["vdj"]);
+        if (v["state_request"].isArray()) o->setProperty ("state_request", v["state_request"]);   // "where are your knobs?" on connect
         native.insert (ControllerLibrary::normalise (name));
         entries.add (juce::var (o.release()));
         notices.add ("- " + name + (v["author"].toString().isNotEmpty() ? juce::String::fromUTF8 (" — ") + v["author"].toString() : juce::String()));

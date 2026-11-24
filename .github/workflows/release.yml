@@ -65,6 +65,9 @@ jobs:
           7z x -oexternal asiosdk.zip > /dev/null
 
       - name: Compilar (Windows)
+        env:
+          OPENMIX_GOOGLE_CLIENT_ID: ${{ secrets.OPENMIX_GOOGLE_CLIENT_ID }}
+          OPENMIX_GOOGLE_CLIENT_SECRET: ${{ secrets.OPENMIX_GOOGLE_CLIENT_SECRET }}
         if: runner.os == 'Windows'
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DOPENMIX_ASIO_SDK="$(pwd -W)/external/ASIOSDK"
@@ -72,6 +75,9 @@ jobs:
           echo "EXE=build/OpenMix_artefacts/Release/OpenMix.exe" >> "$GITHUB_ENV"
 
       - name: Compilar (macOS / Linux)
+        env:
+          OPENMIX_GOOGLE_CLIENT_ID: ${{ secrets.OPENMIX_GOOGLE_CLIENT_ID }}
+          OPENMIX_GOOGLE_CLIENT_SECRET: ${{ secrets.OPENMIX_GOOGLE_CLIENT_SECRET }}
         if: runner.os != 'Windows'
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then brew list ninja >/dev/null 2>&1 || brew install ninja; fi

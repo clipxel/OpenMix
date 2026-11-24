@@ -82,7 +82,7 @@ private:
     Segmented limCeiling { { "-0.1 dBTP", "-0.5 dBTP", "-1.0 dBTP" } };
     Button helpCommunity { "Unirme a la comunidad (WhatsApp)" }, helpInstagram { "Escribir por Instagram" }, helpReport { "Escribinos un comentario o reporte" }, helpDonate { juce::String::fromUTF8 ("♥  Apoyá OpenMix con una donación") };
     juce::ToggleButton autoCueToggle { "Auto cue: al cargar un tema sin cue, ponerlo en el primer golpe" };
-    juce::ToggleButton autoGainToggle { "Auto-gain: igualar sonoridad al cargar (objetivo -14 LUFS)" };
+    juce::ToggleButton autoGainToggle { juce::String::fromUTF8 ("Auto-gain: igualar sonoridad al cargar (objetivo -14 LUFS; la perilla GAIN en el centro = nivel automático)") };
 
     // Controllers
     class BindingList;

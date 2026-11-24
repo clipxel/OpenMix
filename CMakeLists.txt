@@ -5,7 +5,7 @@ if(NOT CMAKE_OSX_ARCHITECTURES)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Universal macOS build" FORCE)
 endif()
 
-project(OpenMix VERSION 2.5.0 LANGUAGES C CXX)
+project(OpenMix VERSION 2.6.0 LANGUAGES C CXX)
 if(APPLE)
     enable_language(OBJCXX)
 endif()
@@ -46,6 +46,26 @@ target_compile_definitions(OpenMix PRIVATE
     JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:OpenMix,JUCE_VERSION>"
     JUCE_USE_MP3AUDIOFORMAT=1      # macOS decodes with the OS first; this reads the MP3s it refuses
     $<$<PLATFORM_ID:Windows>:JUCE_USE_WINDOWS_MEDIA_FORMAT=1>)   # Windows: WMA/AAC/M4A via Media Foundation
+
+# Google Drive: the OAuth client of the OpenMix project, built in so "Iniciar sesión con Google" is one click.
+# Kept out of the public code: from the environment (CI secrets) or a private local file, one value per line:
+# google-oauth.local → line 1 the client id, line 2 the client secret.
+set(OPENMIX_GOOGLE_CLIENT_ID "$ENV{OPENMIX_GOOGLE_CLIENT_ID}")
+set(OPENMIX_GOOGLE_CLIENT_SECRET "$ENV{OPENMIX_GOOGLE_CLIENT_SECRET}")
+if(OPENMIX_GOOGLE_CLIENT_ID STREQUAL "" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/google-oauth.local")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/google-oauth.local" OPENMIX_GOOGLE_OAUTH LIMIT_COUNT 2)
+    list(LENGTH OPENMIX_GOOGLE_OAUTH n)
+    if(n EQUAL 2)
+        list(GET OPENMIX_GOOGLE_OAUTH 0 OPENMIX_GOOGLE_CLIENT_ID)
+        list(GET OPENMIX_GOOGLE_OAUTH 1 OPENMIX_GOOGLE_CLIENT_SECRET)
+    endif()
+endif()
+string(STRIP "${OPENMIX_GOOGLE_CLIENT_ID}" OPENMIX_GOOGLE_CLIENT_ID)
+string(STRIP "${OPENMIX_GOOGLE_CLIENT_SECRET}" OPENMIX_GOOGLE_CLIENT_SECRET)
+configure_file(Source/Library/GoogleDriveClient.h.in "${CMAKE_CURRENT_BINARY_DIR}/generated/GoogleDriveClient.h" @ONLY)
+target_include_directories(OpenMix PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/google-oauth.local")
+
 
 if(APPLE)
     target_link_libraries(OpenMix PRIVATE "-framework AudioToolbox")

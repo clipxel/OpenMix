@@ -54,7 +54,7 @@ private:
     {
         Strip (int deckIndex);
         int index;
-        Knob trim { "TRIM", true }, hi { "HI", true }, mid { "MID", true }, low { "LOW", true }, color { "COLOR", true };
+        Knob trim { {}, true }, hi { {}, true }, mid { {}, true }, low { {}, true }, color { "COLOR", true };   // gain and EQ: no caption (tooltip)
         Button cue { "CUE", Icon::headphones };
         Fader fader { true };
         LevelMeter meter { true };

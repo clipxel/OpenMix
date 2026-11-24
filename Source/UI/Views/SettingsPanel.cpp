@@ -127,7 +127,7 @@ SettingsPanel::SettingsPanel (AudioEngine& e, Library& l) : engine (e), library 
     limCeiling.setCompact (true);
     limCeiling.onChange = [this] (int i) { engine.limiter().ceilingDb = i == 0 ? -0.1f : i == 1 ? -0.5f : -1.0f; };
     addChildComponent (limCeiling);
-    autoGainToggle.onClick = [this] { engine.autoGain = autoGainToggle.getToggleState(); };
+    autoGainToggle.onClick = [this] { engine.setAutoGain (autoGainToggle.getToggleState()); };
     addChildComponent (autoGainToggle);
     helpCommunity.onClick = [] { Contact::open (Contact::community()); };
     helpInstagram.onClick = [] { Contact::open (Contact::instagramChat()); };

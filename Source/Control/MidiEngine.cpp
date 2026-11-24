@@ -59,6 +59,7 @@ juce::var MidiBinding::toVar() const
     if (dimValue >= 0) o->setProperty ("dim", dimValue);
     if (outputOnly) o->setProperty ("output_only", true);
     if (rgb == Rgb::hercules) o->setProperty ("rgb", "hercules");
+    if (rgb == Rgb::denonMcx) o->setProperty ("rgb", "denon_mcx");
     return juce::var (o.release());
 }
 
@@ -69,12 +70,14 @@ int MidiBinding::encodeColour (Rgb format, juce::Colour c, float brightness)
     // Levels per channel (some controllers have fewer red / blue steps than green). A colour never
     // rounds to black: its strongest channel keeps at least one step.
     auto level = [brightness] (juce::uint8 v, int steps) { return (int) std::lround ((double) v / 255.0 * steps * brightness); };
-    int r = level (c.getRed(), 3), g = level (c.getGreen(), 7), b = level (c.getBlue(), 3);
+    int r = level (c.getRed(), 3), g = level (c.getGreen(), format == Rgb::denonMcx ? 3 : 7), b = level (c.getBlue(), 3);
     if (r == 0 && g == 0 && b == 0 && brightness > 0.0f)
     {
         const auto top = juce::jmax (c.getRed(), c.getGreen(), c.getBlue());
         if (top == c.getGreen()) g = 1; else if (top == c.getRed()) r = 1; else b = 1;
     }
+    if (format == Rgb::denonMcx)
+        return 1 + ((r << 4) | (g << 2) | b);
     return (r << 5) | (g << 2) | b;
 }
 
@@ -112,7 +115,9 @@ MidiBinding MidiBinding::fromVar (const juce::var& v)
     b.offValue = juce::jlimit (0, 127, (int) v.getProperty ("off", 0));
     b.dimValue = juce::jlimit (-1, 127, (int) v.getProperty ("dim", -1));
     b.outputOnly = (bool) v.getProperty ("output_only", false) || Actions::isMeter (b.action);
-    b.rgb = v["rgb"].toString() == "hercules" ? Rgb::hercules : Rgb::none;
+    const auto rgb = v["rgb"].toString();
+    if (rgb == "hercules") b.rgb = Rgb::hercules;
+    else if (rgb == "denon_mcx") b.rgb = Rgb::denonMcx;
     return b;
 }
 
@@ -146,6 +151,7 @@ MidiEngine::~MidiEngine()
 
 void MidiEngine::refreshDevices()
 {
+    const auto before = inputNames;
     for (auto& in : inputs) in->stop();
     inputs.clear();
     inputNames.clear();
@@ -164,6 +170,29 @@ void MidiEngine::refreshDevices()
             outputs.push_back (std::move (out));
 
     ledSent.clear();
+    for (auto& name : inputNames)
+        if (! before.contains (name))
+            controllerConnected (name);
+}
+
+void MidiEngine::controllerConnected (const juce::String& device)
+{
+    // The program follows the controller: what it reports in the next seconds (its answer to the state
+    // request, the first move of each fader / knob) is taken as it is, without soft takeover.
+    syncUntil[device] = juce::Time::getMillisecondCounterHiRes() + 3000.0;
+    for (auto it = takeover.begin(); it != takeover.end();)
+        it = it->first < map.size() && map[it->first].device == device ? takeover.erase (it) : std::next (it);
+
+    // A moment after connecting, once the lights have been sent: "tell me where everything is". (Looked up
+    // then: at start-up the controller is found before the controller library is ready.)
+    juce::Timer::callAfterDelay (400, [this, device, alive = std::weak_ptr<bool> (alive)]
+    {
+        if (alive.expired() || stateRequest == nullptr) return;
+        const auto messages = stateRequest (device);
+        if (messages.empty()) return;
+        syncUntil[device] = juce::Time::getMillisecondCounterHiRes() + 3000.0;
+        for (auto& m : messages) send (device, m);
+    });
 }
 
 juce::StringArray MidiEngine::connectedInputs() const { return inputNames; }
@@ -176,6 +205,19 @@ void MidiEngine::load()
     if (auto* arr = json["bindings"].getArray())
         for (auto& v : *arr)
             map.push_back (MidiBinding::fromVar (v));
+
+    // MCX8000 mapped before 2.6: its FX TAP buttons set the effects' BPM; now they tap the deck on that
+    // side (one tap = the grid there, 4+ = BPM), as DJs expect. Done once, saved.
+    bool changed = false;
+    for (auto& b : map)
+        if (b.action == "beat_fx_tap" && b.device.containsIgnoreCase ("MCX8000") && ! b.shift
+            && b.kind == MidiBinding::Kind::note && b.number == 4 && (b.channel == 9 || b.channel == 10))
+        {
+            b.action = "tap_tempo_side";
+            b.deck = b.channel - 9;
+            changed = true;
+        }
+    if (changed) save();
 }
 
 void MidiEngine::save() const
@@ -333,7 +375,13 @@ void MidiEngine::process (const juce::String& device, const juce::MidiMessage& m
     // Shift buttons first.
     for (auto& b : map)
         if (b.action == "shift" && matches (b, device, m, false))
-            shiftHeld[device] = m.isNoteOn() ? m.getVelocity() > 0 : (m.isController() && m.getControllerValue() >= 64);
+        {
+            const bool held = m.isNoteOn() ? m.getVelocity() > 0 : (m.isController() && m.getControllerValue() >= 64);
+            // Some units (MCX8000) ignore the pad lights while SHIFT is down: send every light again
+            // when it changes, or a light switched off meanwhile (a deleted hot cue) would stay on.
+            if (held != shiftHeld[device]) resendLights = true;
+            shiftHeld[device] = held;
+        }
 
     const bool shifted = shiftHeld[device];
     bool handled = false;
@@ -474,13 +522,24 @@ void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMess
         case MidiBinding::Encoding::relativeSign:   value = (float) ((raw & 64) ? -(raw & 63) : (raw & 63)); break;
     }
 
+    // Only page pads need strike velocity. Other buttons retain their existing 0/1 semantics.
+    if (b.encoding == MidiBinding::Encoding::button && m.isNoteOn()
+        && b.action.startsWith ("pad_") && b.action.substring (4).length() == 1
+        && b.action.getLastCharacter() >= '1' && b.action.getLastCharacter() <= '8')
+        value = (float) raw / 127.0f;
+
     if (info->type == ControlType::relative) value *= b.scale;
     if (b.invert) value = info->type == ControlType::absolute ? 1.0f - value : -value;
 
     const int deck = info->perDeck ? deckFor (b) : -1;
-    // A controller with its own deck buttons moved to a deck that is not on screen: show it.
+    // A controller with its own deck buttons played a deck that is not on screen: show it. Only the deck's
+    // own controls (play, jog, pads…): a 4-channel mixer's knobs and faders belong to every deck, and what the
+    // controller reports when it connects never moves the screen.
+    const auto sync = syncUntil.find (b.device);
+    const bool reporting = sync != syncUntil.end() && juce::Time::getMillisecondCounterHiRes() < sync->second;
     if (info->perDeck && deck >= 0 && deck == b.deck && ! actions.getEngine().isVisible (deck)
-        && sideCache[b.device] && (m.isController() || (m.isNoteOn() && m.getVelocity() > 0)))
+        && sideCache[b.device] && info->category != "Mixer" && ! reporting
+        && (m.isController() || (m.isNoteOn() && m.getVelocity() > 0)))
         actions.getEngine().showDeck (deck);
 
     // Soft takeover: a fader only grabs the parameter once it reaches its current value,
@@ -491,7 +550,11 @@ void MidiEngine::apply (const MidiBinding& b, size_t index, const juce::MidiMess
         if (cur >= 0.0f)
         {
             auto& tk = takeover[index];
-            if (tk.lastSent >= 0.0f && std::abs (cur - tk.lastSent) > 0.02f)
+            // Just connected, or the first move of this control: the program takes the controller's position.
+            const auto sync = syncUntil.find (b.device == "*" ? currentDevice : b.device);
+            if (tk.lastSent < 0.0f || (sync != syncUntil.end() && juce::Time::getMillisecondCounterHiRes() < sync->second))
+                tk.caught = true;
+            else if (tk.lastSent >= 0.0f && std::abs (cur - tk.lastSent) > 0.02f)
                 tk.caught = false;                       // moved elsewhere (mouse, other control)
             if (! tk.caught)
             {
@@ -555,8 +618,10 @@ void MidiEngine::tick()
             refreshDevices();
     }
 
-    // One value per light per frame: the first binding that drives a light wins (a pad can be
-    // bound to several actions; without this its light would flicker between them).
+    if (resendLights.exchange (false))
+        for (auto& [key, light] : ledSent) light.value = -1;     // unknown: everything goes out again
+
+    // One value per light. A binding on the active layer wins, with the normal layer as fallback.
     std::map<juce::String, Light> frame;
     std::array<float, AudioEngine::numDecks + 1> meters;     // decks, then master: read once
     meters.fill (-1.0f);
@@ -567,16 +632,23 @@ void MidiEngine::tick()
             continue;
 
         int value;
+        const bool shifted = shiftHeld[b.device];
+        const int priority = b.action == "vdj" || b.shift == shifted ? 1 : 0;
         if (Actions::isMeter (b.action))
         {
             const auto slot = (size_t) (b.action == "vu_master" ? AudioEngine::numDecks : juce::jlimit (0, AudioEngine::numDecks - 1, deckFor (b)));
-            if (meters[slot] < 0.0f)
-                meters[slot] = actions.meterLevel (slot == (size_t) AudioEngine::numDecks ? -1 : (int) slot);
-            value = b.offValue + juce::roundToInt (meters[slot] * (float) (b.onValue - b.offValue));
+            if (b.action == "platter_ring")
+                value = b.offValue + juce::roundToInt (actions.platterTurn ((int) slot) * (float) (b.onValue - b.offValue));
+            else
+            {
+                if (meters[slot] < 0.0f)
+                    meters[slot] = actions.meterLevel (slot == (size_t) AudioEngine::numDecks ? -1 : (int) slot);
+                value = b.offValue + juce::roundToInt (meters[slot] * (float) (b.onValue - b.offValue));
+            }
         }
         else
         {
-            if (b.encoding != MidiBinding::Encoding::button || (b.shift != shiftHeld[b.device] && b.action != "vdj"))
+            if (b.encoding != MidiBinding::Encoding::button || (b.shift && priority == 0))
                 continue;
             using L = Actions::Led;
             // A script's light: the script read as a condition ("play_pause" → playing…).
@@ -587,7 +659,7 @@ void MidiEngine::tick()
             {
                 VdjScript::Context ctx;
                 ctx.deck = juce::jlimit (0, AudioEngine::numDecks - 1, deckFor (b));
-                ctx.shift = shiftHeld[b.device];
+                ctx.shift = shifted;
                 const auto l = vdj.light (b.script, ctx);
                 level = l.level;
                 if (b.rgb != MidiBinding::Rgb::none) colour = l.colour;
@@ -613,8 +685,18 @@ void MidiEngine::tick()
         }
 
         const auto key = b.device + "|" + juce::String (b.lightChannel()) + "|" + juce::String ((int) b.lightKind()) + "|" + juce::String (b.lightNumber());
-        frame.emplace (key, Light { b.device, b.lightChannel(), b.lightKind(), b.lightNumber(), value, b.offValue });
+        const Light light { b.device, b.lightChannel(), b.lightKind(), b.lightNumber(), value, b.offValue, priority };
+        auto [entry, inserted] = frame.try_emplace (key, light);
+        if (! inserted && priority > entry->second.priority) entry->second = light;
     }
+
+    for (const auto& [key, last] : ledSent)
+        if (! frame.contains (key) && last.value != last.off)
+        {
+            auto off = last;
+            off.value = off.off;
+            frame.emplace (key, off);
+        }
 
     for (auto& [key, light] : frame)
     {

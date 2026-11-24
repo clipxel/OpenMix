@@ -59,6 +59,12 @@ public:
 
     void setSync (bool on);
     bool isSyncOn() const noexcept                { return syncOn.load(); }
+    /** SYNC button: off → on (aligned); already on → aligned again at once (emergency); held ≥ 0.6 s → off. */
+    void syncPress();
+    /** The pitch fader moved to `p`: with SYNC on, once it is at the tempo sync set (it caught it),
+        moving it further leaves SYNC and the fader rules, as on club players. */
+    void pitchFader (double p);
+    void syncRelease();
 
     void setQuantize (bool q) noexcept            { quantize = q; }
     bool isQuantizeOn() const noexcept            { return quantize.load(); }
@@ -142,6 +148,18 @@ public:
     bool isBackspinning() const noexcept          { return backspin.load(); }
     bool isBraking() const noexcept               { return brake.load(); }
     void loopRoll (double beats, bool pressed);   // momentary loop, returns as if never touched
+    /** SLICER: the 8 beats of the phrase playing are 8 slices; holding pad n repeats slice n (one beat),
+        letting go returns to where the track would be. With `phraseLoop` the phrase itself stays in a loop
+        (SLICER LOOP). */
+    void slice (int slice, bool pressed);
+    void setPhraseLoop (bool on);                 // SLICER LOOP: the 8-beat phrase playing loops
+    bool isPhraseLoop() const noexcept            { return phraseLoop.load(); }
+    /** The phrase the slicer cuts (seconds) and the slice playing now (0…7, −1 none). */
+    std::pair<double, double> slicerPhrase() const;
+    int  slicePlaying() const;
+    /** CUE LOOP: to hot cue `slot` (set it here when empty) and loop from it for the auto-loop size;
+        on the loop already playing from that cue, the loop ends. */
+    void cueLoop (int slot);
     bool isRolling() const noexcept               { return rollActive.load(); }
     double getRollBeats() const noexcept          { return rollBeats; }
 
@@ -206,7 +224,9 @@ private:
 
     /** Jumps are resolved on the audio thread from the exact playhead (sample accurate),
         so quantized jumps keep the beat phase exactly — never from a UI-estimated position. */
-    enum class Jump { none = 0, absolute, keepPhase, relativeBeats, autoLoop, roll };
+    enum class Jump { none = 0, absolute, keepPhase, relativeBeats, autoLoop, roll, slice, phraseLoop, cueLoop };
+    std::atomic<bool> phraseLoop { false }, slicing { false };
+    std::atomic<double> phraseStart { -1.0 }, phraseEnd { -1.0 };
     std::atomic<int> jumpMode { 0 };
     std::atomic<double> jumpValue { 0.0 };
     void requestJump (Jump mode, double value) noexcept { jumpValue.store (value); jumpMode.store ((int) mode); }
@@ -219,6 +239,9 @@ private:
     std::atomic<bool> gateCue { false };
     bool autoCue = true;
     std::vector<double> taps;
+    double syncPressedAt = 0.0;
+    double lastFaderPitch = std::numeric_limits<double>::quiet_NaN();
+    bool syncWasOnAtPress = false;
     std::array<std::pair<double, double>, 8> savedLoops {};
 
     // Shared atomics

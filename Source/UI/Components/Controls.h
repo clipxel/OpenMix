@@ -26,6 +26,8 @@ public:
     Button (const juce::String& text = {}, Icon icon = Icon::none, Style = Style::standard);
 
     void setStyle (Style s)                       { style = s; repaint(); }
+    void setFitCaption (bool fit)                { fitCaption = fit; repaint(); }
+    void setCaptionBesideIcon (bool beside)      { captionBesideIcon = beside; repaint(); }
     void setIcon (Icon i)                         { icon = i; repaint(); }
     void setLitColour (juce::Colour c)            { litColour = c; useAccent = false; repaint(); }
     void useAccentWhenLit()                       { useAccent = true; repaint(); }
@@ -55,6 +57,7 @@ private:
     juce::Colour litColour;
     bool useAccent = true;
     bool notImplemented = false;
+    bool captionBesideIcon = false, fitCaption = false;
     std::optional<juce::Colour> padColour;
     juce::String subText;
     Type textType = Type::label;
@@ -98,19 +101,23 @@ public:
 
     void setLabel (const juce::String& s)         { label = s; repaint(); }
     void setArcColour (std::optional<juce::Colour> c) { arcColour = c; repaint(); }
+    /** The value stays written under the knob ("BEAT 1/2"), not only while the mouse is on it. */
+    void setAlwaysShowValue (bool a)              { alwaysValue = a; repaint(); }
     /** Draws a small "kill" marker when the value sits at minimum (EQ). */
     void setShowsKill (bool k)                    { showsKill = k; }
-    /** Caption to the left of the dial instead of below — denser vertical stacks (mixer). */
-    void setLabelOnSide (bool s)                  { labelOnSide = s; repaint(); }
+    enum class LabelPosition { below, left, right };
+    void setLabelPosition (LabelPosition p)       { if (labelPosition != p) { labelPosition = p; repaint(); } }
 
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
     std::function<void()> onRightClick;
 
 private:
+    bool alwaysValue = false;
     juce::String label;
     bool bipolar;
-    bool showsKill = false, labelOnSide = false;
+    bool showsKill = false;
+    LabelPosition labelPosition = LabelPosition::below;
     std::optional<juce::Colour> arcColour;
 };
 

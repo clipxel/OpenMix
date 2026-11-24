@@ -35,6 +35,12 @@ struct Track
     int deviceTrackId = 0;
     bool isExternal() const noexcept { return device != nullptr; }
 
+    // Songs of a linked Google Drive folder: `file` is where its temporary copy goes when it is played;
+    // they are not part of the collection until the user adds them.
+    juce::String driveId;
+    juce::int64 driveSize = 0;
+    bool isDrive() const noexcept    { return driveId.isNotEmpty(); }
+
     /** Key shown to the user: detected (Camelot) first, file tag as fallback. */
     juce::String displayKey() const { return detectedKey.isNotEmpty() ? detectedKey : key; }
 

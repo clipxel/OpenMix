@@ -10,7 +10,7 @@ namespace om
 enum class Icon
 {
     none,
-    play, pause, playPause, stop,
+    play, pause, playPause, stop, reverse, censor,
     loop, chevronLeft, chevronRight, chevronDown, chevronUp,
     search, folder, folderOpen, playlist, history, collection, music,
     settings, record, speaker, controller, cpu,

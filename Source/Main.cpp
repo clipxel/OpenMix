@@ -6,6 +6,48 @@
 #include "Control/MappingImport.h"
 #include "Common/Updater.h"
 #include <iostream>
+#if JUCE_MAC
+ #include <IOKit/pwr_mgt/IOPMLib.h>
+#elif JUCE_WINDOWS
+ #ifndef NOMINMAX
+  #define NOMINMAX
+ #endif
+ #ifndef WIN32_LEAN_AND_MEAN
+  #define WIN32_LEAN_AND_MEAN
+ #endif
+ #include <windows.h>
+#endif
+
+/** Keeps the screen on (no dimming, no sleep, no screensaver) for as long as OpenMix is open, even
+    when another window is in front: JUCE's own switch only holds while OpenMix is the active app. */
+class KeepScreenOn
+{
+public:
+    KeepScreenOn()
+    {
+       #if JUCE_MAC
+        IOPMAssertionCreateWithName (kIOPMAssertionTypePreventUserIdleDisplaySleep, kIOPMAssertionLevelOn,
+                                     CFSTR ("OpenMix abierto: la pantalla no se apaga"), &display);
+        IOPMAssertionCreateWithName (kIOPMAssertionTypePreventUserIdleSystemSleep, kIOPMAssertionLevelOn,
+                                     CFSTR ("OpenMix abierto: el equipo no se duerme"), &system);
+       #elif JUCE_WINDOWS
+        SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED);
+       #endif
+    }
+    ~KeepScreenOn()
+    {
+       #if JUCE_MAC
+        if (display != kIOPMNullAssertionID) IOPMAssertionRelease (display);
+        if (system != kIOPMNullAssertionID) IOPMAssertionRelease (system);
+       #elif JUCE_WINDOWS
+        SetThreadExecutionState (ES_CONTINUOUS);
+       #endif
+    }
+private:
+   #if JUCE_MAC
+    IOPMAssertionID display = kIOPMNullAssertionID, system = kIOPMNullAssertionID;
+   #endif
+};
 
 class OpenMixApplication : public juce::JUCEApplication
 {
@@ -269,10 +311,15 @@ public:
         }
 
         mainWindow = std::make_unique<MainWindow> (getApplicationName());
+        // A DJ program plays for hours without anyone touching the computer: the screen never turns off
+        // (nor goes to the screensaver) while OpenMix is open.
+        juce::Desktop::setScreenSaverEnabled (false);
+        keepScreenOn = std::make_unique<KeepScreenOn>();
     }
 
     void shutdown() override
     {
+        keepScreenOn = nullptr;
         mainWindow = nullptr;
         juce::LookAndFeel::setDefaultLookAndFeel (nullptr);
         lookAndFeel = nullptr;
@@ -360,6 +407,8 @@ private:
         snapshotHost = std::make_unique<ScaledHost> (true);
         snapshotHost->setSize (w, h);
         auto* snapshotComponent = &snapshotHost->main();
+        if (auto layout = arg ("--layout"); layout.isNotEmpty())
+            snapshotComponent->setViewForSnapshot (layout.getIntValue());
         if (auto fm = arg ("--fx-mode"); fm.isNotEmpty())
             snapshotComponent->setFxModeForSnapshot (fm.getIntValue());
         if (auto pg = arg ("--pads"); pg.isNotEmpty())
@@ -397,6 +446,7 @@ private:
 
     std::unique_ptr<om::LookAndFeel> lookAndFeel;
     std::unique_ptr<MainWindow> mainWindow;
+    std::unique_ptr<KeepScreenOn> keepScreenOn;
     std::unique_ptr<ScaledHost> snapshotHost;
 };
 

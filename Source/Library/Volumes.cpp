@@ -1,5 +1,10 @@
 #include "Volumes.h"
 
+#if ! JUCE_WINDOWS
+ #include <cerrno>
+ #include <dirent.h>
+#endif
+
 namespace om::Volumes
 {
 
@@ -75,6 +80,21 @@ juce::File rootOf (const juce::File& f)
    #else
     juce::ignoreUnused (path);
     return {};
+   #endif
+}
+
+bool accessDenied (const juce::File& directory)
+{
+   #if JUCE_MAC || JUCE_LINUX || JUCE_BSD
+    if (auto* handle = ::opendir (directory.getFullPathName().toRawUTF8()))
+    {
+        ::closedir (handle);
+        return false;
+    }
+    return errno == EACCES || errno == EPERM;
+   #else
+    juce::ignoreUnused (directory);
+    return false;
    #endif
 }
 

@@ -30,18 +30,23 @@ public:
     {
         delay = 0, echo, pingPong, spiral, reverb, trans, filter, flanger, phaser, pitch,
         slipRoll, roll, vinylBrake, helix,
-        tripletFilter, tripletRoll, mobius,
+        tripletFilter, tripletRoll, mobius, lowCutEcho,
         numTypes
     };
 
     static juce::String typeName (Type);
-    /** The 14 BEAT FX of the club mixer, in its selector's order. */
-    static const std::array<Type, 14>& clubOrder()
+    /** The BEAT FX offered, in the club mixer selector's order (HELIX, TRIPLET FILTER, TRIPLET ROLL and
+        MOBIUS are left out: DJs did not use them). */
+    static const std::array<Type, 11>& clubOrder()
     {
-        static const std::array<Type, 14> o { Type::delay, Type::echo, Type::pingPong, Type::spiral, Type::helix, Type::reverb,
-                                              Type::flanger, Type::phaser, Type::filter, Type::tripletFilter, Type::trans,
-                                              Type::roll, Type::tripletRoll, Type::mobius };
+        static const std::array<Type, 11> o { Type::delay, Type::echo, Type::pingPong, Type::spiral, Type::reverb,
+                                              Type::flanger, Type::phaser, Type::filter, Type::trans, Type::roll, Type::lowCutEcho };
         return o;
+    }
+    static bool offered (Type t)
+    {
+        const auto& o = clubOrder();
+        return std::find (o.begin(), o.end(), t) != o.end() || t == Type::pitch || t == Type::slipRoll || t == Type::vinylBrake;
     }
     /** Next / previous effect on the club mixer's selector (wraps around). */
     static Type clubStep (Type current, int dir)
@@ -81,7 +86,7 @@ public:
 private:
     static bool hasTail (Type t) noexcept
     {
-        return t == Type::delay || t == Type::echo || t == Type::pingPong || t == Type::spiral || t == Type::reverb;
+        return t == Type::delay || t == Type::echo || t == Type::pingPong || t == Type::spiral || t == Type::reverb || t == Type::lowCutEcho;
     }
     static float soft (float x) noexcept          { return x / (1.0f + 0.3f * std::abs (x)); }
 
@@ -103,6 +108,7 @@ private:
     // Delay lines (DELAY / ECHO / PING PONG / SPIRAL / FLANGER)
     std::vector<float> dl, dr;
     int dw = 0;
+    float echoLowL = 0.0f, echoLowR = 0.0f;
     double curDelay = 0.0, prevDelay = 0.0;
     int xfLeft = 0, xfLen = 1;
     double glideDelay = 0.0;                     // SPIRAL: delay time glides (pitch swoops)

@@ -76,6 +76,9 @@ public:
     bool restoreLibraryMapping (const juce::String& deviceName);
     /** The mapping that ships inside OpenMix for this controller name, if any: (its name, bindings). */
     static std::optional<std::pair<juce::String, std::vector<MidiBinding>>> findBundled (const juce::String& deviceName);
+    /** The messages that ask this controller where its faders and knobs are ("state_request" in the library),
+        sent when it connects so OpenMix starts where the controller is. */
+    static std::vector<juce::MidiMessage> stateRequestFor (const juce::String& deviceName);
 
     static juce::String normalise (const juce::String& midiName);
     static bool nameMatches (const juce::String& deviceName, const juce::String& pattern);
