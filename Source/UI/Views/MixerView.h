@@ -75,7 +75,7 @@ private:
     // Master / headphones
     Knob masterKnob { "MASTER", false };
     Button limBtn { "LIM" };
-    Button eqModeBtn { "EQ STEMS" };                // between the channels: EQ knobs on frequencies or on stems
+    Button eqModeBtn { "STEMS" };                // between the channels: EQ knobs on frequencies or on stems
     bool shownStemEq = false;
     float grDb = 0.0f;           // displayed gain reduction (with decay)
     juce::Rectangle<int> grArea;

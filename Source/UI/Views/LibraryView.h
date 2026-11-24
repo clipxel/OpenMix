@@ -188,6 +188,7 @@ private:
         std::vector<juce::String> lowerNames;              // per index file
         std::map<juce::String, juce::String> lowerPaths;
     } driveSearch;
+    std::map<juce::String, DriveSearchCache> driveSearchAll;                 // "Buscar en todo Drive": one per linked folder
     std::map<juce::String, juce::int64> driveIndexFailed;                    // root → when it last failed                                                  // songs found while indexing
 
     std::vector<TrackPtr> explorerTracks;

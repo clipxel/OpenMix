@@ -370,6 +370,11 @@ public:
                 gd->addSubItem (actionItem (juce::String::fromUTF8 ("Iniciar sesión con Google…"), [v = &view] { v->driveConnect(); }));
             else
             {
+                if (! view.drive->folders().empty())
+                {
+                    Source all; all.kind = Source::Kind::drive; all.path = "*";      // every linked folder at once
+                    gd->addSubItem (new Item (view, "Buscar en todo Drive", Icon::search, all));
+                }
                 for (auto& f : view.drive->folders()) gd->addSubItem (driveFolderItem (f.id, f.name, 0));
                 gd->addSubItem (actionItem (juce::String::fromUTF8 ("Agregar carpeta (enlace)…"), [v = &view] { v->driveAddFolder(); }));
             }
@@ -824,7 +829,8 @@ juce::String LibraryView::sourceTitle() const
         case Source::Kind::historyDay: return "Historial · "_u + source.day;
         case Source::Kind::explorer:   return juce::File (source.path).getFileName().isNotEmpty() ? juce::File (source.path).getFileName() : source.path;
         case Source::Kind::computer:   return "Buscar en el equipo";
-        case Source::Kind::drive:      { const auto n = driveNames.find (source.path); return "Google Drive · " + (n != driveNames.end() ? n->second : juce::String()); }
+        case Source::Kind::drive:      { if (source.path == "*") return "Google Drive · todas las carpetas";
+                                         const auto n = driveNames.find (source.path); return "Google Drive · " + (n != driveNames.end() ? n->second : juce::String()); }
         case Source::Kind::device:
         {
             if (! juce::isPositiveAndBelow (source.index, (int) devices.devices().size())) return "Dispositivo";
@@ -873,32 +879,31 @@ void LibraryView::rebuildRows()
             break;
         case Source::Kind::drive:
         {
-            const auto root = driveRootFor (source.path);
-            if (root.isNotEmpty()) driveEnsureIndex (root);
-            const auto idx = drive != nullptr && root.isNotEmpty() ? drive->index (root) : nullptr;
-            if (search.getText().trim().isNotEmpty() && idx != nullptr)
+            const bool everywhere = source.path == "*";
+            // Searching: every song in the folder shown and all its sub-folders — or in every linked folder.
+            auto searchIndex = [this, &out] (const GoogleDrive::Index& idx, const juce::String& under, const juce::String& root, DriveSearchCache& c,
+                                             const juce::String& prefix)
             {
-                // Searching: every song in this folder and all its sub-folders.
-                auto& c = driveSearch;
-                if (c.index != idx.get() || c.under != source.path || c.root != root)
+                if (c.index != &idx || c.under != under || c.root != root)
                 {
                     c = {};
-                    c.index = idx.get(); c.under = source.path; c.root = root;
-                    c.folders.insert (source.path);
-                    for (auto& [id, pn] : idx->folders)
-                        if (idx->contains (id, source.path)) c.folders.insert (id);
+                    c.index = &idx; c.under = under; c.root = root;
+                    c.folders.insert (under);
+                    for (auto& [id, pn] : idx.folders)
+                        if (idx.contains (id, under)) c.folders.insert (id);
                     for (auto& id : c.folders)
                     {
-                        c.paths[id] = idx->pathOf (id, root);
+                        const auto rel = idx.pathOf (id, root);
+                        c.paths[id] = prefix.isEmpty() ? rel : rel.isEmpty() ? prefix : prefix + " / " + rel;   // all folders: which one
                         c.lowerPaths[id] = c.paths[id].toLowerCase();
                     }
-                    c.lowerNames.reserve (idx->files.size());
-                    for (auto& f : idx->files) c.lowerNames.push_back (f.first.name.toLowerCase());
+                    c.lowerNames.reserve (idx.files.size());
+                    for (auto& f : idx.files) c.lowerNames.push_back (f.first.name.toLowerCase());
                 }
                 const auto words = juce::StringArray::fromTokens (search.getText().toLowerCase(), true);
-                for (size_t i = 0; i < idx->files.size(); ++i)
+                for (size_t i = 0; i < idx.files.size(); ++i)
                 {
-                    const auto& [e, parent] = idx->files[i];
+                    const auto& [e, parent] = idx.files[i];
                     const auto p = c.lowerPaths.find (parent);
                     if (p == c.lowerPaths.end()) continue;
                     bool all = true;
@@ -909,7 +914,27 @@ void LibraryView::rebuildRows()
                     t->comment = c.paths[parent];
                     out.push_back (t);
                 }
+            };
+            if (everywhere)
+            {
+                if (drive == nullptr || search.getText().trim().isEmpty()) break;    // the empty message says to type
+                for (auto& f : drive->folders())
+                {
+                    driveEnsureIndex (f.id);
+                    if (const auto idx = drive->index (f.id))
+                    {
+                        auto& c = driveSearchAll[f.id];
+                        const auto keep = idx;                       // alive while searched
+                        searchIndex (*keep, f.id, f.id, c, f.name);
+                    }
+                }
+                break;
             }
+            const auto root = driveRootFor (source.path);
+            if (root.isNotEmpty()) driveEnsureIndex (root);
+            const auto idx = drive != nullptr && root.isNotEmpty() ? drive->index (root) : nullptr;
+            if (search.getText().trim().isNotEmpty() && idx != nullptr)
+                searchIndex (*idx, source.path, root, driveSearch, {});
             else if (auto found = driveListing.find (source.path); found != driveListing.end())
             {
                 for (auto& e : found->second)
@@ -1325,7 +1350,13 @@ void LibraryView::paintOverChildren (juce::Graphics& g)
         if (! rows.empty()) return;
         const auto root = driveRootFor (source.path);
         const bool searching = search.getText().trim().isNotEmpty();
-        const juce::String msg = searching && drive != nullptr && drive->isIndexing (root)
+        bool anyIndexing = false;
+        if (drive != nullptr && source.path == "*")
+            for (auto& f : drive->folders()) anyIndexing = anyIndexing || drive->isIndexing (f.id);
+        const juce::String msg = source.path == "*" && ! searching ? juce::String::fromUTF8 ("Escribí arriba para buscar en todas tus carpetas de Google Drive (y sus subcarpetas)")
+                               : source.path == "*" && anyIndexing ? juce::String::fromUTF8 ("Buscando en todas las carpetas… ") + juce::String (driveIndexFound) + juce::String::fromUTF8 (" canciones revisadas")
+                               : source.path == "*" ? juce::String::fromUTF8 ("No se encontró nada en tus carpetas de Google Drive")
+                               : searching && drive != nullptr && drive->isIndexing (root)
                                    ? juce::String::fromUTF8 ("Buscando en todas las subcarpetas… ") + juce::String (driveIndexFound) + juce::String::fromUTF8 (" canciones revisadas")
                                : searching && driveError.isEmpty() ? juce::String::fromUTF8 ("No se encontró nada en esta carpeta ni en sus subcarpetas")
                                : driveListing_pending.count (source.path) ? juce::String::fromUTF8 ("Cargando la carpeta de Google Drive…")
