@@ -4,14 +4,14 @@
     {
       "date": "2026-11-24",
       "tag": "Versión",
-      "title": "OpenMix 2.6.0: Google Drive, sampler y SYNC de emergencia",
-      "text": "Buscá y reproducí música de tus carpetas de Google Drive (también las compartidas), sampler con 8 pads, ocho modos de pads como el MCX8000, cinco vistas para elegir, texto grande en la biblioteca y SYNC que alinea al instante."
+      "title": "OpenMix 2.7: stems en vivo",
+      "text": "Separá cada tema en voz, batería, bajo y melodía mientras mezclás: sacá la voz, quedate con el beat o pasá las perillas de EQ a los stems con el botón STEMS, como en VirtualDJ. Dos modos: Calidad y Rápido. Además, buscá en todas tus carpetas de Google Drive a la vez."
     },
     {
-      "date": "2026-11-03",
-      "tag": "Próximamente",
-      "title": "Stems: controlá cada parte del tema",
-      "text": "Muy pronto vas a poder separar cada canción en voz, melodía y beat, y mezclarlas por separado: sacar la voz, quedarte con el beat o sumar solo la melodía, en vivo."
+      "date": "2026-11-24",
+      "tag": "Versión",
+      "title": "OpenMix 2.6.0: Google Drive, sampler y SYNC de emergencia",
+      "text": "Buscá y reproducí música de tus carpetas de Google Drive (también las compartidas), sampler con 8 pads, ocho modos de pads como el MCX8000, cinco vistas para elegir, texto grande en la biblioteca y SYNC que alinea al instante."
     }
   ]
 }
