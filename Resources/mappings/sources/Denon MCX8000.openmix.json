@@ -214,7 +214,8 @@
    "encoding": "rel_twos",
    "action": "jog",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "scale": 0.0011185682326621924
   },
   {
    "device": "*",
@@ -850,7 +851,8 @@
    "encoding": "rel_twos",
    "action": "jog",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "scale": 0.0011185682326621924
   },
   {
    "device": "*",
@@ -1486,7 +1488,8 @@
    "encoding": "rel_twos",
    "action": "jog",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "scale": 0.0011185682326621924
   },
   {
    "device": "*",
@@ -2122,7 +2125,8 @@
    "encoding": "rel_twos",
    "action": "jog",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "scale": 0.0011185682326621924
   },
   {
    "device": "*",
