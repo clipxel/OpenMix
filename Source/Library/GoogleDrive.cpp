@@ -249,17 +249,65 @@ juce::String GoogleDrive::idFromAddress (const juce::String& address)
     return a.containsOnly ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_") ? a : juce::String();
 }
 
+juce::StringArray GoogleDrive::linksIn (const juce::String& text)
+{
+    juce::StringArray out;
+    for (auto t : juce::StringArray::fromTokens (text, " \t\r\n<>\"'", ""))
+    {
+        t = t.trim().trimCharactersAtEnd (".,;)]");
+        if (t.startsWithIgnoreCase ("http://") || t.startsWithIgnoreCase ("https://"))
+            out.addIfNotAlreadyThere (t);
+    }
+    return out;
+}
+
+/** A shortened address (TinyURL, bit.ly…): where it points, following up to 5 redirects. */
+juce::String GoogleDrive::followShortLink (juce::String address)
+{
+    for (int hop = 0; hop < 5 && ! address.containsIgnoreCase ("drive.google.com"); ++hop)
+    {
+        juce::StringPairArray headers;
+        int status = 0;
+        auto in = juce::URL (address).createInputStream (juce::URL::InputStreamOptions (juce::URL::ParameterHandling::inAddress)
+                                                             .withHttpRequestCmd ("HEAD")
+                                                             .withNumRedirectsToFollow (0)
+                                                             .withConnectionTimeoutMs (10000)
+                                                             .withResponseHeaders (&headers)
+                                                             .withStatusCode (&status));
+        juce::String next;
+        for (auto& k : headers.getAllKeys())
+            if (k.equalsIgnoreCase ("location")) next = headers[k].upToFirstOccurrenceOf (",", false, false).trim();
+        if (next.isEmpty() || status < 300 || status >= 400) break;
+        address = next;
+    }
+    return address;
+}
+
 void GoogleDrive::linkFolder (const juce::String& address, std::function<void (juce::String)> done)
 {
-    const auto id = idFromAddress (address);
-    if (id.isEmpty()) { done (juce::String::fromUTF8 ("Ese enlace no parece de una carpeta de Google Drive")); return; }
-    pool.addJob ([this, id, done, alive = std::weak_ptr<bool> (alive)]
+    auto id = idFromAddress (address);
+    const bool shortLink = id.isEmpty() && address.trim().startsWithIgnoreCase ("http") && ! address.containsIgnoreCase ("google.com");
+    if (id.isEmpty() && ! shortLink) { done (juce::String::fromUTF8 ("Ese enlace no parece de una carpeta de Google Drive")); return; }
+    pool.addJob ([this, id, address, done, alive = std::weak_ptr<bool> (alive)]
     {
         juce::String err;
-        const auto v = getJson (juce::String (api) + "files/" + esc (id) + "?fields=id,name,mimeType&supportsAllDrives=true", err);
+        auto folderId = id;
+        if (folderId.isEmpty())
+        {
+            folderId = idFromAddress (followShortLink (address.trim()));
+            if (folderId.isEmpty())
+            {
+                juce::MessageManager::callAsync ([alive, done]
+                {
+                    if (! alive.expired() && done) done (juce::String::fromUTF8 ("El enlace acortado no lleva a una carpeta de Google Drive"));
+                });
+                return;
+            }
+        }
+        const auto v = getJson (juce::String (api) + "files/" + esc (folderId) + "?fields=id,name,mimeType&supportsAllDrives=true", err);
         const auto name = v["name"].toString();
         if (err.isEmpty() && v["mimeType"].toString() != "application/vnd.google-apps.folder") err = "Ese enlace no es de una carpeta";
-        juce::MessageManager::callAsync ([this, alive, done, id, name, err]
+        juce::MessageManager::callAsync ([this, alive, done, id = folderId, name, err]
         {
             if (alive.expired()) return;
             if (err.isEmpty() && std::none_of (linked.begin(), linked.end(), [&] (const Folder& f) { return f.id == id; }))

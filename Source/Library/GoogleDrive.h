@@ -46,6 +46,10 @@ public:
     void linkFolder (const juce::String& address, std::function<void (juce::String error)> done);
     void unlinkFolder (const juce::String& id);
     static juce::String idFromAddress (const juce::String& address);
+    /** Every web address in a pasted text (a message with several links, one per line or not). */
+    static juce::StringArray linksIn (const juce::String& text);
+    /** Where a shortened address (TinyURL, bit.ly…) points, following up to 5 redirects (network). */
+    static juce::String followShortLink (juce::String address);
 
     /** The folder's sub-folders and audio files (background; `done` on the message thread). */
     void list (const juce::String& folderId, std::function<void (std::vector<Entry>, juce::String error)> done);

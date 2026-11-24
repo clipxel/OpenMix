@@ -2,6 +2,7 @@
 #include "MainComponent.h"
 #include "UI/Theme/LookAndFeel.h"
 #include "Library/Library.h"
+#include "Library/GoogleDrive.h"
 #include "Tests/SelfTest.h"
 #include "Control/MappingImport.h"
 #include "Common/Updater.h"
@@ -58,7 +59,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit") || cl.contains ("--intent-check") || cl.contains ("--stems-test");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit") || cl.contains ("--intent-check") || cl.contains ("--stems-test") || cl.contains ("--resolve-link");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -286,6 +287,16 @@ public:
             auto args = juce::StringArray::fromTokens (commandLine, true);
             const auto i = args.indexOf ("--inspect-usb");
             setApplicationReturnValue (om::inspectUsbExport (juce::File (args[i + 1].unquoted())));
+            quit();
+            return;
+        }
+
+        if (commandLine.contains ("--resolve-link"))          // diagnostic: where a shortened Drive link points
+        {
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            const auto link = args[args.indexOf ("--resolve-link") + 1].unquoted();
+            const auto to = om::GoogleDrive::followShortLink (link);
+            std::cout << to << " -> " << om::GoogleDrive::idFromAddress (to) << std::endl;
             quit();
             return;
         }

@@ -1526,29 +1526,57 @@ void LibraryView::driveConnect()
 void LibraryView::driveAddFolder()
 {
     if (drive == nullptr) return;
-    auto* w = new juce::AlertWindow (juce::String::fromUTF8 ("Agregar carpeta de Google Drive"),
-                                     juce::String::fromUTF8 ("Pegá el enlace de la carpeta (tuya o compartida con vos). En Drive: clic derecho en la carpeta › Compartir › Copiar vínculo."),
+    auto* w = new juce::AlertWindow (juce::String::fromUTF8 ("Agregar carpetas de Google Drive"),
+                                     juce::String::fromUTF8 ("Pegá el enlace de la carpeta (tuya o compartida con vos), o un mensaje entero con varios enlaces: "
+                                                             "se agregan todas. También sirven los enlaces acortados (TinyURL, bit.ly…)."),
                                      juce::MessageBoxIconType::NoIcon);
-    w->addTextEditor ("link", {}, "Enlace");
-    w->addButton ("Agregar", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    w->addTextEditor ("link", {}, "Enlaces");
+    if (auto* ed = w->getTextEditor ("link"))
+    {
+        ed->setMultiLine (true, true);
+        ed->setReturnKeyStartsNewLine (true);
+        ed->setSize (ed->getWidth(), 120);
+    }
+    w->addButton ("Agregar", 1);
     w->addButton ("Cancelar", 0, juce::KeyPress (juce::KeyPress::escapeKey));
     w->enterModalState (true, juce::ModalCallbackFunction::create ([this, w] (int r)
     {
         if (r != 1) return;
-        driveStatus = juce::String::fromUTF8 ("Google Drive: buscando la carpeta…");
+        auto links = GoogleDrive::linksIn (w->getTextEditorContents ("link"));
+        if (links.isEmpty()) links.add (w->getTextEditorContents ("link").trim());      // a bare folder id
+        // Drive's own pages that are not a folder (e.g. "Compartidos conmigo") are skipped.
+        for (int i = links.size(); --i >= 0;)
+            if (links[i].containsIgnoreCase ("drive.google.com") && GoogleDrive::idFromAddress (links[i]).isEmpty())
+                links.remove (i);
+        if (links.isEmpty()) { driveStatus = juce::String::fromUTF8 ("Google Drive: no encontré enlaces de carpetas"); repaint (statusArea); return; }
+
+        struct Batch { int left = 0, added = 0; juce::StringArray errors; size_t before = 0; };
+        auto batch = std::make_shared<Batch>();
+        batch->left = links.size();
+        batch->before = drive->folders().size();
+        driveStatus = juce::String::fromUTF8 ("Google Drive: buscando ") + juce::String (links.size())
+                    + (links.size() == 1 ? juce::String::fromUTF8 (" carpeta…") : juce::String::fromUTF8 (" carpetas…"));
         repaint (statusArea);
-        drive->linkFolder (w->getTextEditorContents ("link"), [this, alive = std::weak_ptr<bool> (alive)] (juce::String err)
-        {
-            if (alive.expired()) return;
-            driveStatus = err.isEmpty() ? juce::String::fromUTF8 ("Carpeta de Google Drive agregada") : "Google Drive: " + err;
-            tree->rebuild();
-            if (err.isEmpty() && ! drive->folders().empty())
+        for (auto& link : links)
+            drive->linkFolder (link, [this, batch, link, alive = std::weak_ptr<bool> (alive)] (juce::String err)
             {
-                Source s; s.kind = Source::Kind::drive; s.path = drive->folders().back().id;
-                selectSource (s);
-            }
-            repaint();
-        });
+                if (alive.expired()) return;
+                if (err.isNotEmpty()) batch->errors.add (link + ": " + err);
+                if (--batch->left > 0) return;
+                const auto added = (int) drive->folders().size() - (int) batch->before;
+                driveStatus = batch->errors.isEmpty()
+                                ? (added == 1 ? juce::String::fromUTF8 ("Carpeta de Google Drive agregada")
+                                              : juce::String::fromUTF8 ("Google Drive: ") + juce::String (added) + juce::String::fromUTF8 (" carpetas agregadas"))
+                                : juce::String::fromUTF8 ("Google Drive: ") + juce::String (added) + juce::String::fromUTF8 (" agregadas; no se pudo con ")
+                                      + juce::String (batch->errors.size()) + " (" + batch->errors[0] + ")";
+                tree->rebuild();
+                if (added > 0)
+                {
+                    Source s; s.kind = Source::Kind::drive; s.path = added > 1 ? juce::String ("*") : drive->folders().back().id;
+                    selectSource (s);
+                }
+                repaint();
+            });
     }), true);
 }
 

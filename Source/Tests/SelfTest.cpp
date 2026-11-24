@@ -2486,6 +2486,10 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                      && GoogleDrive::idFromAddress ("https://drive.google.com/open?id=" + id + "&authuser=0") == id
                      && GoogleDrive::idFromAddress ("  " + id + " ") == id
                      && GoogleDrive::idFromAddress ("https://example.com/no es una carpeta").isEmpty()
+                     && GoogleDrive::linksIn ("Carpeta A\n➡️ https://tinyurl.com/ejemplo1\n\nCarpeta B\n➡️  https://bit.ly/ejemplo2\n"
+                                              "ver: https://drive.google.com/drive/u/0/shared-with-me.")
+                            == juce::StringArray { "https://tinyurl.com/ejemplo1", "https://bit.ly/ejemplo2",
+                                                   "https://drive.google.com/drive/u/0/shared-with-me" }
                      && GoogleDrive::isAudioName ("Tema.MP3") && ! GoogleDrive::isAudioName ("foto.jpg");
         rep.check (ok, "Google Drive: el enlace de una carpeta (cualquier forma de copiarlo) da su id"_u);
     }
