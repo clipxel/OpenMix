@@ -150,6 +150,13 @@ float Actions::currentValue (const juce::String& id, int deck) const
 void Actions::tick()
 {
     const auto now = juce::Time::getMillisecondCounterHiRes();
+    for (size_t d = 0; d < (size_t) AudioEngine::numDecks; ++d)
+        if (spinOut[d] && (now - lastTurnMs[d] > 60.0                          // the platter stopped
+                           || (turnSpeed[d] > 0.0 && turnSpeed[d] < 1.2)))    // or turns forward at about play speed
+        {
+            spinOut[d] = false;
+            engine.deck ((int) d).setScratching (false);
+        }
     for (int d = 0; d < AudioEngine::numDecks; ++d)
         if (lastJogMs[(size_t) d] > 0.0 && now - lastJogMs[(size_t) d] > 60.0)
         {
@@ -232,13 +239,31 @@ void Actions::build()
          {
              auto& k = deck (d);
              const double seconds = (double) revs * 1.8;   // 33⅓ rpm platter
-             if (k.isScratching())    k.scratchMove (seconds);
+             if (k.isScratching())
+             {
+                 // How fast the platter turns (for a backspin let go while it spins).
+                 const double now = juce::Time::getMillisecondCounterHiRes();
+                 const double dt = juce::jlimit (1.0, 100.0, now - lastTurnMs[(size_t) d]) / 1000.0;
+                 turnSpeed[(size_t) d] = now - lastTurnMs[(size_t) d] > 100.0 ? seconds / dt : turnSpeed[(size_t) d] * 0.7 + (seconds / dt) * 0.3;
+                 lastTurnMs[(size_t) d] = now;
+                 k.scratchMove (seconds);
+             }
              else if (k.isPlaying())  { k.jogBend (juce::jlimit (-1.0, 1.0, (double) revs * 25.0)); lastJogMs[(size_t) d] = juce::Time::getMillisecondCounterHiRes(); }
              else                     k.jogScrub (seconds);
          });
 
     add ({ "jog_touch", "Jog touch (scratch)", "Jog y pitch", T::button },
-         [deck] (int d, float v) { if (deck (d).isVinylMode() || v < 0.5f) deck (d).setScratching (v > 0.5f); },
+         [this, deck] (int d, float v)
+         {
+             auto& k = deck (d);
+             const auto i = (size_t) d;
+             if (v > 0.5f) { spinOut[i] = false; if (k.isVinylMode()) k.setScratching (true); return; }
+             // Let go while the platter still spins (a backspin, a throw): keep following it until it stops.
+             const bool spinning = k.isScratching() && juce::Time::getMillisecondCounterHiRes() - lastTurnMs[i] < 40.0
+                                && std::abs (turnSpeed[i]) > 1.5;
+             if (spinning) spinOut[i] = true;
+             else k.setScratching (false);
+         },
          [=] (int d) { return deck (d).isScratching(); });
 
     add ({ "vinyl_mode", "Modo vinilo / CD", "Jog y pitch", T::button },
@@ -246,10 +271,11 @@ void Actions::build()
          [deck] (int d) { return deck (d).isVinylMode(); });
 
     add ({ "pitch", "Pitch fader", "Jog y pitch", T::absolute },
-         // Club player convention, same as the on-screen fader: down (low values) = faster (+), up = slower (−).
-         [=] (int d, float v) { auto& k = deck (d); if (! k.isSyncOn()) k.setPitch ((1.0 - v * 2.0) * k.getPitchRange()); },
+         // Club player convention, same as the on-screen fader: up = slower (−), down = faster (+). Controllers send
+         // their lowest value at the top of the fader (the − end) and the highest at the bottom (the + end).
+         [=] (int d, float v) { auto& k = deck (d); if (! k.isSyncOn()) k.setPitch ((v * 2.0 - 1.0) * k.getPitchRange()); },
          {},
-         [=] (int d) { auto& k = deck (d); return (float) juce::jlimit (0.0, 1.0, (1.0 - k.getPitch() / k.getPitchRange()) * 0.5); });
+         [=] (int d) { auto& k = deck (d); return (float) juce::jlimit (0.0, 1.0, (1.0 + k.getPitch() / k.getPitchRange()) * 0.5); });
 
     add ({ "pitch_bend_minus", "Pitch bend −"_u, "Jog y pitch", T::button },
          [=] (int d, float v) { deck (d).jogBend (pressed (v) ? -0.35 : 0.0); });

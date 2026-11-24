@@ -109,6 +109,9 @@ private:
     std::vector<ActionInfo> infos;
     std::map<juce::String, Entry> entries;
     std::array<double, AudioEngine::numDecks> lastJogMs {};
+    // Backspins: the jog let go while it still spins keeps scratching until the platter stops.
+    std::array<bool, AudioEngine::numDecks> spinOut {};
+    std::array<double, AudioEngine::numDecks> lastTurnMs {}, turnSpeed {};   // track seconds per second, smoothed
     std::array<float, AudioEngine::numDecks + 1> vu {};       // decks, then master
 };
 

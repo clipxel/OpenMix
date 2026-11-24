@@ -2411,7 +2411,8 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     }
 
     {
-        // Pitch fader: down (low values) = faster, like the screen and club players.
+        // Pitch fader: controllers send their lowest value at the top (−) and the highest at the bottom (+):
+        // up = slower, down = faster, like the screen and club players.
         MidiBinding pf; pf.device = "Test"; pf.channel = 1; pf.kind = MidiBinding::Kind::cc; pf.number = 0;
         pf.encoding = MidiBinding::Encoding::absolute7; pf.action = "pitch"; pf.deck = 1;
         midi.setBindings ({ pf });
@@ -2421,7 +2422,7 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
         const double low = d2.getPitch();
         for (int v = 0; v <= 127; v += 16) midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 0, v));
         midi.inject ("Test", juce::MidiMessage::controllerEvent (1, 0, 127));
-        rep.check (low > 0.0 && d2.getPitch() < 0.0, "Pitch del controlador: abajo más rápido, arriba más lento"_u,
+        rep.check (low < 0.0 && d2.getPitch() > 0.0, "Pitch del controlador: arriba (valor bajo) más lento, abajo (valor alto) más rápido"_u,
                    juce::String (low * 100.0, 1) + " % / " + juce::String (d2.getPitch() * 100.0, 1) + " %");
         d2.setPitch (0.0);
         midi.setBindings (b);
