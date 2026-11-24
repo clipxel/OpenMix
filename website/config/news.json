@@ -2,6 +2,12 @@
   "_comment": "Noticias de la portada, de la más nueva a la más vieja. tag: Próximamente, Novedad, Versión… link es opcional.",
   "news": [
     {
+      "date": "2026-11-24",
+      "tag": "Versión",
+      "title": "OpenMix 2.6.0: Google Drive, sampler y SYNC de emergencia",
+      "text": "Buscá y reproducí música de tus carpetas de Google Drive (también las compartidas), sampler con 8 pads, ocho modos de pads como el MCX8000, cinco vistas para elegir, texto grande en la biblioteca y SYNC que alinea al instante."
+    },
+    {
       "date": "2026-11-03",
       "tag": "Próximamente",
       "title": "Stems: controlá cada parte del tema",
