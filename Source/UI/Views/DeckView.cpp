@@ -393,15 +393,22 @@ DeckView::DeckView (AudioEngine& e, int i)
     pitchRange.setTooltip ("Rango de pitch (clic para cambiar)");
     pitchRange.onClick = [this] { cyclePitchRange(); };
 
-    // Decks 3 and 4 (as on a 4-deck controller): this side swaps between its two decks.
+    // Decks 3 and 4 (as on a 4-deck controller): each side has two decks, picked with these buttons.
+    // The other deck starts empty and keeps playing while it is not on screen.
+    for (int k = 0; k < 2; ++k)
     {
-        const int partner = index < 2 ? index + 2 : index - 2;
-        deckSwap.setButtonText (juce::String::fromUTF8 ("⇄ ") + juce::String (partner + 1));
-        deckSwap.setTextType (Type::micro, Weight::bold);
-        deckSwap.setTooltip ("Mostrar el deck " + juce::String (partner + 1) + " en este lado (el deck "
-                             + juce::String (index + 1) + juce::String::fromUTF8 (" sigue sonando si está en play)"));
-        deckSwap.onClick = [this] { engine.swapSide (index % 2); };
-        addAndMakeVisible (deckSwap);
+        auto& b = deckPick[(size_t) k];
+        const int d = index % 2 + 2 * k;
+        b.setButtonText (juce::String (d + 1));
+        b.setTextType (Type::micro, Weight::bold);
+        b.setClickingTogglesState (false);
+        b.setToggleState (d == index, juce::dontSendNotification);
+        b.setLitColour (Theme::get().deckColour (d));
+        b.setTooltip (d == index ? "Deck " + juce::String (d + 1) + " (en pantalla)"
+                                 : "Cambiar al deck " + juce::String (d + 1) + juce::String::fromUTF8 (" en este lado (el deck ")
+                                       + juce::String (index + 1) + juce::String::fromUTF8 (" sigue sonando si está en play)"));
+        b.onClick = [this, d] { if (d != index) engine.showDeck (d); };
+        addAndMakeVisible (b);
     }
 
     pitchZero.setTooltip ("Pitch a 0 %: un toque vuelve de a poco, dos toques vuelve de una"_u);
@@ -736,8 +743,9 @@ void DeckView::resized()
     const int gap = Space::sm;
 
     headerArea = r.removeFromTop (dense ? 40 : 46);
-    // 1 ⇄ 3 / 2 ⇄ 4: next to the DECK label.
-    deckSwap.setBounds (headerArea.getX() + 48, headerArea.getY() - 1, 40, 16);
+    // 1 | 3 / 2 | 4: next to the DECK label.
+    for (int k = 0; k < 2; ++k)
+        deckPick[(size_t) k].setBounds (headerArea.getX() + 48 + k * 24, headerArea.getY() - 1, 24, 16);
     r.removeFromTop (Space::xs);
     overview.setBounds (r.removeFromTop (dense ? 22 : 28));
     r.removeFromTop (gap);

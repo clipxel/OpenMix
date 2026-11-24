@@ -21,16 +21,6 @@
   {
    "device": "*",
    "channel": 7,
-   "kind": "cc",
-   "number": 100,
-   "encoding": "rel_twos",
-   "action": "browser_scroll",
-   "deck": -1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 7,
    "kind": "note",
    "number": 70,
    "encoding": "button",
@@ -74,50 +64,6 @@
   },
   {
    "device": "*",
-   "channel": 7,
-   "kind": "note",
-   "number": 93,
-   "encoding": "button",
-   "action": "load",
-   "deck": 0,
-   "shift": false,
-   "led": false
-  },
-  {
-   "device": "*",
-   "channel": 7,
-   "kind": "note",
-   "number": 109,
-   "encoding": "button",
-   "action": "load",
-   "deck": 1,
-   "shift": false,
-   "led": false
-  },
-  {
-   "device": "*",
-   "channel": 7,
-   "kind": "note",
-   "number": 94,
-   "encoding": "button",
-   "action": "load",
-   "deck": 2,
-   "shift": false,
-   "led": false
-  },
-  {
-   "device": "*",
-   "channel": 7,
-   "kind": "note",
-   "number": 110,
-   "encoding": "button",
-   "action": "load",
-   "deck": 3,
-   "shift": false,
-   "led": false
-  },
-  {
-   "device": "*",
    "channel": 1,
    "kind": "note",
    "number": 11,
@@ -242,7 +188,7 @@
    "kind": "note",
    "number": 28,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 0,
    "shift": false
   },
@@ -252,7 +198,7 @@
    "kind": "note",
    "number": 28,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 1,
    "shift": false
   },
@@ -262,7 +208,7 @@
    "kind": "note",
    "number": 28,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 2,
    "shift": false
   },
@@ -272,7 +218,7 @@
    "kind": "note",
    "number": 28,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 3,
    "shift": false
   },
@@ -754,7 +700,7 @@
    "kind": "note",
    "number": 26,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 0,
    "shift": false
   },
@@ -764,7 +710,7 @@
    "kind": "note",
    "number": 26,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 1,
    "shift": false
   },
@@ -774,7 +720,7 @@
    "kind": "note",
    "number": 26,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 2,
    "shift": false
   },
@@ -784,7 +730,7 @@
    "kind": "note",
    "number": 26,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 3,
    "shift": false
   },
@@ -834,7 +780,7 @@
    "kind": "note",
    "number": 20,
    "encoding": "button",
-   "action": "loop",
+   "action": "reloop",
    "deck": 0,
    "shift": false
   },
@@ -844,7 +790,7 @@
    "kind": "note",
    "number": 20,
    "encoding": "button",
-   "action": "loop",
+   "action": "reloop",
    "deck": 1,
    "shift": false
   },
@@ -854,7 +800,7 @@
    "kind": "note",
    "number": 20,
    "encoding": "button",
-   "action": "loop",
+   "action": "reloop",
    "deck": 2,
    "shift": false
   },
@@ -864,7 +810,7 @@
    "kind": "note",
    "number": 20,
    "encoding": "button",
-   "action": "loop",
+   "action": "reloop",
    "deck": 3,
    "shift": false
   },
@@ -1112,6 +1058,46 @@
    "device": "*",
    "channel": 1,
    "kind": "note",
+   "number": 58,
+   "encoding": "button",
+   "action": "key_match",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 58,
+   "encoding": "button",
+   "action": "key_match",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 58,
+   "encoding": "button",
+   "action": "key_match",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 58,
+   "encoding": "button",
+   "action": "key_match",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
    "number": 40,
    "encoding": "button",
    "action": "slip_mode",
@@ -1145,6 +1131,46 @@
    "number": 40,
    "encoding": "button",
    "action": "slip_mode",
+   "deck": 3,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 41,
+   "encoding": "button",
+   "action": "censor",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 41,
+   "encoding": "button",
+   "action": "censor",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "note",
+   "number": 41,
+   "encoding": "button",
+   "action": "censor",
+   "deck": 2,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "note",
+   "number": 41,
+   "encoding": "button",
+   "action": "censor",
    "deck": 3,
    "shift": false
   },
@@ -1851,46 +1877,6 @@
    "channel": 4,
    "kind": "note",
    "number": 7,
-   "encoding": "button",
-   "action": "pfl",
-   "deck": 3,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 1,
-   "kind": "note",
-   "number": 31,
-   "encoding": "button",
-   "action": "pfl",
-   "deck": 0,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 2,
-   "kind": "note",
-   "number": 31,
-   "encoding": "button",
-   "action": "pfl",
-   "deck": 1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 3,
-   "kind": "note",
-   "number": 31,
-   "encoding": "button",
-   "action": "pfl",
-   "deck": 2,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 4,
-   "kind": "note",
-   "number": 31,
    "encoding": "button",
    "action": "pfl",
    "deck": 3,
@@ -1950,6 +1936,50 @@
    "action": "volume",
    "deck": 3,
    "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 3,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 2,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 4,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 3,
+   "shift": false,
+   "output_only": true
   },
   {
    "device": "*",
@@ -2799,6 +2829,94 @@
    "action": "delete_hot_cue_8",
    "deck": 3,
    "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 16,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "load",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 16,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "load",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 16,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "load",
+   "deck": 2,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 16,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "load",
+   "deck": 3,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 16,
+   "kind": "note",
+   "number": 4,
+   "encoding": "button",
+   "action": "loop",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 16,
+   "kind": "note",
+   "number": 5,
+   "encoding": "button",
+   "action": "loop",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 16,
+   "kind": "note",
+   "number": 6,
+   "encoding": "button",
+   "action": "loop",
+   "deck": 2,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 16,
+   "kind": "note",
+   "number": 7,
+   "encoding": "button",
+   "action": "loop",
+   "deck": 3,
+   "shift": false,
+   "output_only": true
   }
  ]
 }

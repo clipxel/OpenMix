@@ -142,6 +142,12 @@ static const std::map<juce::String, juce::String>& csvFunctions()
         { "4beatloop", "loop" }, { "loopin", "loop_in" }, { "loopout", "loop_out" }, { "loophalf", "loop_half" },
         { "loopdouble", "loop_double" }, { "reloopexit", "reloop" }, { "masterlevel", "master_volume" },
         { "headphonelevel", "headphone_volume" }, { "headphonemix", "headphone_mix" }, { "reverse", "reverse" },
+        // What controls do with SHIFT held (the first column of a "…+Shift" row).
+        { "jumptotrackstart", "start_play" }, { "master", "master" }, { "loopmoveleft", "loop_move_back" },
+        { "loopmoveright", "loop_move_fwd" }, { "retrigger", "reloop" }, { "activeloop", "reloop" }, { "keylock", "key_lock" },
+        { "keysync", "key_match" }, { "tempo reset", "pitch_reset" }, { "temporeset", "pitch_reset" }, { "instdoubles", "instant_doubles" },
+        { "beatjumpfwd", "beatjump_fwd" }, { "beatjumprev", "beatjump_back" }, { "quantize", "quantize" }, { "unload", "unload" },
+        { "censor", "censor" }, { "stutter", "stutter" }, { "playstutter", "stutter" }, { "brake", "brake" },
     };
     return m;
 }
@@ -307,7 +313,21 @@ Result fromCsv (const juce::String& text)
         }
 
         int fixedDeck = -2;
-        auto action = csvFxAction (name, fxPerDeck, fixedDeck);          // column 1 says what the control does
+        juce::String action;
+        if (shift && name.isNotEmpty() && name.toLowerCase().retainCharacters ("abcdefghijklmnopqrstuvwxyz0123456789")
+                                          != parts[0].toLowerCase().retainCharacters ("abcdefghijklmnopqrstuvwxyz0123456789"))
+        {
+            // "JumpToTrackStart,Cue+Shift,…": column 1 is what the control does with SHIFT held. If OpenMix
+            // has no such function the row stays out: SHIFT + CUE must not just do CUE again.
+            action = csvFxAction (name, fxPerDeck, fixedDeck);
+            if (action.isEmpty()) action = csvAction (name, shift, fixedDeck);
+            if (action.isEmpty())
+            {
+                r.untranslated.addIfNotAlreadyThere (name + " (" + functionOrName + ")");
+                continue;
+            }
+        }
+        if (action.isEmpty()) action = csvFxAction (name, fxPerDeck, fixedDeck);          // column 1 says what the control does
         if (action.isEmpty()) action = csvFxAction (parts[0], fxPerDeck, fixedDeck);
         if (action.isEmpty()) action = csvAction (parts[0], shift, fixedDeck);
         if (action.isEmpty()) action = csvAction (name, shift, fixedDeck);   // the control's own label
@@ -861,7 +881,35 @@ static juce::String presetAction (const juce::String& group, const juce::String&
     const auto path = k.containsChar ('.') ? k.fromFirstOccurrenceOf (".", false, false) : k;
     auto has = [&path] (const char* w) { return path.contains (w); };
     if (has ("indicator") || has ("toneplay") || has ("sampler") || has ("effect") || has ("slicer") || has ("roll")) return {};
-    if (has ("shift"))                                           return "shift";
+    if (has ("curve") || has ("contour") || has ("split"))       return {};          // crossfader curve, split cue: not a fader / PFL
+    // The SHIFT button itself ("shiftButton", "leftShift", ".shift"). A control *with* SHIFT
+    // ("shiftKeyLockButton") is that control: its SHIFT function comes from its description.
+    {
+        auto last = path.replace (".input", "").replace ("[", ".").replace ("]", "").fromLastOccurrenceOf (".", false, false);
+        if (last.isEmpty()) last = path;
+        // "shiftButton", "leftShiftButton", "deckShiftButton", "shiftPressed", "shiftToggle", "ShiftA", "handleShift"…
+        static const std::regex shiftButton ("^(left|right|deck|top|main|l|r|handle|set|on)?shift"
+                                             "(button|btn|key|pressed|press|toggle|activate|input|buttoninput|buttonl|buttonr|"
+                                             "l|r|a|b|left|right|callback|leftcallback|rightcallback|handler)?$");
+        if (std::regex_match (last.toStdString(), shiftButton))
+            return "shift";
+    }
+    // Specific names before the general ones: "killLow" is not the LOW knob, "rateReset" not the
+    // tempo fader, "cueSelect" not CUE, "headPhoneMix" not the headphone button.
+    if (has ("kill"))                                            return has ("high") || has ("treble") ? "vdj:eq_kill_high"
+                                                                      : has ("mid") || has ("med") ? "vdj:eq_kill_mid" : "vdj:eq_kill_low";
+    if ((has ("rate") || has ("pitch") || has ("tempo")) && (has ("reset") || has ("zero"))) return "pitch_reset";
+    if (has ("cueselect") || has ("headphonecue") || has ("cuebutton") && has ("headphone")) return "pfl";
+    if (has ("headphonemix") || has ("headmix") || has ("cuemix") || has ("phonesmix"))  return "headphone_mix";
+    if (has ("headphonevol") || has ("headphonegain") || has ("headgain") || has ("phonesvol")) return "headphone_volume";
+    if (has ("crossfader") || has ("xfader"))                    return "crossfader";
+    if (has ("balance") || has ("sourceselect") || has ("passthrough") || has ("previous") || has (".prev") || has (".next")) return {};
+    if (has ("medium"))                                          return "eq_mid";
+    if (has ("filterhigh"))                                      return "eq_high";      // Mixxx's older names for the EQ
+    if (has ("filtermid"))                                       return "eq_mid";
+    if (has ("filterlow"))                                       return "eq_low";
+    if (has ("loopshift") || has ("loopmove"))                   return has ("back") || has ("left") || has ("down") ? "loop_move_back" : "loop_move_fwd";
+    if (has (".stop") || path == "stop")                         return "goto_cue_stop";
     if (has ("wheeltouch") || has ("jogtouch") || has ("touch")) return "jog_touch";
     if (has ("wheelturn") || has ("jogturn") || has ("jogwheel") || has ("jogspin") || (has ("wheel") && ! has ("pitch")) || has (".jog") || path.startsWith ("jog")) return "jog";
     if (has ("hotcue"))                                          return "hot_cue_*";
@@ -902,7 +950,7 @@ static juce::String presetAction (const juce::String& group, const juce::String&
     if (has ("eqlo") || has ("low") || has ("bass"))             return "eq_low";
     if (has ("filter") || has ("quickeffect") || has ("super"))  return "filter";
     if (has ("pitch") || has ("rate") || has ("tempo"))          return "pitch";
-    if (has ("volume") || has ("fader"))                         return g == "[master]" ? "crossfader" : "volume";
+    if (has ("volume") || has ("fader"))                         return g == "[master]" ? "master_volume" : "volume";
     if (has ("browse") || has ("scroll") || has ("library"))     return "browser_scroll";
     return {};
 }
@@ -930,6 +978,7 @@ static juce::String shiftedFunction (const juce::String& action, const juce::Str
     auto says = [&d] (const char* w) { return d.contains (w); };
     const auto n = action.fromLastOccurrenceOf ("_", false, false);
     if (action.startsWith ("hot_cue_") && (says ("clear") || says ("delete") || says ("remove"))) return "delete_hot_cue_" + n;
+    if (says ("pitch range") || says ("tempo range"))            return "pitch_range";
     if (says ("stutter"))                                        return "stutter";
     if (says ("reverse"))                                        return "reverse";
     if (says ("censor"))                                         return "censor";
@@ -1034,6 +1083,11 @@ Result fromPreset (const juce::String& xmlText)
         b.number = raw.number;
         b.invert = raw.invert;
         b.action = action;
+        if (action.startsWith ("vdj:"))                          // a function OpenMix runs as a script ("eq_kill_low")
+        {
+            b.script = action.fromFirstOccurrenceOf ("vdj:", false, false);
+            b.action = "vdj";
+        }
         b.deck = deck < 0 ? 0 : deck;
         const bool relative = action == "jog" || action == "browser_scroll";
         const bool continuous = relative || action == "pitch" || action == "volume" || action == "gain" || action == "crossfader"

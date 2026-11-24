@@ -1,0 +1,288 @@
+# Frases de entrenamiento del asistente de mapeo: frase<TAB>función<TAB>deck (0-3, -1 global, -2 sin decir)<TAB>S si es con SHIFT
+que este boton haga play	play_pause	-2
+play del deck 1	play_pause	0
+quiero que reproduzca el tema	play_pause	-2
+play pausa del lado izquierdo	play_pause	0
+pausar el deck derecho	play_pause	1
+dale play al deck 2	play_pause	1
+play/pause deck B	play_pause	1
+que pare la musica del deck 3	play_pause	2
+arrancar el tema en el plato 4	play_pause	3
+play button for deck two	play_pause	1
+el cue del deck 1	cue_button	0
+boton de cue izquierdo	cue_button	0
+cue derecho	cue_button	1
+que vuelva al cue y se pare	goto_cue_stop	-2
+volver al cue y seguir tocando	stutter	-2
+stutter del deck 1	stutter	0
+con shift play que haga stutter	stutter	-2	S
+shift + cue que vuelva al principio	start_play	-2	S
+ir al principio del tema	start_play	-2
+sync del deck 2	sync	1
+sincronizar el deck izquierdo	sync	0
+que sincronice	sync	-2
+sinc	sync	-2
+igualar el bpm con el otro	sync	-2
+sincronizr	sync	-2
+hacer este deck master	master	-2
+deck maestro	master	-2
+con shift sync que sea master	master	-2	S
+reverse	reverse	-2
+que reproduzca al reves	reverse	-2
+censor	censor	-2
+tapar las malas palabras	censor	-2
+freno de vinilo	brake	-2
+brake del deck 1	brake	0
+que frene como un vinilo	brake	-2
+backspin	backspin	-2
+slip	slip_mode	-2
+modo slip del deck 2	slip_mode	1
+quantize	quantize	-2
+cuantizar	quantize	-2
+cargar el tema en el deck 1	load	0
+load deck 2	load	1
+cargar cancion izquierda	load	0
+boton load derecho	load	1
+expulsar el tema	unload	-2
+sacar el tema del deck 2	unload	1
+instant doubles	instant_doubles	-2
+copiar el otro deck	instant_doubles	-2
+play de emergencia	emergency_play	-1
+key lock	key_lock	-2
+master tempo del deck 1	key_lock	0
+bloquear la tonalidad	key_lock	-2
+mantener el tono	key_lock	-2
+subir un semitono	key_up	-2
+bajar la tonalidad	key_down	-2
+subir la key	key_up	-2
+bajar el tono del deck 2	key_down	1
+subir un tono entero	key_tone_up	-2
+bajar 2 semitonos	key_tone_down	-2
+tonalidad original	key_reset	-2
+resetear la key	key_reset	-2
+igualar la tonalidad con el otro deck	key_match	-2
+key sync	key_match	-2
+con shift keylock igualar tono	key_match	-2	S
+jog del deck 1	jog	0
+el plato izquierdo	jog	0
+rueda grande derecha	jog	1
+jog wheel deck 2	jog	1
+scratch con el plato	jog	-2
+tocar arriba del jog	jog_touch	-2
+sensor tactil del plato	jog_touch	-2
+touch del jog izquierdo	jog_touch	0
+con shift el jog busca rapido	jog_search	-2	S
+buscar rapido en el tema con el plato	jog_search	-2
+tira tactil para saltar	needle_search	-2
+needle drop	needle_search	-2
+modo vinilo	vinyl_mode	-2
+boton vinyl del deck 2	vinyl_mode	1
+fader de pitch	pitch	-2
+pitch del deck 1	pitch	0
+el tempo izquierdo	pitch	0
+fader de velocidad derecho	pitch	1
+pitch bend menos	pitch_bend_minus	-2
+pitch bend +	pitch_bend_plus	-2
+empujar el tema para adelante un poco	pitch_bend_plus	-2
+frenar un poco el tema	pitch_bend_minus	-2
+nudge minus	pitch_bend_minus	-2
+pitch a cero	pitch_reset	-2
+resetear el pitch	pitch_reset	-2
+tempo reset	pitch_reset	-2
+bajar el pitch	pitch_minus	-2
+subir el tempo	pitch_plus	-2
+subir el pitch de ambos decks	all_pitch_plus	-1
+bajar el tempo de los dos	all_pitch_minus	-1
+rango de pitch	pitch_range	-2
+cambiar el rango del pitch	pitch_range	-2
+con shift pitch bend cambia el rango	pitch_range	-2	S
+hot cue 1	hot_cue_1	-2
+hot cue 3 del deck 2	hot_cue_3	1
+hotcue cinco	hot_cue_5	-2
+quiero que este pad marque el hot cue 8	hot_cue_8	-2
+punto de cue 2 izquierdo	hot_cue_2	0
+el primer hot cue	hot_cue_1	-2
+hot cue numero 4 derecho	hot_cue_4	1
+cue 6	hot_cue_6	-2
+borrar hot cue 3	delete_hot_cue_3	-2
+eliminar el hot cue 1 del deck 2	delete_hot_cue_1	1
+con shift borrar el hot cue 2	delete_hot_cue_2	-2	S
+shift + pad 4 borra el cue 4	delete_hot_cue_4	-2	S
+delete hot cue 7	delete_hot_cue_7	-2
+quitar la marca 5	delete_hot_cue_5	-2
+loop guardado 1	saved_loop_1	-2
+loop memorizado 3	saved_loop_3	-2
+auto loop	loop	-2
+activar el loop	loop	-2
+loop on off del deck 1	loop	0
+hacer un loop	loop	-2
+loop de 4 beats	loop_4	-2
+loop de 8 beats	pad_loop_6	-2
+loop de 1/2 beat	pad_loop_2	-2
+loop de medio beat	pad_loop_2	-2
+loop de 2 compases	pad_loop_6	-2
+loop de 16	pad_loop_7	-2
+loop 1/2	loop_half	-2
+partir el loop a la mitad	loop_half	-2
+achicar el loop	loop_half	-2
+loop x2	loop_double	-2
+duplicar el loop	loop_double	-2
+agrandar el loop	loop_double	-2
+loop in	loop_in	-2
+entrada del loop	loop_in	-2
+loop out	loop_out	-2
+salida del loop	loop_out	-2
+salir del loop	loop_exit	-2
+apagar el loop	loop_exit	-2
+reloop	reloop	-2
+volver al loop	reloop	-2
+con shift autoloop hace reloop	reloop	-2	S
+mover el loop para atras	loop_move_back	-2
+mover el loop para adelante	loop_move_fwd	-2
+perilla de loop	loop_resize	-2
+el tamaño del loop con la perilla	loop_resize	-2
+beat jump atras	beatjump_back	-2
+beatjump adelante	beatjump_fwd	-2
+saltar para adelante	beatjump_fwd	-2
+saltar para atras	beatjump_back	-2
+saltar 16 beats para atras	pad_jump_4	-2
+saltar 4 beats adelante	pad_jump_6	-2
+beat jump 32 beats atras	pad_jump_long_3	-2
+loop roll	loop_roll_4	-2
+roll de 1/4	loop_roll_2	-2
+roll de 1/8	loop_roll_1	-2
+roll de medio beat	loop_roll_3	-2
+roll de 2 beats	pad_roll_7	-2
+ganancia	gain	-2
+gain del canal 1	gain	0
+trim del deck 2	gain	1
+agudos	eq_high	-2
+perilla de agudos del deck 1	eq_high	0
+eq high derecho	eq_high	1
+medios del canal 2	eq_mid	1
+eq mid	eq_mid	-2
+graves	eq_low	-2
+los bajos del deck izquierdo	eq_low	0
+bass del canal 3	eq_low	2
+filtro	filter	-2
+perilla de filtro del deck 2	filter	1
+filter channel 1	filter	0
+volumen del canal 1	volume	0
+fader del deck 2	volume	1
+fader de canal izquierdo	volume	0
+channel fader 4	volume	3
+volumen master	master_volume	-1
+volumen general	master_volume	-1
+master level	master_volume	-1
+volumen de los auriculares	headphone_volume	-1
+nivel de auriculares	headphone_volume	-1
+mezcla de auriculares	headphone_mix	-1
+cue mix	headphone_mix	-1
+cue/master	headphone_mix	-1
+pfl del deck 1	pfl	0
+escuchar en los auriculares el deck 2	pfl	1
+cue de auriculares izquierdo	pfl	0
+preescucha	pfl	-2
+headphone cue channel 2	pfl	1
+cambiar la preescucha de deck	switch_pfl	-1
+crossfader	crossfader	-1
+crossfeider	crossfader	-1
+el cross	crossfader	-1
+crossfader a la izquierda	crossfader_left	-1
+crossfader a la derecha	crossfader_right	-1
+mezclar ahora	mix_now	-1
+hacer la transicion	mix_now	-1
+pad 1	pad_1	-2
+pad 5 del deck 2	pad_5	1
+el pad ocho	pad_8	-2
+modo hot cue	pad_mode_hot_cue	-2
+modo de pads hot cue del deck 1	pad_mode_hot_cue	0
+modo roll	pad_mode_roll	-2
+modo loop	pad_mode_loop	-2
+modo slicer	pad_mode_saved_loop	-2
+slicer	pad_mode_saved_loop	-2
+modo beat jump	pad_mode_jump	-2
+modo sampler	pad_mode_sampler	-2
+sampler	pad_mode_sampler	-2
+modo tono de los pads	pad_mode_key	-2
+modo fx	pad_mode_fx	-2
+pagina de pads siguiente	pad_page	-2
+cambiar la pagina de los pads	pad_page	-2
+efecto 1 on	effect_active_1	-2
+prender el fx 2	effect_active_2	-2
+activar el efecto 3 del deck 1	effect_active_3	0
+nivel del efecto 1	effect_wet_1	-2
+dry wet del fx 2	effect_wet_2	-2
+perilla de cantidad del efecto 3	effect_wet_3	-2
+beats del fx 1	effect_param_1	-2
+siguiente efecto del fx 2	effect_select_2	-2
+cambiar el efecto 1	effect_select_1	-2
+beat fx on	beat_fx_on	-1
+prender el beat fx	beat_fx_on	-1
+beat fx del deck 1	beat_fx_on_deck	0
+beat fx on deck 2	beat_fx_on_deck	1
+level depth del beat fx	beat_fx_level	-1
+nivel del beat fx	beat_fx_level	-1
+nivel del beat fx del deck izquierdo	beat_fx_level_deck	0
+siguiente beat fx	beat_fx_select	-1
+cambiar el beat fx	beat_fx_select	-1
+beat fx anterior	beat_fx_select_back	-1
+tap	beat_fx_tap	-1
+marcar el bpm con tap	beat_fx_tap	-1
+beat fx auto	beat_fx_auto	-1
+time del beat fx	beat_fx_time	-1
+beat fx beat menos	beat_fx_beat_down	-1
+beat fx beat mas	beat_fx_beat_up	-1
+canal del beat fx siguiente	beat_fx_channel_next	-1
+beat fx en el master	beat_fx_master	-1
+siguiente color fx	color_fx_next	-1
+sound color fx echo	color_fx_echo	-1
+color fx space	color_fx_space	-1
+efecto de color filtro	color_fx_filter	-1
+sound color sweep	color_fx_sweep	-1
+noise	color_fx_noise	-1
+crush	color_fx_crush	-1
+dub echo	color_fx_echo	-1
+cambiar de deck	deck_swap	-2
+deck 1/3	deck_swap	-2
+alternar el lado entre deck 1 y 3	deck_swap	-2
+pasar al deck 3	deck_select_3	-1
+mostrar el deck 4	deck_select_4	-1
+seleccionar deck 1	deck_select_1	-1
+perilla para navegar la biblioteca	browser_scroll	-1
+navegar los temas	browser_scroll	-1
+browse	browser_scroll	-1
+ir a las playlists	browser_show_folders	-1
+mostrar las carpetas	browser_show_folders	-1
+ir a los temas	browser_show_songs	-1
+pasar de los temas a las playlists	browser_focus	-1
+back	browser_focus	-1
+grabar	record	-1
+rec	record	-1
+shift	shift	-1
+este boton es el shift	shift	-1
+que funcione como shift	shift	-1
+automix	automix	-1
+mezcla automatica	automix	-1
+luz de tempo para acelerar	guide_tempo_faster	-2
+led de fase atrasada	guide_phase_behind	-2
+vumetro del canal 1	vu_meter	0
+vumetro master	vu_master	-1
+aviso de fin de tema	end_warning	-2
+play con shift	play_pause	-2	S
+hot cue 2 con shift	hot_cue_2	-2	S
+sync manteniendo shift	sync	-2	S
+loop in con shift	loop_in	-2	S
+el filtro con shift	filter	-2	S
+segunda funcion del boton cue	cue_button	-2	S
+volver al principio sin arrancar	goto_start	-2
+hot cue anterior	hot_cue_prev	-2
+ir al hot cue siguiente del deck 2	hot_cue_next	1
+fader start	fader_start	-2
+perilla de stop time	stop_time	-2
+curva del crossfader	crossfader_curve	-1
+perilla beats del efecto	effect_beats	-2
+zoom de la onda	waveform_zoom_in	-1
+zoom out	waveform_zoom_out	-1
+load prep	automix_queue	-1
+agregar el tema a la lista de automix	automix_queue	-1

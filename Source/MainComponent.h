@@ -56,6 +56,7 @@ public:
         if (section == om::SettingsPanel::controllers) settingsPanel.showControllerTab (tab);
     }
     void openMappingWizardForSnapshot()          { settingsPanel.openMappingWizard(); }
+    void openMapAssistantForSnapshot (const juce::StringArray& p) { settingsPanel.openMapAssistant (p); }
     void prepareSnapshot (const juce::File& a, const juce::File& b, std::function<void()> done,
                           const juce::String& devicePlaylist = {});
 
@@ -111,7 +112,9 @@ private:
                                         if (note.isNotEmpty()) viewFor (d).showMessage (note, false);
                                     },
                                     [this] { return libraryView.isBrowsingSidebar(); },
-                                    [this] (bool folders) { libraryView.setBrowsingSidebar (folders); } } };
+                                    [this] (bool folders) { libraryView.setBrowsingSidebar (folders); },
+                                    [this] (int dir) { waveforms.zoomBy (dir > 0 ? 0.5 : 2.0); },
+                                    [this] { if (auto t = libraryView.selectedTrack()) automix.add ({ t }); } } };
     om::KeyboardControl keyboard { actions };
     om::AutoMix automix { engine, { [this] (const om::TrackPtr& t, int d) { loadToDeck (t, d); } } };
     om::AutoMixPanel automixPanel { automix, engine,

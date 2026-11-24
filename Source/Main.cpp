@@ -16,7 +16,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit") || cl.contains ("--intent-check");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -131,6 +131,15 @@ public:
             auto arg = [&args] (const juce::String& key) { auto i = args.indexOf (key); return i >= 0 ? args[i + 1].unquoted() : juce::String(); };
             om::Library::setDataFolderOverride (juce::File (arg ("--data")));
             setApplicationReturnValue (om::runAudioDeviceTest (juce::File (arg ("--usb")), juce::File (arg ("--data"))));
+            quit();
+            return;
+        }
+
+        if (commandLine.contains ("--intent-check"))
+        {
+            // Diagnostics: the mapping assistant's reading of each phrase of a file (or the list of functions).
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            setApplicationReturnValue (om::intentCheck (juce::File (args[args.indexOf ("--intent-check") + 1].unquoted())));
             quit();
             return;
         }
@@ -361,6 +370,8 @@ private:
                                                         st.fromFirstOccurrenceOf (":", false, false).getIntValue());
             if (st.endsWith (":wizard"))
                 snapshotComponent->openMappingWizardForSnapshot();
+            if (st.endsWith (":assistant"))
+                snapshotComponent->openMapAssistantForSnapshot (juce::StringArray::fromTokens (arg ("--say"), "|", ""));
         }
         snapshotComponent->prepareSnapshot (juce::File (arg ("--load-a")), juce::File (arg ("--load-b")),
                                             [this, out, w, h, automixShot = args.contains ("--automix"), gridShot = args.contains ("--grid-editor"), feedbackShot = args.contains ("--feedback")]

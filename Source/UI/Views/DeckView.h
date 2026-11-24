@@ -123,7 +123,8 @@ private:
 
     Fader pitch { true, true };
     Button pitchRange { "±8%"_u, Icon::none, Button::Style::ghost };
-    Button deckSwap { {}, Icon::none, Button::Style::standard };      // shows the other deck of this side (1 ⇄ 3, 2 ⇄ 4)
+    std::array<Button, 2> deckPick { Button { {}, Icon::none, Button::Style::segment },   // this side's two decks (1 | 3, 2 | 4),
+                                     Button { {}, Icon::none, Button::Style::segment } }; // as VirtualDJ's deck buttons
     Button bendDown { {}, Icon::minus }, bendUp { {}, Icon::plus };
     PitchZeroDot pitchZero;
 

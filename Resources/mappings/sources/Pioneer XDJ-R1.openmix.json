@@ -51,42 +51,24 @@
   {
    "device": "*",
    "channel": 1,
-   "kind": "cc",
-   "number": 65,
-   "encoding": "rel_twos",
-   "action": "browser_scroll",
-   "deck": -1,
-   "shift": false
+   "kind": "note",
+   "number": 63,
+   "encoding": "button",
+   "action": "quantize",
+   "deck": 0,
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
    "channel": 2,
-   "kind": "cc",
-   "number": 65,
-   "encoding": "rel_twos",
-   "action": "browser_scroll",
-   "deck": -1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 3,
-   "kind": "cc",
-   "number": 65,
-   "encoding": "rel_twos",
-   "action": "browser_scroll",
-   "deck": -1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 4,
-   "kind": "cc",
-   "number": 65,
-   "encoding": "rel_twos",
-   "action": "browser_scroll",
-   "deck": -1,
-   "shift": false
+   "kind": "note",
+   "number": 63,
+   "encoding": "button",
+   "action": "quantize",
+   "deck": 1,
+   "shift": false,
+   "led": false
   },
   {
    "device": "*",
@@ -154,7 +136,7 @@
    "kind": "note",
    "number": 72,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 0,
    "shift": false
   },
@@ -164,9 +146,31 @@
    "kind": "note",
    "number": 72,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 1,
    "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 0,
+   "shift": false,
+   "scale": 0.001953125
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "rel_offset",
+   "action": "jog",
+   "deck": 1,
+   "shift": false,
+   "scale": 0.001953125
   },
   {
    "device": "*",
@@ -493,20 +497,40 @@
   {
    "device": "*",
    "channel": 1,
-   "kind": "cc",
-   "number": 19,
-   "encoding": "rel_twos",
-   "action": "loop",
+   "kind": "note",
+   "number": 89,
+   "encoding": "button",
+   "action": "master",
    "deck": 0,
    "shift": false
   },
   {
    "device": "*",
    "channel": 2,
-   "kind": "cc",
-   "number": 19,
-   "encoding": "rel_twos",
-   "action": "loop",
+   "kind": "note",
+   "number": 89,
+   "encoding": "button",
+   "action": "master",
+   "deck": 1,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 1,
+   "kind": "note",
+   "number": 93,
+   "encoding": "button",
+   "action": "master",
+   "deck": 0,
+   "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "note",
+   "number": 93,
+   "encoding": "button",
+   "action": "master",
    "deck": 1,
    "shift": false
   },
@@ -514,7 +538,7 @@
    "device": "*",
    "channel": 1,
    "kind": "cc",
-   "number": 79,
+   "number": 19,
    "encoding": "rel_twos",
    "action": "loop",
    "deck": 0,
@@ -524,7 +548,7 @@
    "device": "*",
    "channel": 2,
    "kind": "cc",
-   "number": 79,
+   "number": 19,
    "encoding": "rel_twos",
    "action": "loop",
    "deck": 1,
@@ -741,6 +765,28 @@
    "action": "master_volume",
    "deck": -1,
    "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 71,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 7,
+   "kind": "cc",
+   "number": 72,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
   },
   {
    "device": "*",

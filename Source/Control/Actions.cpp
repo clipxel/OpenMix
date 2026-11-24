@@ -651,6 +651,57 @@ void Actions::build()
              auto& k = deck (d);
              if (k.hasTrack()) k.seek (juce::jlimit (0.0, k.getLength(), k.getPosition() + (double) revs * 15.0));
          });
+    // Controller functions as VirtualDJ gives them (Denon MCX8000 and others).
+    add ({ "goto_start", "Volver al principio del tema (sin arrancar)", "Transporte", T::button },
+         [=] (int d, float v) { if (pressed (v) && deck (d).hasTrack()) deck (d).seek (0.0); });
+    for (auto [id, label, dir] : { std::tuple { "hot_cue_prev", "Ir al hot cue anterior", -1 }, std::tuple { "hot_cue_next", "Ir al hot cue siguiente", +1 } })
+        add ({ id, label, "Hot cues", T::button },
+             [=] (int d, float v)
+             {
+                 if (! pressed (v) || ! deck (d).hasTrack()) return;
+                 auto& k = deck (d);
+                 const double pos = k.getPosition();
+                 double best = -1.0;
+                 for (int i = 0; i < 8; ++i)
+                 {
+                     const double c = k.getHotCue (i);
+                     if (c < 0.0) continue;
+                     if (dir > 0 ? c > pos + 0.05 && (best < 0.0 || c < best) : c < pos - 0.5 && c > best) best = c;
+                 }
+                 if (best >= 0.0) k.seek (best);
+             });
+    // Fader start: the controller says when the channel fader leaves its minimum (SHIFT + fader).
+    add ({ "fader_start", "Fader start (subir el fader arranca, bajarlo vuelve al cue)", "Transporte", T::button },
+         [=] (int d, float v)
+         {
+             auto& k = deck (d);
+             if (! k.hasTrack()) return;
+             if (v > 0.5f) { if (! k.isPlaying()) k.setPlaying (true); }
+             else if (k.isPlaying()) { k.setPlaying (false); k.seek (k.getCuePoint()); }
+         });
+    add ({ "stop_time", "Tiempo de frenado (perilla STOP TIME)", "Transporte", T::absolute },
+         [=] (int d, float v) { deck (d).setBrakeTime (0.05 + (double) v * 4.95); },
+         {},
+         [=] (int d) { return (float) juce::jlimit (0.0, 1.0, (deck (d).getBrakeTime() - 0.05) / 4.95); });
+    add ({ "crossfader_curve", "Curva del crossfader (perilla)", "Mixer", T::absolute, false },
+         [=] (int, float v) { engine.crossfaderCurve = v < 0.33f ? 0 : v < 0.66f ? 2 : 1; });
+    add ({ "effect_beats", "FX del deck: perilla BEATS (girar)", "Efectos", T::relative },
+         [=] (int d, float v) { if (v != 0.0f) trigger (v > 0.0f ? "effect_beat_up" : "effect_beat_down", d, 1.0f); });
+    for (auto [id, label, dir] : { std::tuple { "waveform_zoom_in", "Zoom de la onda +", +1 }, std::tuple { "waveform_zoom_out", "Zoom de la onda −", -1 } })
+        add ({ id, juce::String::fromUTF8 (label), "Biblioteca", T::button, false },
+             [=] (int, float v) { if (pressed (v) && hooks.waveformZoom) hooks.waveformZoom (dir); });
+    add ({ "automix_queue", "LOAD PREP: agregar el tema seleccionado a la lista de AUTOMIX", "Biblioteca", T::button, false },
+         [=] (int, float v) { if (pressed (v) && hooks.queueSelected) hooks.queueSelected(); });
+
+    // NEEDLE DROP strip: touching a point of the strip jumps there. Ignored while the track is heard
+    // (playing with its fader up), so a touch by mistake never cuts the mix.
+    add ({ "needle_search", "Needle drop (tira táctil: saltar a ese punto del tema)"_u, "Jog y pitch", T::absolute },
+         [=] (int d, float v)
+         {
+             auto& k = deck (d);
+             if (k.hasTrack() && ! (k.isPlaying() && engine.channel (d).fader.load() > 0.05f))
+                 k.seek ((double) juce::jlimit (0.0f, 1.0f, v) * k.getLength());
+         });
     add ({ "key_tone_down", "Bajar un tono (2 semitonos)", "Tonalidad", T::button },
          [=] (int d, float v) { if (pressed (v)) deck (d).setKeyShift (deck (d).getKeyShift() - 2); },
          [=] (int d) { return deck (d).getKeyShift() < 0; });

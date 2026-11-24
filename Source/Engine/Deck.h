@@ -134,6 +134,8 @@ public:
     void setSlip (bool on)                        { slip = on; }
     bool isSlip() const noexcept                  { return slip.load(); }
     void brakeStop();                             // turntable power-off stop
+    void setBrakeTime (double seconds) noexcept   { brakeSeconds = seconds; }   // STOP TIME knob
+    double getBrakeTime() const noexcept          { return brakeSeconds.load(); }
     void audioBrake (double seconds) noexcept     { brakeSeconds = seconds; if (playRequested.load()) brake = true; }
     void audioBackspin (double seconds) noexcept  { backspinSeconds = seconds; if (playRequested.load()) backspin = true; }
     void backspinStop()                           { audioBackspin (1.2); }

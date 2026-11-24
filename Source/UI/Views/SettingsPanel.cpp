@@ -294,6 +294,26 @@ void SettingsPanel::setControllers (MidiEngine* m, Actions* a, KeyboardControl* 
         };
     }
 
+    if (midi != nullptr && actions != nullptr)
+    {
+        assistantView = std::make_unique<MapAssistantView> (*midi, *actions, keyboard);
+        addChildComponent (*assistantView);
+        assistantView->onClosed = [this] { assistantView->setVisible (false); resized(); repaint(); };
+        assistantView->onMapped = [this] { bindingBox.updateContent(); repaint(); };
+        aiBtn.useAccentWhenLit();
+        aiBtn.setToggleState (true, juce::dontSendNotification);
+        aiBtn.onClick = [this]
+        {
+            if (midi) midi->cancelLearn();
+            if (wizardView) wizardView->setVisible (false);
+            assistantView->setVisible (true);
+            assistantView->toFront (false);
+            resized();
+            assistantView->start();
+        };
+        addChildComponent (aiBtn);
+    }
+
     if (keyboard != nullptr && actions != nullptr)
     {
         keyMap = std::make_unique<KeyboardMapView> (*keyboard, *actions);
@@ -390,6 +410,9 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     learnShift.setVisible (midiTab);
     learnBtn.setVisible (midiTab);
     wizardBtn.setVisible (midiTab && wizardView != nullptr);
+    aiBtn.setVisible (midiTab && assistantView != nullptr);
+    if (assistantView != nullptr && assistantView->isVisible() && ! (midiTab && section == controllers))
+        assistantView->setVisible (false);
     importBtn.setVisible (midiTab && midi != nullptr);
     if (wizardView != nullptr && wizardView->isVisible() && ! (midiTab && section == controllers))
         wizardView->setVisible (false);
@@ -414,6 +437,11 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
         driverBtn.setBounds (c.removeFromTop (Size::controlMd).withWidth (420));
     }
     c.removeFromTop (Space::sm);
+    if (assistantView != nullptr)
+    {
+        aiBtn.setBounds (c.removeFromTop (Size::controlMd).withWidth (330));
+        c.removeFromTop (Space::sm);
+    }
     auto row = c.removeFromTop (Size::controlMd);
     learnBtn.setBounds (row.removeFromLeft (170));
     row.removeFromLeft (Space::md);
@@ -434,6 +462,8 @@ void SettingsPanel::layoutControllers (juce::Rectangle<int> c)
     bindingBox.setBounds (c);
     if (wizardView != nullptr && wizardView->isVisible())
         wizardView->setBounds (c.removeFromTop (juce::jmin (c.getHeight(), 230)));
+    if (assistantView != nullptr && assistantView->isVisible())
+        assistantView->setBounds (c.removeFromTop (juce::jmin (c.getHeight(), 380)));
 }
 
 void SettingsPanel::show (int s)
@@ -468,6 +498,8 @@ void SettingsPanel::setSection (int s)
         c->setVisible (s == controllers);
     onlineToggle.setVisible (s == controllers && ctrlTab.getSelected() == 0 && controllerLib != nullptr);
     wizardBtn.setVisible (s == controllers && ctrlTab.getSelected() == 0 && wizardView != nullptr);
+    aiBtn.setVisible (s == controllers && ctrlTab.getSelected() == 0 && assistantView != nullptr);
+    if (assistantView != nullptr && s != controllers) assistantView->setVisible (false);
     importBtn.setVisible (s == controllers && ctrlTab.getSelected() == 0 && midi != nullptr);
     if (wizardView != nullptr && s != controllers && wizardView->isVisible()) { wizardView->setVisible (false); midi->setCapture (nullptr); }
     if (controllerLib != nullptr) onlineToggle.setToggleState (controllerLib->onlineLookup(), juce::dontSendNotification);

@@ -21,16 +21,6 @@
   {
    "device": "*",
    "channel": 7,
-   "kind": "cc",
-   "number": 100,
-   "encoding": "rel_twos",
-   "action": "browser_scroll",
-   "deck": -1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 7,
    "kind": "note",
    "number": 70,
    "encoding": "button",
@@ -116,7 +106,7 @@
    "kind": "note",
    "number": 72,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 0,
    "shift": false
   },
@@ -126,7 +116,7 @@
    "kind": "note",
    "number": 72,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 1,
    "shift": false
   },
@@ -146,28 +136,6 @@
    "channel": 2,
    "kind": "cc",
    "number": 34,
-   "encoding": "rel_offset",
-   "action": "jog",
-   "deck": 1,
-   "shift": false,
-   "scale": 0.001953125
-  },
-  {
-   "device": "*",
-   "channel": 1,
-   "kind": "cc",
-   "number": 35,
-   "encoding": "rel_offset",
-   "action": "jog",
-   "deck": 0,
-   "shift": false,
-   "scale": 0.001953125
-  },
-  {
-   "device": "*",
-   "channel": 2,
-   "kind": "cc",
-   "number": 35,
    "encoding": "rel_offset",
    "action": "jog",
    "deck": 1,
@@ -310,7 +278,7 @@
    "kind": "note",
    "number": 92,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 0,
    "shift": false
   },
@@ -320,7 +288,7 @@
    "kind": "note",
    "number": 92,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 1,
    "shift": false
   },
@@ -350,7 +318,7 @@
    "kind": "note",
    "number": 76,
    "encoding": "button",
-   "action": "loop_in",
+   "action": "reloop",
    "deck": 0,
    "shift": false
   },
@@ -360,7 +328,7 @@
    "kind": "note",
    "number": 76,
    "encoding": "button",
-   "action": "loop_in",
+   "action": "reloop",
    "deck": 1,
    "shift": false
   },
@@ -390,7 +358,7 @@
    "kind": "note",
    "number": 77,
    "encoding": "button",
-   "action": "loop_out",
+   "action": "reloop",
    "deck": 0,
    "shift": false
   },
@@ -400,7 +368,7 @@
    "kind": "note",
    "number": 77,
    "encoding": "button",
-   "action": "loop_out",
+   "action": "reloop",
    "deck": 1,
    "shift": false
   },
@@ -529,26 +497,6 @@
    "channel": 2,
    "kind": "note",
    "number": 84,
-   "encoding": "button",
-   "action": "pfl",
-   "deck": 1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 1,
-   "kind": "note",
-   "number": 104,
-   "encoding": "button",
-   "action": "pfl",
-   "deck": 0,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 2,
-   "kind": "note",
-   "number": 104,
    "encoding": "button",
    "action": "pfl",
    "deck": 1,
@@ -567,6 +515,28 @@
   },
   {
    "device": "*",
+   "channel": 1,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 2,
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
    "channel": 5,
    "kind": "cc",
    "number": 2,
@@ -621,27 +591,7 @@
    "device": "*",
    "channel": 5,
    "kind": "note",
-   "number": 102,
-   "encoding": "button",
-   "action": "effect_beat_down",
-   "deck": 0,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 5,
-   "kind": "note",
    "number": 75,
-   "encoding": "button",
-   "action": "effect_beat_up",
-   "deck": 0,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 5,
-   "kind": "note",
-   "number": 107,
    "encoding": "button",
    "action": "effect_beat_up",
    "deck": 0,
@@ -703,27 +653,7 @@
    "device": "*",
    "channel": 6,
    "kind": "note",
-   "number": 102,
-   "encoding": "button",
-   "action": "effect_beat_down",
-   "deck": 1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 6,
-   "kind": "note",
    "number": 75,
-   "encoding": "button",
-   "action": "effect_beat_up",
-   "deck": 1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 6,
-   "kind": "note",
-   "number": 107,
    "encoding": "button",
    "action": "effect_beat_up",
    "deck": 1,

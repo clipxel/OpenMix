@@ -1,0 +1,46 @@
+# Cuarta tanda a ciegas
+toggle play on the right deck	play_pause	1
+jump to cue	cue_button	-2
+hot cue 8 right side	hot_cue_8	1
+erase cue 5 on deck 2	delete_hot_cue_5	1
+bass knob channel 1	eq_low	0
+treble deck 2	eq_high	1
+mid eq left	eq_mid	0
+volume fader deck 4	volume	3
+master volume knob	master_volume	-1
+cross	crossfader	-1
+loop 8 beats	pad_loop_6	-2
+half the loop	loop_half	-2
+double loop	loop_double	-2
+loop roll 1/8	loop_roll_1	-2
+next pad page	pad_page	-2
+load to left deck	load	0
+scroll the library	browser_scroll	-1
+headphones cue for deck 1	pfl	0
+fx on deck 1	effect_active_1	0
+brake deck 2	brake	1
+quiero un boton para el keylock	key_lock	-2
+que el boton sea un loop de 1/4	pad_loop_1	-2
+loop de 16 beats	pad_loop_7	-2
+quiero que la perilla sea el filtro	filter	-2
+la ruedita del medio que navegue	browser_scroll	-1
+que este cargue el tema en el deck 2	load	1
+quiero que sincronice el plato izquierdo	sync	0
+que el boton grande de abajo sea el play del deck 1	play_pause	0
+el de al lado que sea el cue	cue_button	-2
+que con shift el hot cue 1 se borre	delete_hot_cue_1	-2	S
+shift+hot cue 3 para borrar	delete_hot_cue_3	-2	S
+el boton de arriba del jog que sea el modo vinilo	vinyl_mode	-2
+este boton para mandar el canal 2 al auricular	pfl	1
+perilla de agudos del canal 4	eq_high	3
+que este fader sea el pitch del deck 2	pitch	1
+boton de reverse del deck 1	reverse	0
+loop in del deck izquierdo	loop_in	0
+que este boton active el slip	slip_mode	-2
+nivel del filtro	filter	-2
+el boton que pone el deck 3 en el lado izquierdo	deck_select_3	-1
+quiero un boton que haga beat jump para atras	beatjump_back	-2
+que el boton sea censor	censor	-2
+que este boton sea el tap	beat_fx_tap	-1
+la perilla de time del efecto	effect_param_1	-2
+que el boton cambie la tonalidad para arriba	key_up	-2

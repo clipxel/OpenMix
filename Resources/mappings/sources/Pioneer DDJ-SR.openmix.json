@@ -21,16 +21,6 @@
   {
    "device": "*",
    "channel": 7,
-   "kind": "cc",
-   "number": 100,
-   "encoding": "rel_twos",
-   "action": "browser_scroll",
-   "deck": -1,
-   "shift": false
-  },
-  {
-   "device": "*",
-   "channel": 7,
    "kind": "note",
    "number": 70,
    "encoding": "button",
@@ -198,7 +188,7 @@
    "kind": "note",
    "number": 72,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 0,
    "shift": false
   },
@@ -208,7 +198,7 @@
    "kind": "note",
    "number": 72,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 1,
    "shift": false
   },
@@ -218,7 +208,7 @@
    "kind": "note",
    "number": 72,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 2,
    "shift": false
   },
@@ -228,7 +218,7 @@
    "kind": "note",
    "number": 72,
    "encoding": "button",
-   "action": "cue_button",
+   "action": "start_play",
    "deck": 3,
    "shift": false
   },
@@ -710,7 +700,7 @@
    "kind": "note",
    "number": 92,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 0,
    "shift": false
   },
@@ -720,7 +710,7 @@
    "kind": "note",
    "number": 92,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 1,
    "shift": false
   },
@@ -730,7 +720,7 @@
    "kind": "note",
    "number": 92,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 2,
    "shift": false
   },
@@ -740,7 +730,7 @@
    "kind": "note",
    "number": 92,
    "encoding": "button",
-   "action": "sync",
+   "action": "master",
    "deck": 3,
    "shift": false
   },
@@ -790,7 +780,7 @@
    "kind": "note",
    "number": 80,
    "encoding": "button",
-   "action": "loop",
+   "action": "reloop",
    "deck": 0,
    "shift": false
   },
@@ -800,7 +790,7 @@
    "kind": "note",
    "number": 80,
    "encoding": "button",
-   "action": "loop",
+   "action": "reloop",
    "deck": 1,
    "shift": false
   },
@@ -810,7 +800,7 @@
    "kind": "note",
    "number": 80,
    "encoding": "button",
-   "action": "loop",
+   "action": "reloop",
    "deck": 2,
    "shift": false
   },
@@ -820,7 +810,7 @@
    "kind": "note",
    "number": 80,
    "encoding": "button",
-   "action": "loop",
+   "action": "reloop",
    "deck": 3,
    "shift": false
   },
@@ -1426,42 +1416,46 @@
   {
    "device": "*",
    "channel": 1,
-   "kind": "note",
-   "number": 104,
-   "encoding": "button",
-   "action": "pfl",
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
    "deck": 0,
-   "shift": false
+   "shift": false,
+   "output_only": true
   },
   {
    "device": "*",
    "channel": 2,
-   "kind": "note",
-   "number": 104,
-   "encoding": "button",
-   "action": "pfl",
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
    "deck": 1,
-   "shift": false
+   "shift": false,
+   "output_only": true
   },
   {
    "device": "*",
    "channel": 3,
-   "kind": "note",
-   "number": 104,
-   "encoding": "button",
-   "action": "pfl",
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
    "deck": 2,
-   "shift": false
+   "shift": false,
+   "output_only": true
   },
   {
    "device": "*",
    "channel": 4,
-   "kind": "note",
-   "number": 104,
-   "encoding": "button",
-   "action": "pfl",
+   "kind": "cc",
+   "number": 2,
+   "encoding": "abs7",
+   "action": "vu_meter",
    "deck": 3,
-   "shift": false
+   "shift": false,
+   "output_only": true
   },
   {
    "device": "*",
@@ -2376,6 +2370,50 @@
    "action": "hot_cue_8",
    "deck": 3,
    "shift": false
+  },
+  {
+   "device": "*",
+   "channel": 12,
+   "kind": "note",
+   "number": 0,
+   "encoding": "button",
+   "action": "load",
+   "deck": 0,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 12,
+   "kind": "note",
+   "number": 1,
+   "encoding": "button",
+   "action": "load",
+   "deck": 1,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 12,
+   "kind": "note",
+   "number": 2,
+   "encoding": "button",
+   "action": "load",
+   "deck": 2,
+   "shift": false,
+   "output_only": true
+  },
+  {
+   "device": "*",
+   "channel": 12,
+   "kind": "note",
+   "number": 3,
+   "encoding": "button",
+   "action": "load",
+   "deck": 3,
+   "shift": false,
+   "output_only": true
   }
  ]
 }

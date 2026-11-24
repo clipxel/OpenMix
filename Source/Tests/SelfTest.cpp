@@ -6,6 +6,7 @@
 #include "../Control/MappingWizard.h"
 #include "../Control/MappingImport.h"
 #include "../Control/AutoMix.h"
+#include "../Control/MapAssistant.h"
 #include "../Common/Updater.h"
 #include <juce_cryptography/juce_cryptography.h>
 #include <set>
@@ -2152,6 +2153,29 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
     std::cout << "== MIDI" << std::endl;
     Actions actions (engine, {});
     MidiEngine midi (actions);
+
+    // Mapping assistant: every phrase of the training and the unseen sets is understood
+    // (function, deck and SHIFT layer).
+    {
+        MapAssistant assistant (actions);
+        for (auto* set : { "intent_corpus.tsv", "intent_holdout.tsv", "intent_holdout2.tsv", "intent_holdout3.tsv" })
+        {
+            const auto file = juce::File (__FILE__).getSiblingFile (set);
+            int ok = 0, total = 0; juce::StringArray wrong;
+            for (auto line : juce::StringArray::fromLines (file.loadFileAsString()))
+            {
+                auto f = juce::StringArray::fromTokens (line, "\t", "");
+                if (line.trim().isEmpty() || line.startsWithChar ('#') || f.size() < 2) continue;
+                ++total;
+                const auto r = assistant.interpret (f[0], 1);
+                const int wantDeck = f.size() > 2 && f[2].isNotEmpty() ? f[2].getIntValue() : -3;
+                const bool good = ! r.empty() && r[0].action == f[1] && (wantDeck == -3 || r[0].deck == wantDeck) && r[0].shift == (f.size() > 3 && f[3] == "S");
+                if (good) ++ok; else wrong.add (f[0]);
+            }
+            rep.check (total > 0 && ok == total, "Asistente de mapeo ("_u + set + "): " + juce::String (ok) + " / " + juce::String (total) + " frases bien",
+                       wrong.joinIntoString (" · "));
+        }
+    }
     std::vector<MidiBinding> b;
     MidiBinding play; play.device = "Test"; play.channel = 1; play.kind = MidiBinding::Kind::note; play.number = 11; play.action = "play_pause"; play.deck = 1;
     MidiBinding vol;  vol.device = "Test"; vol.channel = 1; vol.kind = MidiBinding::Kind::cc; vol.number = 19; vol.encoding = MidiBinding::Encoding::absolute7; vol.action = "volume"; vol.deck = 1;
@@ -3084,7 +3108,8 @@ int simulateControllers (const std::vector<MappingImport::Source>& sources, cons
             if (b.action == "shift" || b.outputOnly) continue;           // lights without a control: nothing to press
             ++checked;
             const auto* info = actions.find (b.action);
-            const int expectDeck = info != nullptr && info->perDeck ? b.deck : -1;
+            const int expectDeck = b.action == "vdj" ? juce::jlimit (0, AudioEngine::numDecks - 1, b.deck)      // scripts run on their deck
+                                 : info != nullptr && info->perDeck ? b.deck : -1;
             const auto key = juce::String ((int) b.kind) + ":" + juce::String (b.channel) + ":" + juce::String (b.number) + (b.shift ? ":S" : "");
             if (auto it = seenMessage.find (key); it != seenMessage.end() && it->second != b.action)
                 problems.add (juce::String::fromUTF8 ("conflicto: ") + b.describeControl() + " → " + it->second + " y " + b.action);
@@ -3330,4 +3355,42 @@ int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFi
     return entries.isEmpty() ? 1 : 0;
 }
 
+} // namespace om
+
+namespace om
+{
+int intentCheck (const juce::File& phrases)
+{
+    AudioEngine eng;
+    Actions actions (eng, {});
+    MapAssistant assistant (actions);
+
+    if (! phrases.existsAsFile())
+    {
+        for (auto& a : actions.list())
+            std::cout << (a.id + "|" + a.label + "|" + a.category + "|" + juce::String ((int) a.type) + "|" + (a.perDeck ? "deck" : "global")).toRawUTF8() << std::endl;
+        return 0;
+    }
+
+    int ok = 0, total = 0;
+    for (auto line : juce::StringArray::fromLines (phrases.loadFileAsString()))
+    {
+        auto f = juce::StringArray::fromTokens (line, "\t", "");
+        if (line.trim().isEmpty() || line.startsWithChar ('#') || f.size() < 2) continue;
+        ++total;
+        const auto r = assistant.interpret (f[0], 3);
+        const auto& best = r.empty() ? MapAssistant::Reading() : r.front();
+        const int wantDeck = f.size() > 2 && f[2].isNotEmpty() ? f[2].getIntValue() : -3;
+        const bool wantShift = f.size() > 3 && f[3] == "S";
+        const bool good = best.action == f[1] && (wantDeck == -3 || best.deck == wantDeck) && best.shift == wantShift;
+        if (good) ++ok;
+        else
+            std::cout << ("MAL  " + f[0] + "  →  " + best.action + " d" + juce::String (best.deck) + (best.shift ? " S" : "")
+                          + "   (esperado " + f[1] + (wantDeck != -3 ? " d" + juce::String (wantDeck) : juce::String()) + (wantShift ? " S" : "") + ")"
+                          + (r.size() > 1 ? "   2º " + r[1].action : juce::String())
+                          + "   [" + juce::String (best.score, 2) + (r.size() > 1 ? " / " + juce::String (r[1].score, 2) : juce::String()) + "]").toRawUTF8() << std::endl;
+    }
+    std::cout << ok << " / " << total << " bien" << std::endl;
+    return ok == total ? 0 : 1;
+}
 } // namespace om

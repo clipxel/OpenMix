@@ -26,6 +26,8 @@ namespace om
 
     /** Builds Resources/mappings/library.json from a folder of mapping files (see SelfTest.cpp). */
     int buildMappingLibrary (const juce::File& sourceFolder, const juce::File& outFile);
+    /** The mapping assistant on a file of phrases ("phrase<TAB>action<TAB>deck<TAB>shift"), or the list of functions. */
+    int intentCheck (const juce::File& phrases);
 
     int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce::File& usbRoot = {});
 }

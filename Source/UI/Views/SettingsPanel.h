@@ -7,6 +7,7 @@
 #include "../../Control/MidiEngine.h"
 #include "../../Control/ControllerLibrary.h"
 #include "MappingWizardView.h"
+#include "MapAssistantView.h"
 #include "../../Control/KeyboardControl.h"
 #include "KeyboardMapView.h"
 #include "AudioSettingsView.h"
@@ -28,6 +29,12 @@ public:
     void showControllerTab (int tab)               { ctrlTab.setSelected (tab); setSection (controllers); }
     /** Snapshots: open the mapping wizard. */
     void openMappingWizard()                       { if (wizardBtn.onClick) wizardBtn.onClick(); }
+    /** Snapshots: the "write it" assistant with these phrases already sent. */
+    void openMapAssistant (const juce::StringArray& phrases = {})
+    {
+        if (aiBtn.onClick) aiBtn.onClick();
+        if (assistantView != nullptr) for (auto& p : phrases) assistantView->sendForSnapshot (p);
+    }
     void setControllers (MidiEngine*, Actions*, KeyboardControl*);
     void setControllerLibrary (ControllerLibrary*);
     /** Diagnostics ▸ updates: check on launch (persisted by MainComponent). */
@@ -88,6 +95,8 @@ private:
     std::unique_ptr<juce::FileChooser> importChooser;
     void importMapping (const juce::Array<juce::File>& files, const juce::String& controllerHint);
     std::unique_ptr<MappingWizardView> wizardView;
+    Button aiBtn { juce::String::fromUTF8 ("✎  Mapear escribiendo (IA, sin internet)") };
+    std::unique_ptr<MapAssistantView> assistantView;
     Button driverBtn { juce::String(), Icon::none };
     juce::String driverPage;
     juce::ToggleButton onlineToggle { juce::String::fromUTF8 ("Al conectar un controlador, buscar su mapeo en internet (solo se descarga la lista pública de mapeos)") };

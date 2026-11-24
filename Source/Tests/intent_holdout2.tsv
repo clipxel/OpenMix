@@ -1,0 +1,68 @@
+# Tercera tanda, frases largas como en un chat
+che quiero que este botoncito me ponga play en el deck de la izquierda	play_pause	0
+necesito que cuando apreto este boton se pause el tema del deck 2	play_pause	1
+hacé que este boton sea el cue del deck derecho	cue_button	1
+I want this button to sync deck 1	sync	0
+make this knob the filter for deck 2	filter	1
+this fader should control the volume of channel 3	volume	2
+the big wheel on the left	jog	0
+I want this pad to trigger hot cue 4 on deck 1	hot_cue_4	0
+hold shift and press pad 2 to delete hot cue 2	delete_hot_cue_2	-2	S
+quiero que la perilla de arriba del canal 1 sea la ganancia	gain	0
+esta perilla quiero que maneje los agudos del deck 2	eq_high	1
+que este fader mueva el crossfader	crossfader	-1
+este boton que active el loop de 4 tiempos	loop_4	-2
+que la rueda chica navegue por la lista de temas	browser_scroll	-1
+apretar la ruedita para cargar el tema en el deck 1	load	0
+quiero que el pad 1 dispare el sampler	pad_1	-2
+el botón de la derecha arriba que sea el shift	shift	-1
+que con shift el play vaya al principio del tema	start_play	-2	S
+cuando mantengo shift y toco cue quiero que vuelva al inicio	start_play	-2	S
+que esta perilla controle cuanto efecto se escucha en el fx 1	effect_wet_1	-2
+que este boton prenda el efecto del deck 1	effect_active_1	0
+quiero mapear la perilla del volumen de los auriculares	headphone_volume	-1
+la perilla que mezcla cue y master en los auriculares	headphone_mix	-1
+este boton que mande el deck 2 a los auriculares	pfl	1
+quiero que este boton duplique el loop	loop_double	-2
+que este otro lo achique a la mitad	loop_half	-2
+este boton que haga un roll de un cuarto de beat	loop_roll_2	-2
+quiero que el boton salte 4 beats para atras	pad_jump_2	-2
+que adelante 16 beats	pad_jump_8	-2
+el boton de grabar	record	-1
+que este boton arranque el automix	automix	-1
+que el boton cambie del deck 1 al deck 3	deck_swap	-2
+quiero que el boton de la izquierda pase al deck 3	deck_select_3	-1
+que suba el pitch un poquito mientras lo tengo apretado	pitch_bend_plus	-2
+que frene el tema un toque mientras lo aprieto	pitch_bend_minus	-2
+el fader largo del costado del deck 1 para la velocidad	pitch	0
+que el boton active el keylock del deck derecho	key_lock	1
+quiero que este boton borre el punto de cue 3	delete_hot_cue_3	-2
+que este pad guarde el hot cue 1 en el deck 2	hot_cue_1	1
+que la tira tactil busque en el tema	needle_search	-2
+que el boton vinyl cambie entre scratch y cd	vinyl_mode	-2
+que el boton expulse el tema del deck 1	unload	0
+que este boton haga el freno de vinilo en el deck 2	brake	1
+que el boton haga backspin	backspin	-2
+el boton censor del deck izquierdo	censor	0
+quiero el slip en este boton	slip_mode	-2
+que este boton prenda el beat fx	beat_fx_on	-1
+la perilla de level depth	beat_fx_level	-1
+que el boton tap marque el bpm del efecto	beat_fx_tap	-1
+quiero que este boton cambie al siguiente efecto del beat fx	beat_fx_select	-1
+que este boton active el quantize	quantize	-2
+el boton de master del deck 1	master	0
+que este boton copie el tema del otro deck	instant_doubles	-2
+el boton para resetear el pitch del deck 2	pitch_reset	1
+que este boton cambie el rango del pitch	pitch_range	-2
+que el boton baje un semitono la tonalidad	key_down	-2
+que este boton iguale la tonalidad con el otro deck	key_match	-2
+el boton de reloop	reloop	-2
+que el boton salga del loop	loop_exit	-2
+este boton marca el inicio del loop	loop_in	-2
+este marca el final del loop	loop_out	-2
+quiero que el boton mueva el loop un beat para atras	loop_move_back	-2
+el boton que cambia la pagina de pads	pad_page	-2
+este boton pone los pads en modo hot cue	pad_mode_hot_cue	-2
+este boton pone los pads en modo roll	pad_mode_roll	-2
+que el boton vaya a las playlists	browser_show_folders	-1
+que este boton vuelva a la lista de temas	browser_show_songs	-1

@@ -43,6 +43,8 @@ public:
         std::function<void (int deck, int page, const juce::String& note)> padMode;
         std::function<bool()> browsingFolders;                         // the browse knob is on the sidebar (playlists)
         std::function<void (bool folders)> browseFolders;              // put it on the sidebar / on the tracks
+        std::function<void (int direction)> waveformZoom;              // +1 zoom in, −1 zoom out
+        std::function<void()> queueSelected;                           // LOAD PREP: the selected track to the AUTOMIX list
     };
 
     Actions (AudioEngine&, Hooks);
