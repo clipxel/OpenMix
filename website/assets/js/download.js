@@ -98,7 +98,7 @@
       btn.querySelector("span").textContent = `Descargar para ${OS_NAMES[os]}`;
       if (meta) meta.textContent = [`v${config.version}`, p[os].size, p[os].requirements].filter(Boolean).join(" · ");
       const firstRun = {
-        windows: "Abrí el instalador y seguí los pasos (no pide permisos de administrador). Si Windows muestra “Windows protegió su PC”, hacé clic en Más información › Ejecutar de todas formas.",
+        windows: "Windows va a mostrar un aviso porque OpenMix es gratis y no paga el certificado de Microsoft: en “Windows protegió su PC” hacé clic en Más información › Ejecutar de todas formas. Más abajo están los pasos.",
         linux: "Descomprimí el archivo y ejecutá ./instalar.sh: OpenMix aparece en tus aplicaciones.",
       };
       if (notice) notice.textContent = firstRun[os] || "";
