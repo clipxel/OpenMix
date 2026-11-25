@@ -2,6 +2,12 @@
   "_comment": "Noticias de la portada, de la más nueva a la más vieja. tag: Próximamente, Novedad, Versión… link es opcional.",
   "news": [
     {
+      "date": "2026-11-25",
+      "tag": "Versión",
+      "title": "OpenMix 2.7.3: Google Drive más fluido y confiable",
+      "text": "Buscar en Drive ya no traba la pantalla, aunque tengas cientos de miles de temas. Si una canción no baja bien, OpenMix la vuelve a bajar solo. También abren archivos cuya extensión no coincide con el contenido, y la búsqueda automática de actualizaciones queda activada para todos."
+    },
+    {
       "date": "2026-11-24",
       "tag": "Versión",
       "title": "OpenMix 2.7: stems en vivo",
