@@ -1,10 +1,11 @@
 #include "Sampler.h"
+#include "AudioEngine.h"
 
 namespace om
 {
 bool Sampler::load (int index, const juce::File& file, juce::AudioFormatManager& formats)
 {
-    std::unique_ptr<juce::AudioFormatReader> reader (formats.createReaderFor (file));
+    std::unique_ptr<juce::AudioFormatReader> reader (AudioEngine::openAudio (formats, file));
     if (reader == nullptr || reader->sampleRate <= 0.0 || reader->lengthInSamples <= 0
         || (double) reader->lengthInSamples > 60.0 * reader->sampleRate || reader->lengthInSamples > 5760000)
         return false;

@@ -107,6 +107,15 @@ public:
     float autoGainTrimFor (const LoadedTrack&) const;
     /** Auto-gain switched on or off: the loaded tracks take (or drop) their auto level now. */
     void setAutoGain (bool on);
+    /** Every audio format OpenMix reads (the same everywhere: decks, analysis, sampler, diagnostics). */
+    static void registerFormats (juce::AudioFormatManager&);
+    /** Opens an audio file by its extension and, if that fails, by what it really contains
+        (an AAC saved as .mp3, a WAV without extension…). nullptr when nothing can read it. */
+    static std::unique_ptr<juce::AudioFormatReader> openAudio (juce::AudioFormatManager&, const juce::File&);
+    /** What a file really contains, from its first bytes ("es WMA", "es Opus"…), for messages. */
+    static juce::String describeAudioContent (const juce::File&);
+    /** A file that did not open: noted (and the first ones copied) in the data folder › No se pudieron abrir. */
+    static void logUnreadable (const juce::File&, const juce::String& kind);
 
     // Stems: separated in the background, the part playing first. Settings are read from any thread.
     StemSeparator& stemSeparator() noexcept       { return separator; }

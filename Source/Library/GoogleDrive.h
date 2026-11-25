@@ -69,8 +69,13 @@ public:
         bool contains (const juce::String& folderId, const juce::String& underFolderId) const;
         juce::String pathOf (const juce::String& folderId, const juce::String& rootId) const;
     };
-    /** The saved index of a folder (message thread), or nullptr when there is none yet. */
+    /** The index of a folder, or nullptr while there is none in memory. Never waits: a saved index is
+        read from the disk in the background and onIndexChanged says when it is there. Any thread. */
     std::shared_ptr<const Index> index (const juce::String& rootId);
+    /** A saved index exists (in memory or on the disk, maybe still being read). */
+    bool hasIndex (const juce::String& rootId) const;
+    /** Message thread: an index arrived from the disk or grew while being built. */
+    std::function<void (const juce::String& rootId)> onIndexChanged;
     /** Walks the folder tree; `progress` (songs found so far) and `done` run on the message thread. */
     void buildIndex (const juce::String& rootId, std::function<void (int)> progress, std::function<void (juce::String error)> done);
     bool isIndexing (const juce::String& rootId) const   { return indexing.count (rootId) > 0; }
@@ -91,11 +96,15 @@ private:
     std::vector<Folder> linked;
     mutable juce::CriticalSection lock;
     std::set<juce::String> downloading;
-    std::map<juce::String, std::shared_ptr<const Index>> indexes;   // message thread
+    std::map<juce::String, std::shared_ptr<const Index>> indexes;   // under indexLock
+    std::set<juce::String> indexLoading;                             // message thread: being read from the disk
+    mutable juce::CriticalSection indexLock;
+    void setIndex (const juce::String& rootId, std::shared_ptr<const Index>);   // message thread
     std::set<juce::String> indexing;                                 // message thread
     static juce::File indexFile (const juce::String& rootId);
     juce::ThreadPool pool { 3 };
-    juce::ThreadPool bulkPool { 3 };                 // whole folders to the collection, behind what plays
+    juce::ThreadPool bulkPool { 3 };
+    juce::ThreadPool indexPool { 2 };                // folder indexes: never in the way of a song being loaded                 // whole folders to the collection, behind what plays
     std::shared_ptr<bool> alive = std::make_shared<bool> (true);
 };
 

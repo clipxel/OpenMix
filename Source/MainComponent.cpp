@@ -206,6 +206,13 @@ MainComponent::MainComponent (bool snapshot) : snapshotMode (snapshot)
         settings = std::make_unique<juce::PropertiesFile> (Library::dataFolder().getChildFile ("settings.xml"), o);
         loadSettings();
 
+        // 2.6.0 saved the update check as off by mistake (settings written while loading): switched
+        // back on once for everybody; a DJ who turns it off afterwards keeps it off.
+        if (! settings->containsKey ("updateCheckFixed"))
+        {
+            settings->setValue ("updateCheck", true);
+            settings->setValue ("updateCheckFixed", true);
+        }
         // Updates: a quiet check a few seconds after start (only asks if there is something new).
         settingsPanel.updateToggle.setToggleState (settings->getBoolValue ("updateCheck", true), juce::dontSendNotification);
         settingsReady = true;
@@ -250,7 +257,8 @@ void MainComponent::cleanDriveCache (bool all)
     {
         const auto f = e.getFile();
         if (f.getFileName().endsWith (".part")) { if (all) f.deleteFile(); continue; }
-        bool inUse = drive.isDownloading (f);
+        // Just arrived: a deck may still be opening and analysing it (it only shows up there once loaded).
+        bool inUse = drive.isDownloading (f) || f.getLastModificationTime() > juce::Time::getCurrentTime() - juce::RelativeTime::minutes (3);
         for (int d = 0; d < AudioEngine::numDecks && ! inUse && ! all; ++d)
             if (auto lt = engine.deck (d).getTrack()) inUse = lt->file == f;
         if (! inUse) f.deleteFile();
@@ -602,7 +610,22 @@ void MainComponent::loadToDeck (const TrackPtr& t, int deck)
     auto& view = viewFor (deck);
     engine.loadTrack (deck, t->file, meta, [this, &view, deck, t] (bool ok, const juce::String& err)
     {
-        if (! ok) { view.showMessage (err, true); return; }
+        if (! ok)
+        {
+            // A Drive song that did not open: bring it again and retry once (a copy that arrived
+            // incomplete or was touched meanwhile opens fine the second time).
+            if (t->isDrive() && driveRetried.insert (t->file.getFullPathName()).second)
+            {
+                t->file.deleteFile();
+                view.showMessage (juce::String::fromUTF8 ("Bajando de nuevo de Google Drive…"), false);
+                loadToDeck (t, deck);
+                return;
+            }
+            driveRetried.erase (t->file.getFullPathName());
+            view.showMessage (err, true);
+            return;
+        }
+        driveRetried.erase (t->file.getFullPathName());
         const auto lt = engine.deck (deck).getTrack();
         const auto g = engine.deck (deck).getGrid();
         const auto key = lt != nullptr ? lt->meta.key : juce::String();

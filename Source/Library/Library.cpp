@@ -1,4 +1,5 @@
 #include "Library.h"
+#include "../Engine/AudioEngine.h"
 #include "../Engine/TrackAnalysis.h"
 
 namespace om
@@ -269,7 +270,7 @@ void Library::requestAnalysis (const TrackPtr& t, bool force)
         double duration = 0.0;
         bool ok = false;
 
-        if (std::unique_ptr<juce::AudioFormatReader> reader { formats.createReaderFor (file) })
+        if (std::unique_ptr<juce::AudioFormatReader> reader { AudioEngine::openAudio (formats, file) })
         {
             const auto len = reader->lengthInSamples;
             if (len > 0 && reader->sampleRate > 0 && len < std::numeric_limits<int>::max())

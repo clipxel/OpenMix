@@ -59,7 +59,7 @@ public:
     {
         // Headless tools may run next to the open app; the app itself stays single-instance.
         const auto cl = getCommandLineParameters();
-        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit") || cl.contains ("--intent-check") || cl.contains ("--stems-test") || cl.contains ("--resolve-link");
+        return cl.contains ("--snapshot") || cl.contains ("--selftest") || cl.contains ("--inspect-usb") || cl.contains ("--audio-test") || cl.contains ("--analyzer-benchmark") || cl.contains ("--make-icons") || cl.contains ("--import-check") || cl.contains ("--simulate-controllers") || cl.contains ("--build-library") || cl.contains ("--update-test") || cl.contains ("--update-install-test") || cl.contains ("--dump-mapping") || cl.contains ("--grid-debug") || cl.contains ("--probe-audio") || cl.contains ("--fx-audit") || cl.contains ("--intent-check") || cl.contains ("--stems-test") || cl.contains ("--resolve-link") || cl.contains ("--probe-folder") || cl.contains ("--drive-download");
     }
 
     void initialise (const juce::String& commandLine) override
@@ -127,13 +127,53 @@ public:
             return;
         }
 
+        if (commandLine.contains ("--drive-download"))      // diagnostic: one Drive file with the saved session, then open it
+        {
+            auto args = juce::StringArray::fromTokens (commandLine, true);
+            const auto id = args[args.indexOf ("--drive-download") + 1].unquoted();
+            const juce::File dest (args[args.indexOf ("--drive-download") + 2].unquoted());
+            static std::unique_ptr<om::GoogleDrive> drive;
+            drive = std::make_unique<om::GoogleDrive>();
+            drive->download (id, dest, nullptr, [this, dest] (bool ok, juce::String err)
+            {
+                juce::AudioFormatManager fm;
+                om::AudioEngine::registerFormats (fm);
+                std::unique_ptr<juce::AudioFormatReader> rd (ok ? om::AudioEngine::openAudio (fm, dest) : nullptr);
+                std::cout << "descarga " << (ok ? juce::String ("bien") : "falló: " + err) << ", " << (double) dest.getSize() / 1.0e6 << " MB, "
+                          << (rd != nullptr ? rd->getFormatName() + " " + juce::String ((double) rd->lengthInSamples / rd->sampleRate, 1) + " s" : juce::String ("no se abre")) << std::endl;
+                rd.reset();
+                juce::MessageManager::callAsync ([this] { drive.reset(); quit(); });
+            });
+            return;
+        }
+        if (commandLine.contains ("--probe-folder"))        // diagnostic: which audio files in a folder OpenMix cannot open
+        {
+            const juce::File dir (commandLine.fromFirstOccurrenceOf ("--probe-folder", false, false).trim().unquoted());
+            juce::AudioFormatManager fm;
+            om::AudioEngine::registerFormats (fm);
+            std::map<juce::String, std::pair<int, int>> byExt;      // extension → ok, failed
+            for (const auto& e : juce::RangedDirectoryIterator (dir, true, "*", juce::File::findFiles))
+            {
+                const auto f = e.getFile();
+                const auto ext = f.getFileExtension().toLowerCase();
+                if (f.getFileName().startsWithChar ('.') || ! juce::StringArray { ".mp3", ".wav", ".aif", ".aiff", ".flac", ".m4a", ".mp4", ".aac", ".ogg", ".opus", ".wma", ".alac", ".caf", ".aifc", ".m4v", ".webm", ".oga" }.contains (ext))
+                    continue;
+                std::unique_ptr<juce::AudioFormatReader> rd (om::AudioEngine::openAudio (fm, f));
+                const bool ok = rd != nullptr && rd->lengthInSamples > 0;
+                (ok ? byExt[ext].first : byExt[ext].second)++;
+                if (! ok) std::cout << "FALLA " << f.getFullPathName() << std::endl;
+            }
+            for (auto& [ext, n] : byExt) std::cout << ext << ": " << n.first << " bien, " << n.second << " fallan" << std::endl;
+            quit();
+            return;
+        }
         if (commandLine.contains ("--probe-audio"))
         {
             const auto path = commandLine.fromFirstOccurrenceOf ("--probe-audio", false, false).trim().unquoted();
             juce::AudioFormatManager fm;
-            fm.registerBasicFormats();
+            om::AudioEngine::registerFormats (fm);
             const juce::File f (path);
-            std::unique_ptr<juce::AudioFormatReader> rd (fm.createReaderFor (f));
+            std::unique_ptr<juce::AudioFormatReader> rd (om::AudioEngine::openAudio (fm, f));
             std::cout << f.getFullPathName() << " existe=" << f.existsAsFile() << std::endl;
             if (rd == nullptr) std::cout << "NO SE PUDO ABRIR" << std::endl;
             else std::cout << rd->getFormatName() << " " << rd->sampleRate << " Hz, " << rd->numChannels << " canales, "

@@ -1,4 +1,5 @@
 #pragma once
+#include <set>
 
 #include "Engine/AudioEngine.h"
 #include "Library/Library.h"
@@ -108,7 +109,8 @@ private:
     void showViewMenu (juce::Component&);
     void zoomWaveforms (double factor);
     bool showWaveforms = true, showMixer = true, showLibrary = true, showDeckFx = true;
-    om::GoogleDrive drive;                   // Google Drive folders as a music source (songs played from temporary copies)
+    om::GoogleDrive drive;
+    std::set<juce::String> driveRetried;     // Drive songs being fetched again after they did not open                   // Google Drive folders as a music source (songs played from temporary copies)
     om::LibraryView libraryView { library, engine, devices };
     void cleanDriveCache (bool all);         // temporary copies of Drive songs no deck has loaded
     std::unique_ptr<Splitter> splitter, waveSplitter;

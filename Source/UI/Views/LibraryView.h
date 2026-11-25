@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../Library/GoogleDrive.h"
+#include "../../Library/DriveSearch.h"
 
 #include "../Components/Controls.h"
 #include "../../Library/Library.h"
@@ -177,18 +178,13 @@ private:
     void driveSaveFolder (const juce::String& folderId);
     juce::String driveFolderToSave;                                           // waiting for the index
     int driveIndexFound = 0;
-    /** For fast typing in a big Drive folder: names and folder paths in lower case, and the folders
-        under the one shown, worked out once per index (not per key). */
-    struct DriveSearchCache
-    {
-        const void* index = nullptr;
-        juce::String under, root;
-        std::set<juce::String> folders;                   // the folder shown and everything below it
-        std::map<juce::String, juce::String> paths;        // folder id → "A / B" (as shown)
-        std::vector<juce::String> lowerNames;              // per index file
-        std::map<juce::String, juce::String> lowerPaths;
-    } driveSearch;
-    std::map<juce::String, DriveSearchCache> driveSearchAll;                 // "Buscar en todo Drive": one per linked folder
+    double driveLastPartial = 0.0;                                            // last re-search with a partial index
+    std::unique_ptr<DriveSearch> driveSearcher;                              // searches Drive in the background
+    void requestDriveSearch (const juce::String& key);
+    juce::String driveRequestedKey;                                           // folder · query · index version asked last
+    std::vector<TrackPtr> driveResults;                                       // what the last answer found
+    int driveResultsTotal = 0, driveIndexVersion = 0;
+    bool driveSearchWaiting = false;                                          // asked and not answered yet (or an index still loading)
     std::map<juce::String, juce::int64> driveIndexFailed;                    // root → when it last failed                                                  // songs found while indexing
 
     std::vector<TrackPtr> explorerTracks;

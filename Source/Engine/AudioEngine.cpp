@@ -1,6 +1,7 @@
 #include "AudioEngine.h"
 #include "../Common/Strings.h"
 #include "../Library/Volumes.h"
+#include "../Library/Library.h"
 #include "SincResampler.h"
 
 namespace om
@@ -8,7 +9,7 @@ namespace om
 
 AudioEngine::AudioEngine()
 {
-    formatManager.registerBasicFormats();
+    registerFormats (formatManager);
 
     for (int i = 0; i < numDecks; ++i)
         decks[(size_t) i] = std::make_unique<Deck> (i);
@@ -89,7 +90,7 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
         auto result = std::make_shared<LoadedTrack>();
         juce::String error;
 
-        std::unique_ptr<juce::AudioFormatReader> reader (formatManager.createReaderFor (file));
+        std::unique_ptr<juce::AudioFormatReader> reader (openAudio (formatManager, file));
         if (reader == nullptr)
         {
             const auto volume = Volumes::rootOf (file);
@@ -104,7 +105,11 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
             else if (! file.existsAsFile())
                 error = "El archivo no está disponible. Revisá su ubicación o reconectá la unidad."_u;
             else
-                error = "Formato no soportado o archivo ilegible";
+            {
+                const auto kind = describeAudioContent (file);
+                error = "No se puede abrir «"_u + file.getFileName() + "»" + (kind.isNotEmpty() ? " (" + kind + ")" : juce::String());
+                logUnreadable (file, kind);
+            }
         }
         else if (reader->lengthInSamples <= 0 || reader->sampleRate <= 0)
             error = "El archivo no contiene audio";
@@ -163,6 +168,59 @@ void AudioEngine::loadTrack (int deckIndex, const juce::File& file, TrackMeta me
             sendChangeMessage();
         });
     });
+}
+
+void AudioEngine::registerFormats (juce::AudioFormatManager& fm)
+{
+    fm.registerBasicFormats();
+}
+
+juce::String AudioEngine::describeAudioContent (const juce::File& file)
+{
+    juce::MemoryBlock h;
+    if (auto in = file.createInputStream()) in->readIntoMemoryBlock (h, 64);
+    if (h.getSize() == 0) return "archivo vacío"_u;
+    const auto* b = static_cast<const juce::uint8*> (h.getData());
+    const auto n = h.getSize();
+    auto at = [&] (size_t o, const char* tag) { const auto l = strlen (tag); return n >= o + l && memcmp (b + o, tag, l) == 0; };
+    if (at (0, "OggS")) return h.toString().contains ("OpusHead") ? "es Opus" : "es Ogg";
+    if (n >= 16 && b[0] == 0x30 && b[1] == 0x26 && b[2] == 0xB2 && b[3] == 0x75) return "es WMA";
+    if (at (0, "fLaC")) return "es FLAC";
+    if (at (0, "ID3") || (n >= 2 && b[0] == 0xFF && (b[1] & 0xE0) == 0xE0)) return "es MP3";
+    if (at (0, "RIFF") && at (8, "WAVE")) return "es WAV";
+    if (at (0, "RF64")) return "es WAV RF64";
+    if (at (0, "FORM")) return "es AIFF";
+    if (at (4, "ftyp")) return "es MP4 / M4A";
+    if (at (0, "caff")) return "es CAF";
+    if (at (0, "\x1a\x45\xdf\xa3")) return "es WebM / MKV";
+    if (at (0, "<") || at (0, "{")) return "no es audio: es una página o un error de descarga"_u;
+    return "contenido desconocido";
+}
+
+void AudioEngine::logUnreadable (const juce::File& file, const juce::String& kind)
+{
+    // For fixing: which files did not open, what they really are, and (the first ones) a copy to look at.
+    const auto dir = Library::dataFolder().getChildFile ("No se pudieron abrir");
+    dir.createDirectory();
+    dir.getChildFile ("lista.txt").appendText (juce::Time::getCurrentTime().toString (true, true) + "\t" + file.getFullPathName()
+                                               + "\t" + juce::String (file.getSize()) + " bytes\t" + kind + "\n");
+    if (dir.getNumberOfChildFiles (juce::File::findFiles) < 12 && file.getSize() < 200 * 1024 * 1024)
+        file.copyFileTo (dir.getChildFile (file.getFileName()));
+}
+
+std::unique_ptr<juce::AudioFormatReader> AudioEngine::openAudio (juce::AudioFormatManager& fm, const juce::File& file)
+{
+    if (std::unique_ptr<juce::AudioFormatReader> r { fm.createReaderFor (file) })
+        return r;
+    // The extension lies (or is missing): let every decoder look at the content.
+    for (int i = 0; i < fm.getNumKnownFormats(); ++i)
+        if (auto in = file.createInputStream())
+            if (auto* r = fm.getKnownFormat (i)->createReaderFor (in.release(), true))
+            {
+                if (r->lengthInSamples > 0 && r->sampleRate > 0) return std::unique_ptr<juce::AudioFormatReader> (r);
+                delete r;
+            }
+    return nullptr;
 }
 
 bool AudioEngine::separateStems (int d)

@@ -9,6 +9,7 @@
 #include "../Control/AutoMix.h"
 #include "../Control/MapAssistant.h"
 #include "../Library/GoogleDrive.h"
+#include "../Library/DriveSearch.h"
 #include "../Common/Updater.h"
 #include <juce_cryptography/juce_cryptography.h>
 #include <set>
@@ -2167,6 +2168,66 @@ int runSelfTest (const juce::File& trackA, const juce::File& trackB, const juce:
                 if (worst > 1.0e-6) bad << (keyLock ? "key lock " : "") << juce::String (worst * 1000.0, 1) << " ms fuera  ";
             }
             rep.check (bad.isEmpty(), "Loop de 1/32: la onda queda sobre el loop (no se corre al achicarlo)"_u, bad);
+        }
+
+        // Drive search in the background: 400 000 songs in 8 000 folders, found by name or folder,
+        // inside a sub-folder only, a newer query cancels the old one — and fast.
+        {
+            auto idx = std::make_shared<GoogleDrive::Index>();
+            for (int f = 0; f < 8000; ++f)
+                idx->folders["f" + juce::String (f)] = { f < 40 ? juce::String ("root") : "f" + juce::String (f / 40 - 1), "Pack " + juce::String (f) };
+            idx->files.reserve (400000);
+            for (int i = 0; i < 400000; ++i)
+            {
+                GoogleDrive::Entry e;
+                e.id = "id" + juce::String (i);
+                e.name = (i == 123456 ? juce::String ("Daddy Yankee - Gasolina (Extended).mp3") : "Artista " + juce::String (i % 5000) + " - Tema " + juce::String (i) + ".mp3");
+                idx->files.push_back ({ e, "f" + juce::String (i % 8000) });
+            }
+            const double t0 = juce::Time::getMillisecondCounterHiRes();
+            const auto prep = DriveSearch::prepare (idx, "root", "Nube");
+            const double t1 = juce::Time::getMillisecondCounterHiRes();
+            DriveSearch::Result all, inside, none;
+            DriveSearch::match (*prep, "root", DriveSearch::tokens ("daddy gasolina"), all, [] { return false; });
+            const double t2 = juce::Time::getMillisecondCounterHiRes();
+            DriveSearch::match (*prep, "f" + juce::String (123456 % 8000), DriveSearch::tokens ("gasolina"), inside, [] { return false; });
+            DriveSearch::match (*prep, "f2", DriveSearch::tokens ("gasolina"), none, [] { return false; });
+            DriveSearch::Result many, cut;
+            DriveSearch::match (*prep, "root", DriveSearch::tokens ("tema"), many, [] { return false; });
+            const bool stopped = ! DriveSearch::match (*prep, "root", DriveSearch::tokens ("tema"), cut, [] { return true; });
+            const bool ok = all.total == 1 && all.hits[0].entry.id == "id123456" && all.hits[0].path.startsWith ("Nube / ")
+                         && inside.total == 1 && none.total == 0 && many.total == 399999 && (int) many.hits.size() == DriveSearch::maxHits && stopped;
+            rep.check (ok && t2 - t1 < 400.0, "Buscar en Drive (400 000 temas): encuentra por nombre y carpeta, dentro de una subcarpeta, se cancela y es rápido"_u,
+                       "preparar " + juce::String (t1 - t0, 0) + " ms · buscar " + juce::String (t2 - t1, 0) + " ms · "
+                           + juce::String (all.total) + "/" + juce::String (inside.total) + "/" + juce::String (none.total) + "/" + juce::String (many.total)
+                           + "/" + juce::String ((int) stopped) + " " + (all.hits.empty() ? juce::String() : all.hits[0].path));
+        }
+
+        // A file whose extension lies (a WAV saved as .mp3, one without extension) still opens by its content.
+        {
+            const auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("openmix-formatos");
+            dir.createDirectory();
+            auto t = sineTrack (440.0, 44100.0, 1.0, 0.5f);
+            const auto wav = dir.getChildFile ("tono.wav");
+            wav.deleteFile();
+            {
+                juce::WavAudioFormat w;
+                std::unique_ptr<juce::OutputStream> os (wav.createOutputStream().release());
+                if (auto wr = std::unique_ptr<juce::AudioFormatWriter> (w.createWriterFor (os.get(), 44100.0, 2, 16, {}, 0)))
+                {
+                    os.release();
+                    wr->writeFromAudioSampleBuffer (t->audio, 0, t->audio.getNumSamples());
+                }
+            }
+            const auto fake = dir.getChildFile ("tono.mp3"), bare = dir.getChildFile ("tono");
+            wav.copyFileTo (fake);
+            wav.copyFileTo (bare);
+            juce::AudioFormatManager fm;
+            AudioEngine::registerFormats (fm);
+            const auto a = AudioEngine::openAudio (fm, fake), b = AudioEngine::openAudio (fm, bare);
+            rep.check (a != nullptr && b != nullptr && a->lengthInSamples == 44100 && b->lengthInSamples == 44100,
+                       "Formatos: un audio con la extensión equivocada o sin extensión se abre por su contenido"_u);
+            dir.deleteRecursively();
         }
 
         // Stems: the separation arithmetic with stand-in networks (no model needed).

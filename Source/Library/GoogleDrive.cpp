@@ -323,7 +323,8 @@ void GoogleDrive::linkFolder (const juce::String& address, std::function<void (j
 void GoogleDrive::unlinkFolder (const juce::String& id)
 {
     linked.erase (std::remove_if (linked.begin(), linked.end(), [&] (const Folder& f) { return f.id == id; }), linked.end());
-    indexes.erase (id);
+    setIndex (id, nullptr);
+    { const juce::ScopedLock sl (indexLock); indexes.erase (id); }
     indexFile (id).deleteFile();
     save();
 }
@@ -363,25 +364,67 @@ juce::File GoogleDrive::indexFile (const juce::String& rootId)
 
 std::shared_ptr<const GoogleDrive::Index> GoogleDrive::index (const juce::String& rootId)
 {
-    if (auto it = indexes.find (rootId); it != indexes.end()) return it->second;
-    const auto file = indexFile (rootId);
-    if (! file.existsAsFile()) return nullptr;
-    const auto v = juce::JSON::parse (file);
-    auto x = std::make_shared<Index>();
-    x->builtAt = (juce::int64) v["built"];
-    if (auto* fs = v["folders"].getArray())
-        for (auto& f : *fs) x->folders[f[0].toString()] = { f[1].toString(), f[2].toString() };
-    if (auto* fs = v["files"].getArray())
-        for (auto& f : *fs)
-            x->files.push_back ({ Entry { f[0].toString(), f[1].toString(), f[2].toString(), f[3].toString().getLargeIntValue(), false }, f[4].toString() });
-    indexes[rootId] = x;
-    return x;
+    {
+        const juce::ScopedLock sl (indexLock);
+        if (auto it = indexes.find (rootId); it != indexes.end()) return it->second;
+    }
+    // Reading a saved index (tens of MB) must never hold the screen: it is read in the background.
+    if (juce::MessageManager::existsAndIsCurrentThread() && indexFile (rootId).existsAsFile() && indexLoading.insert (rootId).second)
+        indexPool.addJob ([this, rootId, alive = std::weak_ptr<bool> (alive)]
+        {
+            const auto v = juce::JSON::parse (indexFile (rootId));
+            auto x = std::make_shared<Index>();
+            x->builtAt = (juce::int64) v["built"];
+            if (auto* fs = v["folders"].getArray())
+                for (auto& f : *fs) x->folders[f[0].toString()] = { f[1].toString(), f[2].toString() };
+            if (auto* fs = v["files"].getArray())
+            {
+                x->files.reserve ((size_t) fs->size());
+                for (auto& f : *fs)
+                    x->files.push_back ({ Entry { f[0].toString(), f[1].toString(), f[2].toString(), f[3].toString().getLargeIntValue(), false }, f[4].toString() });
+            }
+            juce::MessageManager::callAsync ([this, alive, rootId, x]
+            {
+                if (alive.expired()) return;
+                indexLoading.erase (rootId);
+                {
+                    const juce::ScopedLock sl (indexLock);
+                    if (indexes.count (rootId)) return;          // a newer one (being built) is already there
+                }
+                setIndex (rootId, x);
+                if (onIndexChanged) onIndexChanged (rootId);
+            });
+        });
+    return nullptr;
+}
+
+bool GoogleDrive::hasIndex (const juce::String& rootId) const
+{
+    {
+        const juce::ScopedLock sl (indexLock);
+        if (indexes.count (rootId)) return true;
+    }
+    return indexLoading.count (rootId) > 0 || indexFile (rootId).existsAsFile();
+}
+
+void GoogleDrive::setIndex (const juce::String& rootId, std::shared_ptr<const Index> x)
+{
+    std::shared_ptr<const Index> old;
+    {
+        const juce::ScopedLock sl (indexLock);
+        auto& slot = indexes[rootId];
+        old = std::move (slot);
+        slot = std::move (x);
+    }
+    // Freeing hundreds of thousands of entries takes a while: never on the screen's thread.
+    if (old != nullptr && old.use_count() == 1)
+        indexPool.addJob ([o = std::move (old)]() mutable { o.reset(); });
 }
 
 void GoogleDrive::buildIndex (const juce::String& rootId, std::function<void (int)> progress, std::function<void (juce::String)> done)
 {
     if (rootId.isEmpty() || ! indexing.insert (rootId).second) return;
-    pool.addJob ([this, rootId, progress, done, alive = std::weak_ptr<bool> (alive)]
+    indexPool.addJob ([this, rootId, progress, done, alive = std::weak_ptr<bool> (alive)]
     {
         auto x = std::make_shared<Index>();
         juce::CriticalSection xl;                   // x, next, seen, err
@@ -400,7 +443,7 @@ void GoogleDrive::buildIndex (const juce::String& rootId, std::function<void (in
             juce::MessageManager::callAsync ([this, alive, progress, rootId, snap, n]
             {
                 if (alive.expired()) return;
-                indexes[rootId] = snap;
+                setIndex (rootId, snap);
                 if (progress) progress (n);
             });
         };
@@ -476,7 +519,7 @@ void GoogleDrive::buildIndex (const juce::String& rootId, std::function<void (in
             while (workers.getNumJobs() > 0)
             {
                 juce::Thread::sleep (40);
-                if (const auto now = juce::Time::getMillisecondCounterHiRes(); now - lastSnapshot > 1200.0) { lastSnapshot = now; publish(); }
+                if (const auto now = juce::Time::getMillisecondCounterHiRes(); now - lastSnapshot > 4000.0) { lastSnapshot = now; publish(); }
             }
             if (alive.expired()) return;
             { const juce::ScopedLock sl (xl); if (err.isNotEmpty()) break; }
@@ -503,7 +546,7 @@ void GoogleDrive::buildIndex (const juce::String& rootId, std::function<void (in
         {
             if (alive.expired()) return;
             indexing.erase (rootId);
-            indexes[rootId] = x;
+            setIndex (rootId, x);
             if (done) done (err);
         });
     });
@@ -597,8 +640,21 @@ void GoogleDrive::download (const juce::String& fileId, const juce::File& dest, 
                     out.flush();
                     ok = out.getStatus().wasOk() && got > 0 && (total <= 0 || got == total);
                 }
+                // Google answered with a page (an error or a warning) instead of the song.
+                if (ok)
+                {
+                    juce::MemoryBlock head;
+                    part.createInputStream()->readIntoMemoryBlock (head, 64);
+                    const auto start = head.toString().trimStart();
+                    if (start.startsWithChar ('<') || start.startsWithChar ('{'))
+                    {
+                        ok = false;
+                        part.deleteFile();
+                        err = juce::String::fromUTF8 ("Google Drive no entregó el tema (respondió con un aviso). Probá de nuevo en un rato");
+                    }
+                }
                 ok = ok && part.moveFileTo (dest);
-                if (! ok) { part.deleteFile(); err = juce::String::fromUTF8 ("La descarga se cortó"); }
+                if (! ok) { part.deleteFile(); if (err.isEmpty()) err = juce::String::fromUTF8 ("La descarga se cortó"); }
             }
         }
         if (alive.expired()) return;
